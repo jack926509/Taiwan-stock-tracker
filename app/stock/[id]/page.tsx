@@ -43,6 +43,7 @@ export default function StockPage() {
   const params = useParams<{ id: string }>();
   const id = (params.id ?? "").toUpperCase();
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("6m");
+  const [alertOpen, setAlertOpen] = useState(false);
 
   const quote = useSWR<QuoteResponse>(
     id ? `/api/quote?ids=${encodeURIComponent(id)}` : null,
@@ -61,6 +62,13 @@ export default function StockPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
+  // 與 PriceAlertCard 共用同一個 /api/watchlist（SWR 去重，零額外請求）：判斷鈴鐺是否亮燈
+  const watch = useSWR<{
+    items: { stock_id: string; alert_high: number | null; alert_low: number | null }[];
+  }>("/api/watchlist", fetcher);
+  const watchRow = watch.data?.items.find((i) => i.stock_id === id);
+  const hasAlert =
+    !!watchRow && (watchRow.alert_high != null || watchRow.alert_low != null);
 
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
@@ -118,31 +126,71 @@ export default function StockPage() {
       <main className="mx-auto max-w-7xl space-y-4 px-6 py-6">
         {/* 即時報價列 */}
         {q ? (
-          <div className="rise-in flex flex-wrap items-end justify-between gap-4 rounded-card bg-surface p-5 shadow-card ring-1 ring-line">
-            <div>
-              <div className="flex items-baseline gap-3">
-                <span className={`text-4xl font-bold tracking-tight tabular ${textColor[t]}`}>
-                  {fmt(q.price)}
-                </span>
-                <span className={`text-sm font-semibold tabular ${textColor[t]}`}>
-                  {q.change === null
-                    ? ""
-                    : `${q.change > 0 ? "+" : ""}${fmt(q.change)}`}
-                </span>
-                <span
-                  className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
-                >
-                  {arrowOf(t)} {fmtPct(q.changePct)}
-                </span>
+          <div className="rise-in relative rounded-card bg-surface p-5 shadow-card ring-1 ring-line">
+            {/* 到價提醒鈴鐺：常駐右上，點開在卡片內展開設定（有設門檻時亮靛藍點） */}
+            <button
+              onClick={() => setAlertOpen((v) => !v)}
+              aria-label="到價提醒"
+              aria-expanded={alertOpen}
+              className={`absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-lg ring-1 transition-colors ${
+                alertOpen
+                  ? "bg-primary-tint text-primary ring-primary/30"
+                  : "bg-surface text-muted ring-line hover:text-ink"
+              }`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[18px] w-[18px]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+              </svg>
+              {hasAlert && (
+                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface" />
+              )}
+            </button>
+            <div className="flex flex-wrap items-end justify-between gap-4 pr-12">
+              <div>
+                <div className="flex items-baseline gap-3">
+                  <span className={`text-4xl font-bold tracking-tight tabular ${textColor[t]}`}>
+                    {fmt(q.price)}
+                  </span>
+                  <span className={`text-sm font-semibold tabular ${textColor[t]}`}>
+                    {q.change === null
+                      ? ""
+                      : `${q.change > 0 ? "+" : ""}${fmt(q.change)}`}
+                  </span>
+                  <span
+                    className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
+                  >
+                    {arrowOf(t)} {fmtPct(q.changePct)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted tabular">
+                <span className="whitespace-nowrap">開 {fmt(q.open)}</span>
+                <span className="whitespace-nowrap">高 {fmt(q.high)}</span>
+                <span className="whitespace-nowrap">低 {fmt(q.low)}</span>
+                <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
+                <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
               </div>
             </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted tabular">
-              <span className="whitespace-nowrap">開 {fmt(q.open)}</span>
-              <span className="whitespace-nowrap">高 {fmt(q.high)}</span>
-              <span className="whitespace-nowrap">低 {fmt(q.low)}</span>
-              <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
-              <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
-            </div>
+            {alertOpen && (
+              <div className="mt-4 border-t border-line pt-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold">到價提醒</span>
+                  <span className="rounded-pill bg-app px-2 py-0.5 text-[11px] text-muted">
+                    LINE・一次性
+                  </span>
+                </div>
+                <PriceAlertCard stockId={id} name={q.name ?? id} />
+              </div>
+            )}
           </div>
         ) : (
           <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
@@ -196,9 +244,6 @@ export default function StockPage() {
             <div className="h-[420px] animate-pulse rounded-lg bg-app" />
           )}
         </div>
-
-        {/* 到價提醒（僅限自選股；穿越門檻推 LINE） */}
-        <PriceAlertCard stockId={id} name={q?.name ?? id} />
 
         {/* 基本面：估值＋法人買賣超＋月營收＋EPS（ETF 等無資料的區塊自動隱藏） */}
         {fundamental.data && (

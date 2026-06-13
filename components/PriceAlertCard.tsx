@@ -95,85 +95,76 @@ export default function PriceAlertCard({
     }
   }
 
-  return (
-    <div
-      className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
-      style={{ animationDelay: "380ms" }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">到價提醒</h3>
-        <span className="rounded-pill bg-app px-2 py-0.5 text-[11px] text-muted">
-          LINE 通知・一次性
-        </span>
+  // 外框／標題／鈴鐺由個股頁報價列提供，本元件只負責內容與邏輯
+  if (!inWatch) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted">
+          加入自選股後即可設定到價提醒，{name} 穿越門檻時推 LINE。
+        </p>
+        <button
+          onClick={addToWatch}
+          disabled={busy}
+          className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          加入自選股
+        </button>
       </div>
+    );
+  }
 
-      {!inWatch ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-muted">
-            加入自選股後即可設定到價提醒，{name} 穿越門檻時推 LINE。
-          </p>
-          <button
-            onClick={addToWatch}
-            disabled={busy}
-            className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            加入自選股
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            {/* 漲到（紅） */}
-            <label className="block">
-              <span className="text-[11px] font-medium text-up">漲到 ▲</span>
-              <input
-                value={high}
-                onChange={(e) => setHigh(e.target.value)}
-                inputMode="decimal"
-                placeholder="未設定"
-                className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-up"
-              />
-              <span className="mt-1 block text-[10px] text-muted">
-                {row?.alert_high == null
-                  ? "—"
-                  : row.alert_high_hit_at
-                    ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
-                    : "監控中"}
-              </span>
-            </label>
-            {/* 跌到（綠） */}
-            <label className="block">
-              <span className="text-[11px] font-medium text-down">跌到 ▼</span>
-              <input
-                value={low}
-                onChange={(e) => setLow(e.target.value)}
-                inputMode="decimal"
-                placeholder="未設定"
-                className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-down"
-              />
-              <span className="mt-1 block text-[10px] text-muted">
-                {row?.alert_low == null
-                  ? "—"
-                  : row.alert_low_hit_at
-                    ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
-                    : "監控中"}
-              </span>
-            </label>
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <span className="text-[11px] text-muted">
-              {msg ?? "留空＝取消該側；重設門檻會重新啟用提醒"}
-            </span>
-            <button
-              onClick={save}
-              disabled={busy}
-              className="shrink-0 rounded-pill bg-primary px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "儲存中…" : "儲存"}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        {/* 漲到（紅） */}
+        <label className="block">
+          <span className="text-[11px] font-medium text-up">漲到 ▲</span>
+          <input
+            value={high}
+            onChange={(e) => setHigh(e.target.value)}
+            inputMode="decimal"
+            placeholder="未設定"
+            className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-up"
+          />
+          <span className="mt-1 block text-[10px] text-muted">
+            {row?.alert_high == null
+              ? "—"
+              : row.alert_high_hit_at
+                ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
+                : "監控中"}
+          </span>
+        </label>
+        {/* 跌到（綠） */}
+        <label className="block">
+          <span className="text-[11px] font-medium text-down">跌到 ▼</span>
+          <input
+            value={low}
+            onChange={(e) => setLow(e.target.value)}
+            inputMode="decimal"
+            placeholder="未設定"
+            className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-down"
+          />
+          <span className="mt-1 block text-[10px] text-muted">
+            {row?.alert_low == null
+              ? "—"
+              : row.alert_low_hit_at
+                ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
+                : "監控中"}
+          </span>
+        </label>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-[11px] text-muted">
+          {msg ?? "留空＝取消該側；重設門檻會重新啟用提醒"}
+        </span>
+        <button
+          onClick={save}
+          disabled={busy}
+          className="shrink-0 rounded-pill bg-primary px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "儲存中…" : "儲存"}
+        </button>
+      </div>
+    </>
   );
 }
