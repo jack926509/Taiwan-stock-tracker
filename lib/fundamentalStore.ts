@@ -11,6 +11,11 @@ export interface FundamentalCache {
   data: Fundamental;
 }
 
+// 快取結構版本：改變 Fundamental 形狀（如新增 eps）時 +1，
+// 讀取到舊版本一律視為未命中自動重抓，免再手動清資料庫。
+// v1=估值/法人/營收；v2=加入 eps。
+export const CACHE_VERSION = 2;
+
 const DIR = path.join(process.cwd(), ".data", "fundamental");
 export const TTL_MS = 12 * 60 * 60 * 1000; // 完整資料：12 小時
 export const RETRY_TTL_MS = 30 * 60 * 1000; // 半套（抓失敗）：30 分鐘後自動重抓
@@ -24,6 +29,13 @@ function keyOf(stockId: string): string {
   return `fundamental:${stockId}`;
 }
 
+// 雲端 payload 外殼：{ v: 版本, data: 基本面 }。
+// 舊資料（直接存 Fundamental，無 v 欄位）讀到時版本不符 → 視為未命中。
+interface CloudPayload {
+  v?: number;
+  data?: Fundamental;
+}
+
 export async function loadFundamental(
   stockId: string
 ): Promise<FundamentalCache | null> {
@@ -31,7 +43,9 @@ export async function loadFundamental(
   if (!db) {
     try {
       const raw = await fs.readFile(fileOf(stockId), "utf8");
-      return JSON.parse(raw) as FundamentalCache;
+      const cache = JSON.parse(raw) as FundamentalCache & { version?: number };
+      if (cache.version !== CACHE_VERSION) return null; // 舊版本→重抓
+      return cache;
     } catch {
       return null;
     }
@@ -43,10 +57,12 @@ export async function loadFundamental(
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
+  const payload = data.payload as CloudPayload;
+  if (payload?.v !== CACHE_VERSION || !payload.data) return null; // 舊版本→重抓
   return {
     fetchedAt: data.fetched_at as string,
     expiresAt: data.expires_at as string,
-    data: data.payload as Fundamental,
+    data: payload.data,
   };
 }
 
@@ -64,12 +80,16 @@ export async function saveFundamental(
   const db = getSupabase();
   if (!db) {
     await fs.mkdir(DIR, { recursive: true });
-    await fs.writeFile(fileOf(stockId), JSON.stringify(cache), "utf8");
+    await fs.writeFile(
+      fileOf(stockId),
+      JSON.stringify({ version: CACHE_VERSION, ...cache }),
+      "utf8"
+    );
     return cache;
   }
   const { error } = await db.from("news_cache").upsert({
     cache_key: keyOf(stockId),
-    payload: data,
+    payload: { v: CACHE_VERSION, data } satisfies CloudPayload,
     fetched_at: cache.fetchedAt,
     expires_at: cache.expiresAt,
   });

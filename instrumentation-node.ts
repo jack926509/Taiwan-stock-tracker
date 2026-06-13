@@ -3,6 +3,7 @@
 import { usingSupabase } from "@/lib/store";
 import { schedule } from "node-cron";
 import { backfillWatchlist } from "@/lib/backfill";
+import { keepAlive } from "@/lib/status";
 
 if (usingSupabase()) {
   // 週一～五 17:00（台北）：收盤後 FinMind 日 K 已更新時補抓，並兼作 Supabase keep-alive
@@ -15,5 +16,17 @@ if (usingSupabase()) {
     },
     { timezone: "Asia/Taipei" }
   );
-  console.log("[backfill] 已排程：週一～五 17:00 (Asia/Taipei)");
+  // 週六、日 12:30（台北）：輕量 ping，補足週末無活動的 keep-alive 缺口
+  schedule(
+    "30 12 * * 0,6",
+    () => {
+      keepAlive()
+        .then(() => console.log("[keep-alive] 週末 ping 完成"))
+        .catch((e) => console.error("[keep-alive] 失敗：", e));
+    },
+    { timezone: "Asia/Taipei" }
+  );
+  console.log(
+    "[backfill] 已排程：工作日 17:00 補資料、週末 12:30 keep-alive (Asia/Taipei)"
+  );
 }

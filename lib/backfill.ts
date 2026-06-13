@@ -4,6 +4,7 @@
 import { listWatchlist } from "@/lib/store";
 import { ensureKline } from "@/lib/klineService";
 import { taipeiNow } from "@/lib/market-hours";
+import { recordBackfill } from "@/lib/status";
 
 export async function backfillWatchlist(): Promise<{ ok: number; fail: number }> {
   const today = taipeiNow().isoDate;
@@ -19,5 +20,7 @@ export async function backfillWatchlist(): Promise<{ ok: number; fail: number }>
       fail += 1;
     }
   }
+  // 記錄本次結果供 /api/health?detail=1 觀測（雲端模式才寫）
+  await recordBackfill(ok, fail, new Date());
   return { ok, fail };
 }
