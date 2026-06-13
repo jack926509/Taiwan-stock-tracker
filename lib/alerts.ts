@@ -13,8 +13,42 @@ function hhmm(now: Date): string {
   }).format(now);
 }
 
-function fmtPrice(n: number): string {
-  return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+function fmtPrice(n: number | null): string {
+  return n === null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+// 漲跌：帶正負號（紅漲綠跌靠版面語意，純文字無法上色）
+// 注意 changePct 是小數（0.0236），顯示需 ×100
+function fmtChange(change: number | null, pct: number | null): string {
+  if (change === null) return "";
+  const sign = change > 0 ? "+" : "";
+  const p = pct === null ? "" : `（${sign}${(pct * 100).toFixed(2)}%）`;
+  return `　${sign}${fmtPrice(change)}${p}`;
+}
+
+const BASE_URL = process.env.APP_BASE_URL ?? "https://tw-stock-tracker.zeabur.app";
+
+// 組一則到價提醒訊息（B 風格：資訊完整）
+function buildMessage(
+  q: { stockId: string; name: string; price: number | null; change: number | null; changePct: number | null; open: number | null; high: number | null; low: number | null },
+  side: "high" | "low",
+  threshold: number,
+  time: string
+): string {
+  // 標題重點前置：色點＋標的＋方向＋門檻（通知列預覽即可看懂）
+  const head =
+    side === "high"
+      ? `🔴 ${q.name} 漲破 ${fmtPrice(threshold)}`
+      : `🟢 ${q.name} 跌破 ${fmtPrice(threshold)}`;
+  return [
+    head,
+    "━━━━━━━━━━",
+    `${q.name}（${q.stockId}）`,
+    `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
+    `📊 今日　開 ${fmtPrice(q.open)}　高 ${fmtPrice(q.high)}　低 ${fmtPrice(q.low)}`,
+    `🕙 ${time}`,
+    `👉 ${BASE_URL}/stock/${q.stockId}`,
+  ].join("\n");
 }
 
 // 回傳本次推播筆數
@@ -32,40 +66,35 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
   const result = await fetchQuotes(
     armed.map((i) => ({ stockId: i.stock_id, market: i.market }))
   );
-  const priceOf = new Map(result.quotes.map((q) => [q.stockId, q.price]));
+  const quoteOf = new Map(result.quotes.map((q) => [q.stockId, q]));
   const at = now.toISOString();
   const time = hhmm(now);
   let sent = 0;
 
   for (const row of armed) {
-    const price = priceOf.get(row.stock_id);
-    if (price === null || price === undefined) continue;
+    const q = quoteOf.get(row.stock_id);
+    const price = q?.price;
+    if (!q || price === null || price === undefined) continue;
 
-    // 漲到（🔺 紅）
+    // 漲破（🔺 紅）
     if (
       row.alert_high !== null &&
       row.alert_high_hit_at === null &&
       price >= row.alert_high
     ) {
-      const text = `🔺 到價提醒\n${row.name}（${row.stock_id}）漲到 ${fmtPrice(
-        price
-      )}\n門檻 ${fmtPrice(row.alert_high)}・${time}`;
-      if (await pushLine(text)) {
+      if (await pushLine(buildMessage(q, "high", row.alert_high, time))) {
         await markAlertHit(row.stock_id, "high", at);
         sent++;
       }
     }
 
-    // 跌到（🔻 綠）
+    // 跌破（🟢 綠）
     if (
       row.alert_low !== null &&
       row.alert_low_hit_at === null &&
       price <= row.alert_low
     ) {
-      const text = `🔻 到價提醒\n${row.name}（${row.stock_id}）跌到 ${fmtPrice(
-        price
-      )}\n門檻 ${fmtPrice(row.alert_low)}・${time}`;
-      if (await pushLine(text)) {
+      if (await pushLine(buildMessage(q, "low", row.alert_low, time))) {
         await markAlertHit(row.stock_id, "low", at);
         sent++;
       }

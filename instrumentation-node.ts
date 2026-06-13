@@ -5,7 +5,8 @@ import { schedule } from "node-cron";
 import { backfillWatchlist } from "@/lib/backfill";
 import { keepAlive } from "@/lib/status";
 import { checkAlerts } from "@/lib/alerts";
-import { isMarketOpenNow } from "@/lib/market-hours";
+import { dailySummary } from "@/lib/daily-summary";
+import { isMarketOpenNow, taipeiNow, isTradingDay } from "@/lib/market-hours";
 
 if (usingSupabase()) {
   // 週一～五 17:00（台北）：收盤後 FinMind 日 K 已更新時補抓，並兼作 Supabase keep-alive
@@ -41,7 +42,20 @@ if (usingSupabase()) {
     },
     { timezone: "Asia/Taipei" }
   );
+  // 工作日 13:35（收盤後）：推自選股收盤總覽（isTradingDay 守門，跳過假日／停盤）
+  schedule(
+    "35 13 * * 1-5",
+    async () => {
+      if (!(await isTradingDay(taipeiNow()))) return;
+      dailySummary()
+        .then((sent) => {
+          if (sent) console.log("[summary] 已推收盤總覽");
+        })
+        .catch((e) => console.error("[summary] 失敗：", e));
+    },
+    { timezone: "Asia/Taipei" }
+  );
   console.log(
-    "[backfill] 已排程：工作日 17:00 補資料、週末 12:30 keep-alive、盤中每分鐘檢查到價提醒 (Asia/Taipei)"
+    "[backfill] 已排程：工作日 17:00 補資料、週末 12:30 keep-alive、盤中每分鐘檢查到價提醒、工作日 13:35 收盤總覽 (Asia/Taipei)"
   );
 }
