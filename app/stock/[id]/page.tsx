@@ -9,6 +9,7 @@ import type { Candle } from "@/lib/providers/klineProvider";
 import type { Fundamental } from "@/lib/providers/fundamentalProvider";
 import KlineChart, { MA_COLORS } from "@/components/KlineChart";
 import FundamentalSection from "@/components/FundamentalSection";
+import PriceAlertCard from "@/components/PriceAlertCard";
 import {
   fmt,
   fmtVol,
@@ -195,6 +196,9 @@ export default function StockPage() {
             <div className="h-[420px] animate-pulse rounded-lg bg-app" />
           )}
         </div>
+
+        {/* 到價提醒（僅限自選股；穿越門檻推 LINE） */}
+        <PriceAlertCard stockId={id} name={q?.name ?? id} />
 
         {/* 基本面：估值＋法人買賣超＋月營收＋EPS（ETF 等無資料的區塊自動隱藏） */}
         {fundamental.data && (

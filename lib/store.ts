@@ -12,6 +12,8 @@ export interface WatchItem {
   group_name: string;
   alert_high: number | null;
   alert_low: number | null;
+  alert_high_hit_at: string | null; // 已觸發時間戳；null = 待觸發（一次性去重用）
+  alert_low_hit_at: string | null;
   sort_order: number;
 }
 
@@ -39,6 +41,8 @@ function mk(
     group_name: "預設",
     alert_high: null,
     alert_low: null,
+    alert_high_hit_at: null,
+    alert_low_hit_at: null,
     sort_order,
   };
 }
@@ -106,5 +110,54 @@ export async function removeWatch(stockId: string): Promise<void> {
     return;
   }
   const { error } = await db.from("watchlist").delete().eq("stock_id", stockId);
+  if (error) throw new Error(error.message);
+}
+
+// 設定到價門檻：任何一側被設定（含修改）即重新武裝（清掉該側 *_hit_at），達成一次性提醒可重設
+export async function setAlert(
+  stockId: string,
+  high: number | null,
+  low: number | null
+): Promise<void> {
+  const patch = {
+    alert_high: high,
+    alert_low: low,
+    alert_high_hit_at: null,
+    alert_low_hit_at: null,
+  };
+  const db = getSupabase();
+  if (!db) {
+    const items = await fileRead();
+    const row = items.find((i) => i.stock_id === stockId);
+    if (!row) return;
+    Object.assign(row, patch);
+    await fileWrite(items);
+    return;
+  }
+  const { error } = await db.from("watchlist").update(patch).eq("stock_id", stockId);
+  if (error) throw new Error(error.message);
+}
+
+// 標記某側已觸發（寫入時間戳），避免一次性提醒重複推播
+export async function markAlertHit(
+  stockId: string,
+  side: "high" | "low",
+  at: string
+): Promise<void> {
+  const col = side === "high" ? "alert_high_hit_at" : "alert_low_hit_at";
+  const db = getSupabase();
+  if (!db) {
+    const items = await fileRead();
+    const row = items.find((i) => i.stock_id === stockId);
+    if (!row) return;
+    if (side === "high") row.alert_high_hit_at = at;
+    else row.alert_low_hit_at = at;
+    await fileWrite(items);
+    return;
+  }
+  const { error } = await db
+    .from("watchlist")
+    .update({ [col]: at })
+    .eq("stock_id", stockId);
   if (error) throw new Error(error.message);
 }
