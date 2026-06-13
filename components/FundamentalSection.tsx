@@ -24,6 +24,7 @@ function md(date: string): string {
 
 export default function FundamentalSection({ fund }: { fund: Fundamental }) {
   const { institutional, revenue, valuation } = fund;
+  const eps = fund.eps ?? []; // 舊快取（無此欄位）過渡期防呆
   const instRecent = institutional.slice(-10).reverse(); // 新→舊
   const inst5 = institutional.slice(-5);
   const sum5 = {
@@ -32,8 +33,15 @@ export default function FundamentalSection({ fund }: { fund: Fundamental }) {
     dealer: inst5.reduce((s, d) => s + d.dealer, 0),
   };
   const maxRevenue = Math.max(...revenue.map((r) => r.revenue), 1);
+  const ttmEps = eps.slice(-4).reduce((s, q) => s + q.eps, 0); // 近四季合計
+  const maxEps = Math.max(...eps.map((q) => Math.abs(q.eps)), 1);
 
-  if (!valuation && institutional.length === 0 && revenue.length === 0) {
+  if (
+    !valuation &&
+    institutional.length === 0 &&
+    revenue.length === 0 &&
+    eps.length === 0
+  ) {
     return null;
   }
 
@@ -160,6 +168,49 @@ export default function FundamentalSection({ fund }: { fund: Fundamental }) {
           </div>
         )}
       </div>
+
+      {/* 每股盈餘 EPS（單季；ETF 等無資料自動隱藏） */}
+      {eps.length > 0 && (
+        <div
+          className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          style={{ animationDelay: "320ms" }}
+        >
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold">每股盈餘 EPS</h3>
+              <p className="mt-0.5 text-[11px] text-muted">單位：元，單季</p>
+            </div>
+            {eps.length >= 4 && (
+              <div className="text-right">
+                <div className="text-[11px] text-muted">近四季合計</div>
+                <div className={`text-xl font-bold tabular ${netColor(ttmEps)}`}>
+                  {fmt(ttmEps)}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 space-y-1.5 text-xs tabular">
+            {[...eps].reverse().map((q) => (
+              <div key={q.date} className="flex items-center gap-2">
+                <span className="w-14 shrink-0 text-muted">
+                  {q.year} Q{q.quarter}
+                </span>
+                <div className="h-2 flex-1 rounded-pill bg-app">
+                  <div
+                    className={`h-full rounded-pill ${
+                      q.eps >= 0 ? "bg-up/35" : "bg-down/35"
+                    }`}
+                    style={{ width: `${(Math.abs(q.eps) / maxEps) * 100}%` }}
+                  />
+                </div>
+                <span className={`w-14 shrink-0 text-right ${netColor(q.eps)}`}>
+                  {fmt(q.eps)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

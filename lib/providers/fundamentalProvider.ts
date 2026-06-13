@@ -22,10 +22,18 @@ export interface Valuation {
   dividendYield: number | null; // %
 }
 
+export interface EpsQuarter {
+  date: string; // 季底日 YYYY-MM-DD
+  year: number;
+  quarter: number; // 1~4
+  eps: number; // 單季每股盈餘（元；FinMind 已是單季值，非累計）
+}
+
 export interface Fundamental {
   institutional: InstDay[]; // 近 20 個交易日，舊→新
   revenue: RevenueMonth[]; // 近 12 個月，舊→新
   valuation: Valuation | null;
+  eps: EpsQuarter[]; // 近 8 季，舊→新
 }
 
 export interface FundamentalResult extends Fundamental {
@@ -53,6 +61,12 @@ interface PerRow {
   dividend_yield: number;
   PER: number;
   PBR: number;
+}
+
+interface FsRow {
+  date: string;
+  type: string; // 眾多會計科目之一，EPS 是其中一列
+  value: number;
 }
 
 function isoDaysAgo(today: string, days: number): string {
@@ -115,6 +129,23 @@ function buildRevenue(rows: RevenueRow[]): RevenueMonth[] {
     .slice(-12);
 }
 
+function buildEps(rows: FsRow[]): EpsQuarter[] {
+  // 同一季底可能出現重複列（個別/合併報表），以日期為鍵取最後一筆
+  const byDate = new Map<string, number>();
+  for (const r of rows) {
+    if (r.type === "EPS") byDate.set(r.date, r.value);
+  }
+  return [...byDate.entries()]
+    .map(([date, eps]) => ({
+      date,
+      year: parseInt(date.slice(0, 4), 10),
+      quarter: Math.ceil(parseInt(date.slice(5, 7), 10) / 3), // 03→1 06→2 09→3 12→4
+      eps,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-8);
+}
+
 // 抓失敗回 null（與「成功但回空陣列」區分）：null=失敗、[]=該股真的沒這項資料
 async function safeRows<T>(fn: () => Promise<T[]>): Promise<T[] | null> {
   try {
@@ -147,6 +178,13 @@ export async function fetchFundamental(
   const per = await safeRows<PerRow>(() =>
     finmindRows("TaiwanStockPER", stockId, isoDaysAgo(today, 14))
   );
+  const fs = await safeRows<FsRow>(() =>
+    finmindRows(
+      "TaiwanStockFinancialStatements",
+      stockId,
+      isoDaysAgo(today, 800) // 約 26 個月，足以涵蓋近 8 季 EPS
+    )
+  );
 
   const latestPer = per && per.length > 0 ? per[per.length - 1] : null;
 
@@ -163,7 +201,8 @@ export async function fetchFundamental(
             latestPer.dividend_yield > 0 ? latestPer.dividend_yield : null,
         }
       : null,
+    eps: fs ? buildEps(fs) : [],
     // 只要有任一支「抓失敗」就不完整，呼叫端據此縮短快取
-    complete: inst !== null && rev !== null && per !== null,
+    complete: inst !== null && rev !== null && per !== null && fs !== null,
   };
 }
