@@ -22,7 +22,29 @@ function md(date: string): string {
   return `${parseInt(date.slice(5, 7), 10)}/${parseInt(date.slice(8, 10), 10)}`;
 }
 
-export default function FundamentalSection({ fund }: { fund: Fundamental }) {
+// 變化率 %（以基準絕對值為分母，基準為 0 時無意義回 null）
+function pctChange(cur: number, base: number): number | null {
+  return base === 0 ? null : ((cur - base) / Math.abs(base)) * 100;
+}
+
+// QoQ/YoY 小徽章（紅漲綠跌）
+function DeltaBadge({ label, v }: { label: string; v: number }) {
+  const cls = v >= 0 ? "bg-up-tint text-up" : "bg-down-tint text-down";
+  return (
+    <span className={`rounded-pill px-1.5 py-0.5 ${cls}`}>
+      {label} {v > 0 ? "+" : ""}
+      {v.toFixed(1)}%
+    </span>
+  );
+}
+
+export default function FundamentalSection({
+  fund,
+  price,
+}: {
+  fund: Fundamental;
+  price?: number | null;
+}) {
   const { institutional, revenue, valuation } = fund;
   const eps = fund.eps ?? []; // 舊快取（無此欄位）過渡期防呆
   const instRecent = institutional.slice(-10).reverse(); // 新→舊
@@ -35,6 +57,14 @@ export default function FundamentalSection({ fund }: { fund: Fundamental }) {
   const maxRevenue = Math.max(...revenue.map((r) => r.revenue), 1);
   const ttmEps = eps.slice(-4).reduce((s, q) => s + q.eps, 0); // 近四季合計
   const maxEps = Math.max(...eps.map((q) => Math.abs(q.eps)), 1);
+  const latestEps = eps[eps.length - 1] ?? null;
+  const qoq =
+    eps.length >= 2 ? pctChange(eps[eps.length - 1].eps, eps[eps.length - 2].eps) : null;
+  const yoy =
+    eps.length >= 5 ? pctChange(eps[eps.length - 1].eps, eps[eps.length - 5].eps) : null;
+  // 動態本益比＝現價 ÷ 近四季 EPS（近四季為正才有意義）
+  const dynPer =
+    price && price > 0 && eps.length >= 4 && ttmEps > 0 ? price / ttmEps : null;
 
   if (
     !valuation &&
@@ -179,13 +209,27 @@ export default function FundamentalSection({ fund }: { fund: Fundamental }) {
             <div>
               <h3 className="text-sm font-semibold">每股盈餘 EPS</h3>
               <p className="mt-0.5 text-[11px] text-muted">單位：元，單季</p>
+              {latestEps && (qoq !== null || yoy !== null) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="text-muted">
+                    最新 {latestEps.year} Q{latestEps.quarter}
+                  </span>
+                  {qoq !== null && <DeltaBadge label="QoQ" v={qoq} />}
+                  {yoy !== null && <DeltaBadge label="YoY" v={yoy} />}
+                </div>
+              )}
             </div>
             {eps.length >= 4 && (
               <div className="text-right">
-                <div className="text-[11px] text-muted">近四季合計</div>
+                <div className="text-[11px] text-muted">近四季合計 EPS</div>
                 <div className={`text-xl font-bold tabular ${netColor(ttmEps)}`}>
                   {fmt(ttmEps)}
                 </div>
+                {dynPer !== null && (
+                  <div className="mt-0.5 text-[11px] text-muted tabular">
+                    本益比 {fmt(dynPer, 1)} 倍
+                  </div>
+                )}
               </div>
             )}
           </div>

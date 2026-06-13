@@ -196,8 +196,10 @@ export default function StockPage() {
           )}
         </div>
 
-        {/* 基本面：估值＋法人買賣超＋月營收（ETF 等無資料的區塊自動隱藏） */}
-        {fundamental.data && <FundamentalSection fund={fundamental.data} />}
+        {/* 基本面：估值＋法人買賣超＋月營收＋EPS（ETF 等無資料的區塊自動隱藏） */}
+        {fundamental.data && (
+          <FundamentalSection fund={fundamental.data} price={q?.price ?? null} />
+        )}
 
         <footer className="pb-4 pt-1 text-center text-[11px] text-muted">
           日 K 與基本面資料來源：FinMind（未還原價）・即時報價：MIS・僅供個人參考，非投資建議

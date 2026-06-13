@@ -6,6 +6,7 @@ import type { QuoteResponse, WatchlistItem } from "@/lib/types";
 import IndexCards from "@/components/IndexCard";
 import QuoteCard from "@/components/QuoteCard";
 import AddStockForm from "@/components/AddStockForm";
+import StockSearch from "@/components/StockSearch";
 import { fmtAgo } from "@/lib/format";
 
 const SORTS = [
@@ -176,6 +177,9 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
+        {/* 全市場個股搜尋（不必先加自選即可看 K 線/基本面） */}
+        <StockSearch />
+
         {/* 提示列 */}
         {(data?.source === "stale" || autoPaused || storage === "local") && (
           <div className="flex flex-wrap gap-2 text-xs">
