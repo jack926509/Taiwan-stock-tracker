@@ -10,10 +10,13 @@
 
 - **即時報價牆**：自選股卡片（紅漲綠跌）、大盤指數、盤中每 10 秒更新、近 20 日 sparkline、漲跌停徽章、一鍵排序、「更新於 X 秒前」。
 - **自選股管理**：新增（即時查名預覽）／刪除，雲端或本機儲存。
-- **個股頁**（點卡片進入）：
+- **個股頁**（點卡片進入，手機／桌機響應式）：
   - 日 K 蠟燭圖（lightweight-charts v5）＋ 成交量 ＋ MA5/20/60 ＋ 十字游標讀數，3 月／6 月／1 年切換。
   - 基本面：估值（PER／PBR／殖利率）、三大法人買賣超、月營收 YoY、**每股盈餘 EPS（單季＋近四季合計）**。
-- **盤後自動補資料**：Zeabur 常駐程式內建 node-cron，週一～五 17:00（台北）補抓自選股當日 K，兼作 Supabase keep-alive。
+  - **到價提醒**：報價卡右上角鈴鐺彈出設定，設「漲到／跌到」門檻，盤中穿越即推 LINE 通知（一次性，重設門檻可再啟用）。
+- **常駐排程**（Zeabur 內建 node-cron，限正式環境）：
+  - 週一～五 17:00（台北）盤後補抓自選股當日 K，兼作 Supabase keep-alive；週末 12:30 輕量 ping 補足 keep-alive。
+  - 工作日盤中每分鐘檢查到價提醒、13:35 收盤後推自選股收盤總覽（皆走 LINE）。
 
 ## 技術棧
 
@@ -59,6 +62,8 @@ npm run dev                        # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL` | 雲端模式 | Supabase 專案 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 雲端模式 | service_role（secret）金鑰，僅後端使用 |
 | `FINMIND_TOKEN` | 建議 | FinMind JWT；不填亦可，但易撞限流 |
+| `LINE_CHANNEL_ACCESS_TOKEN` | 到價提醒 | LINE Messaging API token；與下列 userId 皆設了才會推播 |
+| `LINE_TARGET_USER_ID` | 到價提醒 | 接收通知的 LINE userId |
 | `APP_ACCESS_PASSWORD` | 選用 | 設了才啟用全站密碼保護；留空＝公開 |
 
 ## 部署（Zeabur）
@@ -78,7 +83,7 @@ npm run smoke    # MIS 穩定度壓測（--url <網址> --minutes 5）
 
 ## 安全注意
 
-- `SUPABASE_SERVICE_ROLE_KEY`、`FINMIND_TOKEN` 只在後端 Route Handler 使用，前端永不引用；只放 `.env.local`（已 gitignore）與 Zeabur 環境變數，絕不入程式碼／git。
+- `SUPABASE_SERVICE_ROLE_KEY`、`FINMIND_TOKEN`、`LINE_CHANNEL_ACCESS_TOKEN` 只在後端使用，前端永不引用；只放 `.env.local`（已 gitignore）與 Zeabur 環境變數，絕不入程式碼／git。
 - 資料表全開 RLS 不設 policy：anon key 即使外洩也讀不到資料。
 - `APP_ACCESS_PASSWORD` 由 `middleware.ts` 攔截全站（除 `/api/health`、`/login`、`/api/auth`），密碼只在後端比對。本專案目前刻意不設＝公開。
 
