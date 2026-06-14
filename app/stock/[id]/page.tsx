@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -44,6 +44,28 @@ export default function StockPage() {
   const id = (params.id ?? "").toUpperCase();
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("6m");
   const [alertOpen, setAlertOpen] = useState(false);
+  const alertRef = useRef<HTMLDivElement>(null);
+
+  // 點擊浮層外（或按 Esc）關閉到價提醒
+  useEffect(() => {
+    if (!alertOpen) return;
+    function onPointer(e: MouseEvent | TouchEvent) {
+      if (alertRef.current && !alertRef.current.contains(e.target as Node)) {
+        setAlertOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAlertOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("touchstart", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("touchstart", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [alertOpen]);
 
   const quote = useSWR<QuoteResponse>(
     id ? `/api/quote?ids=${encodeURIComponent(id)}` : null,
@@ -62,13 +84,13 @@ export default function StockPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
-  // 與 PriceAlertCard 共用同一個 /api/watchlist（SWR 去重，零額外請求）：判斷鈴鐺是否亮燈
+  // 共用 /api/watchlist 快取（與彈出面板同 key，不會多打一次）：判斷鈴鐺是否已亮
   const watch = useSWR<{
     items: { stock_id: string; alert_high: number | null; alert_low: number | null }[];
   }>("/api/watchlist", fetcher);
-  const watchRow = watch.data?.items.find((i) => i.stock_id === id);
-  const hasAlert =
-    !!watchRow && (watchRow.alert_high != null || watchRow.alert_low != null);
+  const hasAlert = !!watch.data?.items.find(
+    (i) => i.stock_id === id && (i.alert_high != null || i.alert_low != null)
+  );
 
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
@@ -83,8 +105,8 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-3">
+      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               href="/"
@@ -123,40 +145,13 @@ export default function StockPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-6 py-6">
+      <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
         {/* 即時報價列 */}
         {q ? (
-          <div className="rise-in relative rounded-card bg-surface p-5 shadow-card ring-1 ring-line">
-            {/* 到價提醒鈴鐺：常駐右上，點開在卡片內展開設定（有設門檻時亮靛藍點） */}
-            <button
-              onClick={() => setAlertOpen((v) => !v)}
-              aria-label="到價提醒"
-              aria-expanded={alertOpen}
-              className={`absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-lg ring-1 transition-colors ${
-                alertOpen
-                  ? "bg-primary-tint text-primary ring-primary/30"
-                  : "bg-surface text-muted ring-line hover:text-ink"
-              }`}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-[18px] w-[18px]"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-              </svg>
-              {hasAlert && (
-                <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-surface" />
-              )}
-            </button>
-            <div className="flex flex-wrap items-end justify-between gap-4 pr-12">
-              <div>
-                <div className="flex items-baseline gap-3">
+          <div className="rise-in relative z-20 rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <span className={`text-4xl font-bold tracking-tight tabular ${textColor[t]}`}>
                     {fmt(q.price)}
                   </span>
@@ -171,26 +166,50 @@ export default function StockPage() {
                     {arrowOf(t)} {fmtPct(q.changePct)}
                   </span>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted tabular">
+                  <span className="whitespace-nowrap">開 {fmt(q.open)}</span>
+                  <span className="whitespace-nowrap">高 {fmt(q.high)}</span>
+                  <span className="whitespace-nowrap">低 {fmt(q.low)}</span>
+                  <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
+                  <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted tabular">
-                <span className="whitespace-nowrap">開 {fmt(q.open)}</span>
-                <span className="whitespace-nowrap">高 {fmt(q.high)}</span>
-                <span className="whitespace-nowrap">低 {fmt(q.low)}</span>
-                <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
-                <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
+
+              {/* 右上角鈴鐺：點擊彈出到價提醒（已設提醒時亮起＋紅點） */}
+              <div className="relative shrink-0" ref={alertRef}>
+                <button
+                  onClick={() => setAlertOpen((v) => !v)}
+                  aria-label="到價提醒"
+                  className={`relative flex h-9 w-9 items-center justify-center rounded-full ring-1 transition-colors ${
+                    alertOpen || hasAlert
+                      ? "bg-primary-tint text-primary ring-primary/30"
+                      : "bg-app text-muted ring-line hover:text-ink"
+                  }`}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  </svg>
+                  {hasAlert && (
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-up ring-2 ring-surface" />
+                  )}
+                </button>
+
+                {alertOpen && (
+                  <div className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lg ring-1 ring-line">
+                    <PriceAlertCard stockId={id} name={q.name ?? id} />
+                  </div>
+                )}
               </div>
             </div>
-            {alertOpen && (
-              <div className="mt-4 border-t border-line pt-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold">到價提醒</span>
-                  <span className="rounded-pill bg-app px-2 py-0.5 text-[11px] text-muted">
-                    LINE・一次性
-                  </span>
-                </div>
-                <PriceAlertCard stockId={id} name={q.name ?? id} />
-              </div>
-            )}
           </div>
         ) : (
           <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
@@ -198,7 +217,7 @@ export default function StockPage() {
 
         {/* K 線圖 */}
         <div
-          className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          className="rise-in rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5"
           style={{ animationDelay: "80ms" }}
         >
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

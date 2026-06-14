@@ -95,76 +95,96 @@ export default function PriceAlertCard({
     }
   }
 
-  // 外框／標題／鈴鐺由個股頁報價列提供，本元件只負責內容與邏輯
+  // 外框由個股頁的常駐細列提供；本元件 = 鈴鐺標題＋門檻設定（單列）
+  const bellIcon = (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+
+  const title = (
+    <span className="flex items-center gap-1.5 text-sm font-semibold">
+      {bellIcon}
+      到價提醒
+    </span>
+  );
+
   if (!inWatch) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted">
+      <div className="flex flex-col gap-3">
+        {title}
+        <p className="text-xs leading-relaxed text-muted">
           加入自選股後即可設定到價提醒，{name} 穿越門檻時推 LINE。
         </p>
         <button
           onClick={addToWatch}
           disabled={busy}
-          className="shrink-0 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-pill bg-primary px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          加入自選股
+          {busy ? "處理中…" : "加入自選股"}
         </button>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
-        {/* 漲到（紅） */}
-        <label className="block">
-          <span className="text-[11px] font-medium text-up">漲到 ▲</span>
-          <input
-            value={high}
-            onChange={(e) => setHigh(e.target.value)}
-            inputMode="decimal"
-            placeholder="未設定"
-            className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-up"
-          />
-          <span className="mt-1 block text-[10px] text-muted">
-            {row?.alert_high == null
-              ? "—"
-              : row.alert_high_hit_at
-                ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
-                : "監控中"}
-          </span>
-        </label>
-        {/* 跌到（綠） */}
-        <label className="block">
-          <span className="text-[11px] font-medium text-down">跌到 ▼</span>
-          <input
-            value={low}
-            onChange={(e) => setLow(e.target.value)}
-            inputMode="decimal"
-            placeholder="未設定"
-            className="mt-1 w-full rounded-lg border border-line bg-app px-3 py-2 text-sm tabular outline-none transition-colors focus:border-down"
-          />
-          <span className="mt-1 block text-[10px] text-muted">
-            {row?.alert_low == null
-              ? "—"
-              : row.alert_low_hit_at
-                ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
-                : "監控中"}
-          </span>
-        </label>
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-[11px] text-muted">
-          {msg ?? "留空＝取消該側；重設門檻會重新啟用提醒"}
+    <div className="flex flex-col gap-3">
+      {title}
+      {/* 漲到（紅） */}
+      <label className="flex items-center gap-2">
+        <span className="w-12 shrink-0 text-[11px] font-medium text-up">漲到 ▲</span>
+        <input
+          value={high}
+          onChange={(e) => setHigh(e.target.value)}
+          inputMode="decimal"
+          placeholder="未設定"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 py-1.5 text-sm tabular outline-none transition-colors focus:border-up"
+        />
+        <span className="w-16 shrink-0 text-right text-[10px] text-muted">
+          {row?.alert_high == null
+            ? "—"
+            : row.alert_high_hit_at
+              ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
+              : "監控中"}
         </span>
-        <button
-          onClick={save}
-          disabled={busy}
-          className="shrink-0 rounded-pill bg-primary px-4 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {busy ? "儲存中…" : "儲存"}
-        </button>
-      </div>
-    </>
+      </label>
+      {/* 跌到（綠） */}
+      <label className="flex items-center gap-2">
+        <span className="w-12 shrink-0 text-[11px] font-medium text-down">跌到 ▼</span>
+        <input
+          value={low}
+          onChange={(e) => setLow(e.target.value)}
+          inputMode="decimal"
+          placeholder="未設定"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 py-1.5 text-sm tabular outline-none transition-colors focus:border-down"
+        />
+        <span className="w-16 shrink-0 text-right text-[10px] text-muted">
+          {row?.alert_low == null
+            ? "—"
+            : row.alert_low_hit_at
+              ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
+              : "監控中"}
+        </span>
+      </label>
+      <button
+        onClick={save}
+        disabled={busy}
+        className="w-full rounded-pill bg-primary px-5 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {busy ? "儲存中…" : "儲存"}
+      </button>
+      <p className="text-[10px] leading-relaxed text-muted">
+        {msg ?? "留空＝取消該側；重設門檻會重新啟用提醒"}
+      </p>
+    </div>
   );
 }

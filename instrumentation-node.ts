@@ -1,5 +1,6 @@
 // Node.js 專屬：在 Zeabur 常駐程式內掛「每日收盤補資料」排程。
-// 只在雲端模式（有設 Supabase 變數）才掛；本機開發（走本地 JSON）不掛、不吵。
+// 只在正式環境（Zeabur）才掛；本機 npm run dev 即使接 Supabase 也不掛，
+// 避免盤中 dev server 與雲端各推一次到價提醒／重複回補。
 import { usingSupabase } from "@/lib/store";
 import { schedule } from "node-cron";
 import { backfillWatchlist } from "@/lib/backfill";
@@ -8,7 +9,7 @@ import { checkAlerts } from "@/lib/alerts";
 import { dailySummary } from "@/lib/daily-summary";
 import { isMarketOpenNow, taipeiNow, isTradingDay } from "@/lib/market-hours";
 
-if (usingSupabase()) {
+if (usingSupabase() && process.env.NODE_ENV === "production") {
   // 週一～五 17:00（台北）：收盤後 FinMind 日 K 已更新時補抓，並兼作 Supabase keep-alive
   schedule(
     "0 17 * * 1-5",
