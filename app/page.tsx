@@ -25,7 +25,7 @@ import SortableCard from "@/components/SortableCard";
 import SwipeToDelete from "@/components/SwipeToDelete";
 import AddStockForm from "@/components/AddStockForm";
 import StockSearch from "@/components/StockSearch";
-import { fmtAgo } from "@/lib/format";
+import RelativeTime from "@/components/RelativeTime";
 
 const SORTS = [
   { key: "default", label: "預設" },
@@ -47,7 +47,6 @@ const STALE_STOP_THRESHOLD = 6; // 連續 6 次（約 1 分鐘）報價時間未
 export default function Dashboard() {
   const [autoPaused, setAutoPaused] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("default");
-  const [now, setNow] = useState(() => Date.now());
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
@@ -91,12 +90,6 @@ export default function Dashboard() {
     };
     document.addEventListener("visibilitychange", resume);
     return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
-
-  // 每秒更新「更新於 X 秒前」相對時間
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
   }, []);
 
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
@@ -235,7 +228,7 @@ export default function Dashboard() {
                   })}
                   <span className="mx-1.5 text-line">·</span>
                 </span>
-                更新於 {fmtAgo(data.asOf, now)}
+                <RelativeTime iso={data.asOf} />
               </span>
             )}
             <Link

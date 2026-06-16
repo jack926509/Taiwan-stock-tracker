@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
+import PriceAlertCard from "@/components/PriceAlertCard";
 import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
 
 interface AlertRow {
@@ -20,7 +22,7 @@ async function fetcher<T>(url: string): Promise<T> {
   return json as T;
 }
 
-// 到價提醒總覽：一次看完所有已設門檻的個股，以及目前離觸發還差多少
+// 到價提醒總覽：列出所有自選股（已設提醒者排前面），點任一列即可就地設定門檻，毋須進個股頁。
 export default function AlertsPage() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
@@ -28,13 +30,17 @@ export default function AlertsPage() {
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
     refreshInterval: (latest) => (latest && !latest.marketOpen ? 0 : 10_000),
   });
+  const [editing, setEditing] = useState<string | null>(null);
 
   const priceOf = new Map(
     (quote.data?.quotes ?? []).map((q) => [q.stockId, q])
   );
-  const alerts = (watchlist.data?.items ?? []).filter(
-    (i) => i.alert_high != null || i.alert_low != null
-  );
+  // 已設提醒者排前面，其餘維持自選清單原順序
+  const items = [...(watchlist.data?.items ?? [])].sort((a, b) => {
+    const sa = a.alert_high != null || a.alert_low != null ? 0 : 1;
+    const sb = b.alert_high != null || b.alert_low != null ? 0 : 1;
+    return sa - sb;
+  });
 
   return (
     <div className="min-h-screen">
@@ -52,14 +58,7 @@ export default function AlertsPage() {
       </header>
 
       <main className="mx-auto max-w-3xl space-y-3 px-4 py-5 sm:px-6">
-        {watchlist.data && alerts.length === 0 ? (
-          <div className="rounded-card border border-dashed border-line bg-surface/60 p-10 text-center">
-            <div className="text-2xl">🔔</div>
-            <p className="mt-2 text-sm text-muted">
-              尚未設定到價提醒。點進任一個股，按右上角鈴鐺即可設定。
-            </p>
-          </div>
-        ) : !watchlist.data ? (
+        {!watchlist.data ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
               <div
@@ -68,20 +67,37 @@ export default function AlertsPage() {
               />
             ))}
           </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-card border border-dashed border-line bg-surface/60 p-10 text-center">
+            <div className="text-2xl">🔔</div>
+            <p className="mt-2 text-sm text-muted">
+              還沒有自選股。先到「自選」分頁加入個股，再回來設定到價提醒。
+            </p>
+          </div>
         ) : (
-          alerts.map((a) => {
+          items.map((a) => {
             const q = priceOf.get(a.stock_id);
             const price = q?.price ?? null;
             const t = trendOf(q?.change ?? null);
-            const highHit = price != null && a.alert_high != null && price >= a.alert_high;
-            const lowHit = price != null && a.alert_low != null && price <= a.alert_low;
+            const hasAlert = a.alert_high != null || a.alert_low != null;
+            const highHit =
+              price != null && a.alert_high != null && price >= a.alert_high;
+            const lowHit =
+              price != null && a.alert_low != null && price <= a.alert_low;
+            const isEditing = editing === a.stock_id;
             return (
-              <Link
+              <div
                 key={a.stock_id}
-                href={`/stock/${a.stock_id}`}
-                className="block rounded-card bg-surface p-4 shadow-card ring-1 ring-line transition-all hover:-translate-y-0.5 hover:shadow-lift"
+                className="rounded-card bg-surface shadow-card ring-1 ring-line"
               >
-                <div className="flex items-start justify-between gap-3">
+                {/* 整列為按鈕：點擊就地展開/收合設定面板（手機大觸控目標） */}
+                <button
+                  onClick={() =>
+                    setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
+                  }
+                  aria-expanded={isEditing}
+                  className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+                >
                   <div className="min-w-0">
                     <div className="truncate font-semibold leading-tight">
                       {a.name}
@@ -91,6 +107,47 @@ export default function AlertsPage() {
                       <span className="mx-1 text-line">·</span>
                       {a.market === "tse" ? "上市" : "上櫃"}
                     </div>
+                    {/* 已設門檻：顯示目標價與離觸發距離；未設：提示可點擊設定 */}
+                    {hasAlert ? (
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        {a.alert_high != null && (
+                          <span
+                            className={`rounded-pill px-2.5 py-1 font-medium tabular ${
+                              highHit ? "bg-up text-white" : "bg-up-tint text-up"
+                            }`}
+                          >
+                            ▲ 目標 {fmt(a.alert_high)}
+                            <span className="ml-1 font-normal">
+                              {highHit
+                                ? "・已觸及"
+                                : price != null
+                                  ? `・差 ${fmtPct((a.alert_high - price) / price)}`
+                                  : ""}
+                            </span>
+                          </span>
+                        )}
+                        {a.alert_low != null && (
+                          <span
+                            className={`rounded-pill px-2.5 py-1 font-medium tabular ${
+                              lowHit ? "bg-down text-white" : "bg-down-tint text-down"
+                            }`}
+                          >
+                            ▼ 目標 {fmt(a.alert_low)}
+                            <span className="ml-1 font-normal">
+                              {lowHit
+                                ? "・已觸及"
+                                : price != null
+                                  ? `・差 ${fmtPct((price - a.alert_low) / price)}`
+                                  : ""}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-muted">
+                        尚未設定，點此設定提醒
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className={`text-lg font-bold tabular ${textColor[t]}`}>
@@ -103,44 +160,29 @@ export default function AlertsPage() {
                         {arrowOf(t)} {fmtPct(q.changePct)}
                       </span>
                     )}
+                    <span
+                      className={`mt-1 text-muted transition-transform ${
+                        isEditing ? "rotate-180" : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      ⌄
+                    </span>
                   </div>
-                </div>
+                </button>
 
-                <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                  {a.alert_high != null && (
-                    <span
-                      className={`rounded-pill px-2.5 py-1 font-medium tabular ${
-                        highHit ? "bg-up text-white" : "bg-up-tint text-up"
-                      }`}
+                {isEditing && (
+                  <div className="border-t border-line px-4 pb-4 pt-3">
+                    <PriceAlertCard stockId={a.stock_id} name={a.name} />
+                    <Link
+                      href={`/stock/${a.stock_id}`}
+                      className="mt-3 inline-block text-xs text-primary hover:underline"
                     >
-                      ▲ 目標 {fmt(a.alert_high)}
-                      <span className="ml-1 font-normal">
-                        {highHit
-                          ? "・已觸及"
-                          : price != null
-                            ? `・差 ${fmtPct((a.alert_high - price) / price)}`
-                            : ""}
-                      </span>
-                    </span>
-                  )}
-                  {a.alert_low != null && (
-                    <span
-                      className={`rounded-pill px-2.5 py-1 font-medium tabular ${
-                        lowHit ? "bg-down text-white" : "bg-down-tint text-down"
-                      }`}
-                    >
-                      ▼ 目標 {fmt(a.alert_low)}
-                      <span className="ml-1 font-normal">
-                        {lowHit
-                          ? "・已觸及"
-                          : price != null
-                            ? `・差 ${fmtPct((price - a.alert_low) / price)}`
-                            : ""}
-                      </span>
-                    </span>
-                  )}
-                </div>
-              </Link>
+                      查看走勢與基本面 →
+                    </Link>
+                  </div>
+                )}
+              </div>
             );
           })
         )}
