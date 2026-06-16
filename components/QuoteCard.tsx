@@ -144,7 +144,7 @@ export default function QuoteCard({
         <button
           onClick={() => onDelete(quote.stockId)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100"
         >
           ✕
         </button>

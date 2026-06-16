@@ -94,12 +94,55 @@ export async function addWatch(item: {
     await fileWrite(items);
     return;
   }
-  const { error } = await db.from("watchlist").upsert({
+  // 已存在則不動（與本地模式一致，避免重新加入時打亂排序）
+  const { data: existing } = await db
+    .from("watchlist")
+    .select("stock_id")
+    .eq("stock_id", item.stockId)
+    .maybeSingle();
+  if (existing) return;
+  // 接到清單最後：取目前最大 sort_order + 1
+  const { data: maxRow } = await db
+    .from("watchlist")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sort_order = ((maxRow?.sort_order as number | undefined) ?? -1) + 1;
+  const { error } = await db.from("watchlist").insert({
     stock_id: item.stockId,
     market: item.market,
     name: item.name,
+    sort_order,
   });
   if (error) throw new Error(error.message);
+}
+
+// 依傳入的代號順序重寫 sort_order（拖曳排序用）；清單外的代號忽略
+export async function reorderWatch(orderedIds: string[]): Promise<void> {
+  const db = getSupabase();
+  if (!db) {
+    const items = await fileRead();
+    const pos = new Map(orderedIds.map((id, i) => [id, i]));
+    items.sort(
+      (a, b) =>
+        (pos.get(a.stock_id) ?? Number.MAX_SAFE_INTEGER) -
+        (pos.get(b.stock_id) ?? Number.MAX_SAFE_INTEGER)
+    );
+    items.forEach((it, i) => {
+      it.sort_order = i;
+    });
+    await fileWrite(items);
+    return;
+  }
+  // Supabase：逐筆更新（自選股數量有限，N 次寫入可接受）
+  for (let i = 0; i < orderedIds.length; i++) {
+    const { error } = await db
+      .from("watchlist")
+      .update({ sort_order: i })
+      .eq("stock_id", orderedIds[i]);
+    if (error) throw new Error(error.message);
+  }
 }
 
 export async function removeWatch(stockId: string): Promise<void> {

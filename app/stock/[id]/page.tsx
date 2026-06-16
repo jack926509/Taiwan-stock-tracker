@@ -105,7 +105,7 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/80 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link

@@ -4,6 +4,7 @@ import {
   listWatchlist,
   addWatch,
   removeWatch,
+  reorderWatch,
   setAlert,
   usingSupabase,
 } from "@/lib/store";
@@ -69,6 +70,28 @@ export async function PATCH(req: NextRequest) {
   try {
     await setAlert(stockId, high, low);
     return NextResponse.json({ ok: true, stockId, high, low });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
+// 拖曳排序：{ order: string[] }，依陣列順序重寫 sort_order
+export async function PUT(req: NextRequest) {
+  let body: { order?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "格式錯誤" }, { status: 400 });
+  }
+  const order = Array.isArray(body.order)
+    ? body.order.filter((x): x is string => typeof x === "string" && x.trim() !== "")
+    : null;
+  if (!order || order.length === 0) {
+    return NextResponse.json({ error: "缺少 order" }, { status: 400 });
+  }
+  try {
+    await reorderWatch(order);
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
