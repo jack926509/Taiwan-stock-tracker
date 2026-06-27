@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 // Manrope：數字表格等寬效果佳、比 Inter 更有個性的現代無襯線（中文仍走系統 PingFang TC）
 const manrope = Manrope({
@@ -41,6 +42,7 @@ export default function RootLayout({
         <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </div>
+        <PWAInstallPrompt />
         <BottomNav />
       </body>
     </html>

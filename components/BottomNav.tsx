@@ -2,6 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import useSWR from "swr";
+
+interface AlertRow {
+  alert_high: number | null;
+  alert_low: number | null;
+}
+
+async function fetcher<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return json as T;
+}
 
 // 手機底部分頁導覽（md 以上隱藏，桌機沿用頂部 chrome）。
 // 三個分頁：自選 / 搜尋 / 提醒總覽。含 iOS 底部安全區內距。
@@ -37,6 +50,13 @@ const TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
+    revalidateOnFocus: true,
+  });
+  const activeAlerts =
+    watchlist.data?.items.filter(
+      (item) => item.alert_high != null || item.alert_low != null
+    ).length ?? 0;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
@@ -56,17 +76,24 @@ export default function BottomNav() {
                 active ? "text-primary" : "text-muted"
               }`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={active ? 2.2 : 1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {tab.icon}
-              </svg>
+              <span className="relative">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={active ? 2.2 : 1.8}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {tab.icon}
+                </svg>
+                {tab.href === "/alerts" && activeAlerts > 0 && (
+                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-[10px] font-bold leading-4 text-white">
+                    {activeAlerts > 9 ? "9+" : activeAlerts}
+                  </span>
+                )}
+              </span>
               <span>{tab.label}</span>
             </Link>
           );

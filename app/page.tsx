@@ -26,6 +26,8 @@ import SwipeToDelete from "@/components/SwipeToDelete";
 import AddStockForm from "@/components/AddStockForm";
 import StockSearch from "@/components/StockSearch";
 import RelativeTime from "@/components/RelativeTime";
+import MobileNetworkBanner from "@/components/MobileNetworkBanner";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const SORTS = [
   { key: "default", label: "預設" },
@@ -107,9 +109,8 @@ export default function Dashboard() {
     });
   }, [items]);
 
-  const refreshAll = useCallback(() => {
-    watchlist.mutate();
-    quote.mutate();
+  const refreshAll = useCallback(async () => {
+    await Promise.all([watchlist.mutate(), quote.mutate()]);
   }, [watchlist, quote]);
 
   async function handleDelete(stockId: string) {
@@ -187,6 +188,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
+      <PullToRefresh onRefresh={refreshAll} />
       {/* 頂部 App Bar（sticky，毛玻璃感） */}
       <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -264,6 +266,11 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
+        <MobileNetworkBanner
+          stale={data?.source === "stale" || autoPaused}
+          error={quote.error || watchlist.error}
+        />
+
         {/* 全市場個股搜尋（不必先加自選即可看 K 線/基本面）；手機改用底部「搜尋」分頁 */}
         <div className="hidden md:block">
           <StockSearch />

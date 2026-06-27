@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import PriceAlertCard from "@/components/PriceAlertCard";
+import MobileNetworkBanner from "@/components/MobileNetworkBanner";
+import PullToRefresh from "@/components/PullToRefresh";
 import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
 
 interface AlertRow {
@@ -52,8 +54,13 @@ export default function AlertsPage() {
     router.push("/");
   }
 
+  const refreshAll = useCallback(async () => {
+    await Promise.all([watchlist.mutate(), quote.mutate()]);
+  }, [watchlist, quote]);
+
   return (
     <div className="min-h-screen">
+      <PullToRefresh onRefresh={refreshAll} />
       <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -78,6 +85,11 @@ export default function AlertsPage() {
       </header>
 
       <main className="mx-auto max-w-3xl space-y-3 px-4 py-5 sm:px-6">
+        <MobileNetworkBanner
+          stale={quote.data?.source === "stale"}
+          error={quote.error || watchlist.error}
+        />
+
         {!watchlist.data ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
