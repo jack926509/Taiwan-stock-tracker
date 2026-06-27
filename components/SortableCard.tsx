@@ -25,9 +25,10 @@ export default function SortableCard({
 
   return (
     <div
+      id={`stock-${id}`}
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group/sort relative ${
+      className={`group/sort relative scroll-mt-24 ${
         isDragging ? "z-20 opacity-80" : ""
       }`}
     >

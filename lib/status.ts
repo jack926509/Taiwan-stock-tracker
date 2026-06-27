@@ -46,9 +46,10 @@ export interface BackendStatus {
 }
 
 async function rowCount(db: SupabaseClient, table: string): Promise<number> {
-  const { count } = await db
+  const { count, error } = await db
     .from(table)
     .select("*", { count: "exact", head: true });
+  if (error) throw new Error(`${table}: ${error.message}`);
   return count ?? 0;
 }
 
@@ -56,12 +57,25 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
   const db = getSupabase();
   if (!db) return { storage: "local" };
 
-  const [watchlist, dailyKline, newsCache, misSession, backfill, sess] =
+  const [
+    assistantConversations,
+    assistantMessages,
+    dailyKline,
+    misSession,
+    newsArticles,
+    newsCache,
+    watchlist,
+    backfill,
+    sess,
+  ] =
     await Promise.all([
-      rowCount(db, "watchlist"),
+      rowCount(db, "assistant_conversations"),
+      rowCount(db, "assistant_messages"),
       rowCount(db, "daily_kline"),
-      rowCount(db, "news_cache"),
       rowCount(db, "mis_session"),
+      rowCount(db, "news_articles"),
+      rowCount(db, "news_cache"),
+      rowCount(db, "watchlist"),
       db
         .from("news_cache")
         .select("payload")
@@ -75,14 +89,20 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
         .maybeSingle(),
     ]);
 
+  if (backfill.error) throw new Error(`news_cache meta: ${backfill.error.message}`);
+  if (sess.error) throw new Error(`mis_session: ${sess.error.message}`);
+
   const sessAt = sess.data?.fetched_at as string | undefined;
   return {
     storage: "supabase",
     tables: {
-      watchlist,
+      assistant_conversations: assistantConversations,
+      assistant_messages: assistantMessages,
       daily_kline: dailyKline,
-      news_cache: newsCache,
       mis_session: misSession,
+      news_articles: newsArticles,
+      news_cache: newsCache,
+      watchlist,
     },
     lastBackfill: (backfill.data?.payload as BackfillRecord) ?? null,
     misSessionAgeMin: sessAt

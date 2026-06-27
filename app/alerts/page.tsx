@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import PriceAlertCard from "@/components/PriceAlertCard";
@@ -24,6 +25,7 @@ async function fetcher<T>(url: string): Promise<T> {
 
 // 到價提醒總覽：列出所有自選股（已設提醒者排前面），點任一列即可就地設定門檻，毋須進個股頁。
 export default function AlertsPage() {
+  const router = useRouter();
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
@@ -42,18 +44,36 @@ export default function AlertsPage() {
     return sa - sb;
   });
 
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/");
+  }
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={goBack}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="上一頁"
+              title="上一頁"
+            >
+              ←
+            </button>
+            <span className="truncate font-semibold">到價提醒</span>
+          </div>
           <Link
             href="/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink md:hidden"
-            aria-label="返回自選"
+            className="rounded-pill bg-surface px-3 py-1.5 text-xs font-medium text-muted ring-1 ring-line transition-colors hover:text-ink"
           >
-            ←
+            自選
           </Link>
-          <span className="font-semibold">到價提醒</span>
         </div>
       </header>
 

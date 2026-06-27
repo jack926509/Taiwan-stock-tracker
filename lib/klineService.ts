@@ -6,6 +6,12 @@ import { loadKline, saveKline } from "@/lib/klineStore";
 const RETRY_MS = 30 * 60 * 1000; // 最新日 K 還沒出來時，最多每 30 分鐘向 FinMind 試一次
 const lastAttempt = new Map<string, number>();
 
+export interface KlineResult {
+  candles: Candle[];
+  latestDate: string | null;
+  stale: boolean;
+}
+
 function yearAgo(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCFullYear(d.getUTCFullYear() - 1);
@@ -20,12 +26,20 @@ export async function ensureKline(
   stockId: string,
   today: string
 ): Promise<Candle[]> {
+  return (await ensureKlineWithStatus(stockId, today)).candles;
+}
+
+export async function ensureKlineWithStatus(
+  stockId: string,
+  today: string
+): Promise<KlineResult> {
   let candles = await loadKline(stockId);
   const last = candles[candles.length - 1];
   const attempted = lastAttempt.get(stockId) ?? 0;
   const needFetch =
     candles.length === 0 ||
     (last.date < today && Date.now() - attempted > RETRY_MS);
+  let stale = false;
 
   if (needFetch) {
     lastAttempt.set(stockId, Date.now());
@@ -36,8 +50,12 @@ export async function ensureKline(
         candles = await saveKline(stockId, candles, incoming);
       }
     } catch {
-      /* 抓不到新資料就用現有快取 */
+      stale = candles.length > 0;
     }
   }
-  return candles;
+  return {
+    candles,
+    latestDate: candles.at(-1)?.date ?? null,
+    stale,
+  };
 }

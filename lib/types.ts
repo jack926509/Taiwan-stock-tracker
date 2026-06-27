@@ -31,5 +31,7 @@ export interface WatchlistItem {
   group_name: string;
   alert_high: number | null;
   alert_low: number | null;
+  alert_high_hit_at: string | null;
+  alert_low_hit_at: string | null;
   sort_order: number;
 }

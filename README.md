@@ -11,9 +11,12 @@
 - **即時報價牆**：自選股卡片（紅漲綠跌）、大盤指數、盤中每 10 秒更新、近 20 日 sparkline、漲跌停徽章、一鍵排序、「更新於 X 秒前」。
 - **自選股管理**：新增（即時查名預覽）／刪除，雲端或本機儲存。
 - **個股頁**（點卡片進入，手機／桌機響應式）：
-  - 日 K 蠟燭圖（lightweight-charts v5）＋ 成交量 ＋ MA5/20/60 ＋ 十字游標讀數，3 月／6 月／1 年切換。
+  - 日 K 蠟燭圖（lightweight-charts v5）＋ 成交量 ＋ MA5/20/60 ＋ 十字游標讀數，支援 5 日／20 日／3 月／6 月／1 年切換。
+  - 顯示區間漲跌、最新 K 日期、快取資料提示，並可從個股頁切換上一檔／下一檔自選股。
   - 基本面：估值（PER／PBR／殖利率）、三大法人買賣超、月營收 YoY、**每股盈餘 EPS（單季＋近四季合計）**。
-  - **到價提醒**：報價卡右上角鈴鐺彈出設定，設「漲到／跌到」門檻，盤中穿越即推 LINE 通知（一次性，重設門檻可再啟用）。
+  - **到價提醒**：報價卡右上角鈴鐺彈出設定，設「漲到／跌到」門檻，盤中達到門檻即推 LINE 通知（一次性，重設門檻可再啟用）。
+- **提醒頁**：集中管理所有自選股提醒，支援上一頁返回、自選快捷、目前報價與提醒狀態檢視。
+- **PWA／手機體驗**：支援安裝成獨立 App、手機底部導覽、自選／搜尋／提醒分頁、滑動刪除與安全區域間距。
 - **常駐排程**（Zeabur 內建 node-cron，限正式環境）：
   - 週一～五 17:00（台北）盤後補抓自選股當日 K，兼作 Supabase keep-alive；週末 12:30 輕量 ping 補足 keep-alive。
   - 工作日盤中每分鐘檢查到價提醒、13:35 收盤後推自選股收盤總覽（皆走 LINE）。
@@ -29,11 +32,13 @@ Next.js 15（App Router）・React 19・TypeScript・Tailwind 3・SWR・lightwei
 | 即時報價 | TWSE MIS 端點，session cookie 持久化、5 秒節流、stale 快照 failover |
 | 歷史／基本面 | FinMind（日 K、法人、月營收、PER、財報 EPS）；`FINMIND_TOKEN` 可選，填了限流較寬 |
 | 儲存 | 雙模式：設了 Supabase 變數走雲端，否則退回本機 JSON（`.data/`） |
+| 健康檢查 | `/api/health` 輕量公開；`/api/health?detail=1` 需 token 或登入 cookie，Supabase 異常會回 503 |
+| 測試 | `node:test` 覆蓋健康檢查授權、API 錯誤遮蔽、K 線區間與 Supabase migration |
 | 部署 | Zeabur 常駐 Node 服務（東京專屬伺服器，固定 IP 利於 MIS） |
 
 **雙模式儲存**是核心設計：本機開發免任何金鑰即可跑（報價＋圖表全可測），填入 Supabase 金鑰就無痛切雲端。
 
-### 資料表（Supabase，共 4 張）
+### 資料表（Supabase）
 
 | 表 | 用途 |
 |---|---|
@@ -41,6 +46,9 @@ Next.js 15（App Router）・React 19・TypeScript・Tailwind 3・SWR・lightwei
 | `daily_kline` | 日 K 線快取（增量補抓） |
 | `news_cache` | 基本面快取（估值／法人／營收／EPS 的 JSON，12 小時 TTL） |
 | `mis_session` | MIS 即時報價 session cookie |
+| `assistant_conversations` | AI 助理對話 |
+| `assistant_messages` | AI 助理訊息 |
+| `news_articles` | 新聞文章快取 |
 
 > 全表開啟 RLS 且不設 policy；後端以 service_role 金鑰存取。
 
@@ -65,6 +73,27 @@ npm run dev                        # http://localhost:3000
 | `LINE_CHANNEL_ACCESS_TOKEN` | 到價提醒 | LINE Messaging API token；與下列 userId 皆設了才會推播 |
 | `LINE_TARGET_USER_ID` | 到價提醒 | 接收通知的 LINE userId |
 | `APP_ACCESS_PASSWORD` | 選用 | 設了才啟用全站密碼保護；留空＝公開 |
+| `HEALTH_DETAIL_TOKEN` | 建議 | `/api/health?detail=1` 的 Bearer token；未設定時詳細健康檢查只接受既有登入 cookie |
+
+### Supabase schema
+
+Schema migrations 已納入版本控管：
+
+```bash
+supabase/migrations/
+```
+
+這些 migrations 對齊目前 live Supabase history，建立 `watchlist`、`daily_kline`、`news_cache`、`mis_session`、`assistant_conversations`、`assistant_messages`、`news_articles`，補齊到價提醒觸發時間欄位、快取清理排程與說明註解。全表啟用 RLS，不開 anon/authenticated policy，並授權後端 `service_role` 存取。這維持本專案「前端不直接讀資料庫、後端 service role 統一存取」的安全模型。
+
+## PWA 與手機優化方向
+
+目前已支援手機安裝、底部導覽與提醒頁返回。後續若要再優化，優先順序建議如下：
+
+1. **弱網路／離線提示**：在報價或 K 線更新失敗時，用明確狀態提示目前顯示的是快取資料。
+2. **下拉刷新**：手機上讓自選股與個股頁可用更直覺的手勢重新抓報價。
+3. **安裝提示**：偵測可安裝 PWA 時，以不干擾方式提示加入主畫面。
+4. **提醒徽章**：提醒頁或底部導覽顯示已啟用提醒數量，降低漏看機率。
+5. **Web Push**：若未來不只靠 LINE，可評估瀏覽器推播；需額外處理權限、裝置訂閱與退訂流程。
 
 ## 部署（Zeabur）
 
@@ -76,6 +105,7 @@ npm run dev                        # http://localhost:3000
 
 ```bash
 npm run dev      # 開發
+npm test         # 單元測試
 npm run build    # 正式 build
 npm run start    # 啟動正式版
 npm run smoke    # MIS 穩定度壓測（--url <網址> --minutes 5）
@@ -86,6 +116,8 @@ npm run smoke    # MIS 穩定度壓測（--url <網址> --minutes 5）
 - `SUPABASE_SERVICE_ROLE_KEY`、`FINMIND_TOKEN`、`LINE_CHANNEL_ACCESS_TOKEN` 只在後端使用，前端永不引用；只放 `.env.local`（已 gitignore）與 Zeabur 環境變數，絕不入程式碼／git。
 - 資料表全開 RLS 不設 policy：anon key 即使外洩也讀不到資料。
 - `APP_ACCESS_PASSWORD` 由 `middleware.ts` 攔截全站（除 `/api/health`、`/login`、`/api/auth`），密碼只在後端比對。本專案目前刻意不設＝公開。
+- `/api/health` 輕量探針公開；`/api/health?detail=1` 需 `Authorization: Bearer <HEALTH_DETAIL_TOKEN>`，或在有設定 `APP_ACCESS_PASSWORD` 時帶有效登入 cookie。
+- 對外 API 在正式環境只回通用錯誤訊息，詳細錯誤寫入 server log，避免把上游或資料庫錯誤細節洩漏到前端。
 
 ## 資料來源與免責
 

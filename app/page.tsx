@@ -359,7 +359,9 @@ export default function Dashboard() {
                     {inner}
                   </SortableCard>
                 ) : (
-                  <div key={q.stockId}>{inner}</div>
+                  <div key={q.stockId} id={`stock-${q.stockId}`} className="scroll-mt-24">
+                    {inner}
+                  </div>
                 );
               });
               const grid = (

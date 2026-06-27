@@ -8,6 +8,7 @@ import {
   setAlert,
   usingSupabase,
 } from "@/lib/store";
+import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,8 @@ export async function GET() {
     const items = await listWatchlist();
     return NextResponse.json({ items, storage: usingSupabase() ? "supabase" : "local" });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    logApiError("api/watchlist GET", err);
+    return NextResponse.json(publicErrorBody("讀取自選股失敗", err), { status: 500 });
   }
 }
 
@@ -40,7 +42,8 @@ export async function POST(req: NextRequest) {
     await addWatch(info);
     return NextResponse.json({ ok: true, item: info });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    logApiError("api/watchlist POST", err);
+    return NextResponse.json(publicErrorBody("新增自選股失敗", err), { status: 500 });
   }
 }
 
@@ -71,7 +74,8 @@ export async function PATCH(req: NextRequest) {
     await setAlert(stockId, high, low);
     return NextResponse.json({ ok: true, stockId, high, low });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    logApiError("api/watchlist PATCH", err);
+    return NextResponse.json(publicErrorBody("設定到價提醒失敗", err), { status: 500 });
   }
 }
 
@@ -93,7 +97,8 @@ export async function PUT(req: NextRequest) {
     await reorderWatch(order);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    logApiError("api/watchlist PUT", err);
+    return NextResponse.json(publicErrorBody("更新排序失敗", err), { status: 500 });
   }
 }
 
@@ -106,6 +111,7 @@ export async function DELETE(req: NextRequest) {
     await removeWatch(stockId);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    logApiError("api/watchlist DELETE", err);
+    return NextResponse.json(publicErrorBody("刪除自選股失敗", err), { status: 500 });
   }
 }

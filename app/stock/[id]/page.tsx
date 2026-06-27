@@ -19,6 +19,26 @@ import {
   textColor,
   chipColor,
 } from "@/lib/format";
+import {
+  filterCandlesByRange,
+  KLINE_RANGES,
+  klineRangeStats,
+  type KlineRangeKey,
+} from "@/lib/klineRange";
+
+interface KlineResponse {
+  stockId: string;
+  candles: Candle[];
+  latestDate: string | null;
+  stale: boolean;
+}
+
+interface StockWatchRow {
+  stock_id: string;
+  name: string;
+  alert_high: number | null;
+  alert_low: number | null;
+}
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -27,22 +47,10 @@ async function fetcher<T>(url: string): Promise<T> {
   return json as T;
 }
 
-const RANGES = [
-  { key: "3m", label: "3 月", months: 3 },
-  { key: "6m", label: "6 月", months: 6 },
-  { key: "1y", label: "1 年", months: 12 },
-] as const;
-
-function cutoffDate(last: string, months: number): string {
-  const d = new Date(`${last}T00:00:00Z`);
-  d.setUTCMonth(d.getUTCMonth() - months);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function StockPage() {
   const params = useParams<{ id: string }>();
   const id = (params.id ?? "").toUpperCase();
-  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("6m");
+  const [range, setRange] = useState<KlineRangeKey>("6m");
   const [alertOpen, setAlertOpen] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -74,7 +82,7 @@ export default function StockPage() {
       refreshInterval: (latest) => (latest && !latest.marketOpen ? 0 : 10_000),
     }
   );
-  const kline = useSWR<{ stockId: string; candles: Candle[] }>(
+  const kline = useSWR<KlineResponse>(
     id ? `/api/kline?id=${encodeURIComponent(id)}` : null,
     fetcher,
     { revalidateOnFocus: false }
@@ -86,22 +94,29 @@ export default function StockPage() {
   );
   // 共用 /api/watchlist 快取（與彈出面板同 key，不會多打一次）：判斷鈴鐺是否已亮
   const watch = useSWR<{
-    items: { stock_id: string; alert_high: number | null; alert_low: number | null }[];
+    items: StockWatchRow[];
   }>("/api/watchlist", fetcher);
-  const hasAlert = !!watch.data?.items.find(
-    (i) => i.stock_id === id && (i.alert_high != null || i.alert_low != null)
-  );
+  const watchItems = watch.data?.items ?? [];
+  const watchIndex = watchItems.findIndex((i) => i.stock_id === id);
+  const currentWatch = watchItems[watchIndex] ?? null;
+  const hasAlert =
+    !!currentWatch &&
+    (currentWatch.alert_high != null || currentWatch.alert_low != null);
+  const prevWatch = watchIndex > 0 ? watchItems[watchIndex - 1] : null;
+  const nextWatch =
+    watchIndex >= 0 && watchIndex < watchItems.length - 1
+      ? watchItems[watchIndex + 1]
+      : null;
 
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
 
   const visible = useMemo(() => {
     const all = kline.data?.candles ?? [];
-    if (all.length === 0) return all;
-    const months = RANGES.find((r) => r.key === range)?.months ?? 6;
-    const cutoff = cutoffDate(all[all.length - 1].date, months);
-    return all.filter((c) => c.date >= cutoff);
+    return filterCandlesByRange(all, range);
   }, [kline.data, range]);
+  const rangeStats = useMemo(() => klineRangeStats(visible), [visible]);
+  const rangeTrend = trendOf(rangeStats.change);
 
   return (
     <div className="min-h-screen">
@@ -109,7 +124,7 @@ export default function StockPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link
-              href="/"
+              href={`/#stock-${id}`}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
               aria-label="返回首頁"
             >
@@ -173,6 +188,20 @@ export default function StockPage() {
                   <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
                   <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
                 </div>
+                {hasAlert && (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs tabular">
+                    {currentWatch?.alert_high != null && (
+                      <span className="rounded-pill bg-up-tint px-2.5 py-1 font-medium text-up">
+                        提醒 ▲ {fmt(currentWatch.alert_high)}
+                      </span>
+                    )}
+                    {currentWatch?.alert_low != null && (
+                      <span className="rounded-pill bg-down-tint px-2.5 py-1 font-medium text-down">
+                        提醒 ▼ {fmt(currentWatch.alert_low)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 右上角鈴鐺：點擊彈出到價提醒（已設提醒時亮起＋紅點） */}
@@ -215,6 +244,37 @@ export default function StockPage() {
           <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
         )}
 
+        {(prevWatch || nextWatch) && (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {prevWatch ? (
+              <Link
+                href={`/stock/${prevWatch.stock_id}`}
+                className="rounded-card bg-surface px-3 py-2 text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+              >
+                <span className="block text-[11px]">上一檔</span>
+                <span className="mt-0.5 block truncate font-semibold text-ink">
+                  ← {prevWatch.name}
+                </span>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {nextWatch ? (
+              <Link
+                href={`/stock/${nextWatch.stock_id}`}
+                className="rounded-card bg-surface px-3 py-2 text-right text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+              >
+                <span className="block text-[11px]">下一檔</span>
+                <span className="mt-0.5 block truncate font-semibold text-ink">
+                  {nextWatch.name} →
+                </span>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
+        )}
+
         {/* K 線圖 */}
         <div
           className="rise-in rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5"
@@ -236,12 +296,12 @@ export default function StockPage() {
                 MA60
               </span>
             </div>
-            <div className="flex rounded-pill bg-app p-0.5">
-              {RANGES.map((r) => (
+            <div className="flex flex-wrap rounded-pill bg-app p-0.5">
+              {KLINE_RANGES.map((r) => (
                 <button
                   key={r.key}
                   onClick={() => setRange(r.key)}
-                  className={`rounded-pill px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
                     range === r.key
                       ? "bg-surface text-ink shadow-card"
                       : "text-muted hover:text-ink"
@@ -252,6 +312,25 @@ export default function StockPage() {
               ))}
             </div>
           </div>
+
+          {visible.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted tabular">
+              <span>
+                區間
+                <span className={`ml-1 font-semibold ${textColor[rangeTrend]}`}>
+                  {rangeStats.change == null
+                    ? "—"
+                    : `${rangeStats.change > 0 ? "+" : ""}${fmt(rangeStats.change)} (${fmtPct(rangeStats.changePct)})`}
+                </span>
+              </span>
+              <span>最新 {kline.data?.latestDate ?? rangeStats.lastDate ?? "—"}</span>
+              {kline.data?.stale && (
+                <span className="rounded-pill bg-warn-tint px-2 py-0.5 text-warn">
+                  顯示快取資料
+                </span>
+              )}
+            </div>
+          )}
 
           {kline.error ? (
             <div className="grid h-[420px] place-items-center text-sm text-warn">

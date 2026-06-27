@@ -8,6 +8,7 @@ import {
   RETRY_TTL_MS,
 } from "@/lib/fundamentalStore";
 import { taipeiNow } from "@/lib/market-hours";
+import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,8 +25,9 @@ export async function GET(req: NextRequest) {
   try {
     cached = await loadFundamental(id);
   } catch (e) {
+    logApiError("api/fundamental cache", e);
     return NextResponse.json(
-      { error: `讀取快取失敗：${(e as Error).message}` },
+      publicErrorBody("讀取快取失敗", e),
       { status: 500 }
     );
   }
@@ -57,8 +59,9 @@ export async function GET(req: NextRequest) {
         ...cached.data,
       });
     }
+    logApiError("api/fundamental fetch", e);
     return NextResponse.json(
-      { error: `取得基本面資料失敗：${(e as Error).message}` },
+      publicErrorBody("取得基本面資料失敗", e),
       { status: 502 }
     );
   }

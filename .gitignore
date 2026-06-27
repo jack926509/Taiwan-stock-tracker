@@ -7,4 +7,5 @@ out/
 next-env.d.ts
 scripts/smoke-result.json
 .data/
+supabase/.temp/
 .DS_Store

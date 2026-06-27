@@ -9,6 +9,7 @@ import {
 } from "@/lib/providers/quoteProvider";
 import { isMarketOpenNow } from "@/lib/market-hours";
 import { listWatchlist } from "@/lib/store";
+import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
 export const dynamic = "force-dynamic";
 
@@ -63,8 +64,9 @@ export async function GET(req: NextRequest) {
       quotes,
     });
   } catch (err) {
+    logApiError("api/quote", err);
     return NextResponse.json(
-      { error: "報價來源暫時無法使用", detail: String(err) },
+      publicErrorBody("報價來源暫時無法使用", err),
       { status: 502 }
     );
   }
