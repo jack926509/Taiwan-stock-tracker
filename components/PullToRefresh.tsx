@@ -16,11 +16,16 @@ export default function PullToRefresh({
   const startY = useRef<number | null>(null);
   const refreshing = useRef(false);
   const pullRef = useRef(0);
+  const frame = useRef<number | null>(null);
   const [pull, setPull] = useState(0);
 
-  function updatePull(next: number) {
+  function schedulePull(next: number) {
     pullRef.current = next;
-    setPull(next);
+    if (frame.current != null) return;
+    frame.current = window.requestAnimationFrame(() => {
+      frame.current = null;
+      setPull(pullRef.current);
+    });
   }
 
   useEffect(() => {
@@ -35,23 +40,23 @@ export default function PullToRefresh({
       if (startY.current == null || window.scrollY > 0) return;
       const currentY = event.touches[0]?.clientY ?? startY.current;
       const distance = Math.max(0, currentY - startY.current);
-      if (distance > 8) updatePull(Math.min(distance * 0.55, 96));
+      if (distance > 8) schedulePull(Math.min(distance * 0.55, 96));
     };
 
     const onTouchEnd = async () => {
       const shouldRefresh = pullRef.current >= TRIGGER_PX;
       startY.current = null;
       if (!shouldRefresh) {
-        updatePull(0);
+        schedulePull(0);
         return;
       }
       refreshing.current = true;
-      updatePull(TRIGGER_PX);
+      schedulePull(TRIGGER_PX);
       try {
         await onRefresh();
       } finally {
         refreshing.current = false;
-        updatePull(0);
+        schedulePull(0);
       }
     };
 
@@ -62,6 +67,10 @@ export default function PullToRefresh({
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
+      if (frame.current != null) {
+        window.cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
     };
   }, [disabled, onRefresh]);
 

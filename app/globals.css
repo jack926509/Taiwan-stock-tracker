@@ -19,6 +19,13 @@ body {
   background-attachment: fixed;
 }
 
+/* 手機/PWA 捲動時避免 fixed background 造成大面積重繪。 */
+@media (hover: none), (pointer: coarse), (max-width: 767px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
 ::selection {
   background: rgba(79, 107, 237, 0.16);
 }

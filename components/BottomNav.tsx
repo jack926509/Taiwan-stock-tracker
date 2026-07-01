@@ -59,7 +59,7 @@ export default function BottomNav() {
     ).length ?? 0;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/90 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/95 pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto flex max-w-md items-stretch justify-around">
         {TABS.map((tab) => {
           const active =

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
@@ -9,6 +9,7 @@ import PriceAlertCard from "@/components/PriceAlertCard";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
+import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 
 interface AlertRow {
   stock_id: string;
@@ -31,9 +32,38 @@ export default function AlertsPage() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
+  const [autoPaused, setAutoPaused] = useState(false);
+  const staleCount = useRef(0);
+  const lastTimeKey = useRef("");
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
-    refreshInterval: (latest) => (latest && !latest.marketOpen ? 0 : 10_000),
+    refreshInterval: (latest) =>
+      autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+    refreshWhenHidden: false,
+    onSuccess: (data) => {
+      // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
+      const key = data.quotes.map((q) => q.time).join("|");
+      if (data.marketOpen && key && key === lastTimeKey.current) {
+        staleCount.current += 1;
+        if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
+      } else {
+        staleCount.current = 0;
+      }
+      lastTimeKey.current = key;
+    },
   });
+
+  // 使用者切回分頁時解除自動暫停、重新輪詢
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState === "visible") {
+        staleCount.current = 0;
+        setAutoPaused(false);
+      }
+    };
+    document.addEventListener("visibilitychange", resume);
+    return () => document.removeEventListener("visibilitychange", resume);
+  }, []);
+
   const [editing, setEditing] = useState<string | null>(null);
 
   const priceOf = new Map(
@@ -61,13 +91,13 @@ export default function AlertsPage() {
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
-      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={goBack}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label="上一頁"
               title="上一頁"
             >
@@ -86,7 +116,7 @@ export default function AlertsPage() {
 
       <main className="mx-auto max-w-3xl space-y-3 px-4 py-5 sm:px-6">
         <MobileNetworkBanner
-          stale={quote.data?.source === "stale"}
+          stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
         />
 

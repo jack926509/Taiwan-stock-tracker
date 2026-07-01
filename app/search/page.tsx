@@ -9,7 +9,7 @@ import AddStockForm from "@/components/AddStockForm";
 export default function SearchPage() {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"

@@ -54,10 +54,12 @@ export default function QuoteCard({
   quote,
   onDelete,
   spark,
+  compact = false,
 }: {
   quote: Quote;
   onDelete?: (stockId: string) => void;
   spark?: number[];
+  compact?: boolean;
 }) {
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
@@ -79,7 +81,9 @@ export default function QuoteCard({
     <div className="group relative">
       <Link
         href={`/stock/${quote.stockId}`}
-        className={`block rounded-card bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`block rounded-card bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          compact ? "p-3" : "p-4"
+        } ${
           limit === "up"
             ? "ring-2 ring-up"
             : limit === "down"
@@ -87,57 +91,80 @@ export default function QuoteCard({
               : "ring-1 ring-line"
         } ${flash}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate font-semibold leading-tight">{quote.name}</div>
-            <div className="mt-0.5 text-xs text-muted">
-              {quote.stockId}
-              <span className="mx-1 text-line">·</span>
-              {quote.market === "tse" ? "上市" : "上櫃"}
-              {!quote.traded && <span className="ml-1.5 text-warn">未成交</span>}
+        {compact ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold leading-tight">
+                {quote.name}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted">{quote.stockId}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className={`text-base font-bold tabular ${textColor[t]}`}>
+                {fmt(quote.price)}
+              </span>
+              <span
+                className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
+              >
+                {arrowOf(t)} {fmtPct(quote.changePct)}
+              </span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {limit && (
-              <span
-                className={`rounded-pill px-1.5 py-1 text-[11px] font-bold text-white ${
-                  limit === "up" ? "bg-up" : "bg-down"
-                }`}
-              >
-                {limit === "up" ? "漲停" : "跌停"}
-              </span>
-            )}
-            <span
-              className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
-            >
-              {arrowOf(t)} {fmtPct(quote.changePct)}
-            </span>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-semibold leading-tight">{quote.name}</div>
+                <div className="mt-0.5 text-xs text-muted">
+                  {quote.stockId}
+                  <span className="mx-1 text-line">·</span>
+                  {quote.market === "tse" ? "上市" : "上櫃"}
+                  {!quote.traded && <span className="ml-1.5 text-warn">未成交</span>}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {limit && (
+                  <span
+                    className={`rounded-pill px-1.5 py-1 text-[11px] font-bold text-white ${
+                      limit === "up" ? "bg-up" : "bg-down"
+                    }`}
+                  >
+                    {limit === "up" ? "漲停" : "跌停"}
+                  </span>
+                )}
+                <span
+                  className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
+                >
+                  {arrowOf(t)} {fmtPct(quote.changePct)}
+                </span>
+              </div>
+            </div>
 
-        <div className="mt-3 flex items-end justify-between gap-2">
-          <div className="flex items-baseline gap-2">
-            <span
-              className={`text-2xl font-bold tracking-tight tabular ${textColor[t]}`}
-            >
-              {fmt(quote.price)}
-            </span>
-            <span className={`text-sm font-medium tabular ${textColor[t]}`}>
-              {quote.change === null
-                ? ""
-                : `${quote.change > 0 ? "+" : ""}${fmt(quote.change)}`}
-            </span>
-          </div>
-          {spark && <Sparkline points={spark} />}
-        </div>
+            <div className="mt-3 flex items-end justify-between gap-2">
+              <div className="flex items-baseline gap-2">
+                <span
+                  className={`text-2xl font-bold tracking-tight tabular ${textColor[t]}`}
+                >
+                  {fmt(quote.price)}
+                </span>
+                <span className={`text-sm font-medium tabular ${textColor[t]}`}>
+                  {quote.change === null
+                    ? ""
+                    : `${quote.change > 0 ? "+" : ""}${fmt(quote.change)}`}
+                </span>
+              </div>
+              {spark && <Sparkline points={spark} />}
+            </div>
 
-        <DayRangeBar q={quote} />
+            <DayRangeBar q={quote} />
 
-        <div className="mt-3 flex justify-between border-t border-line pt-3 text-xs text-muted tabular">
-          <span>開 {fmt(quote.open)}</span>
-          <span>昨收 {fmt(quote.prevClose)}</span>
-          <span>量 {fmtVol(quote.volume)}</span>
-        </div>
+            <div className="mt-3 flex justify-between border-t border-line pt-3 text-xs text-muted tabular">
+              <span>開 {fmt(quote.open)}</span>
+              <span>昨收 {fmt(quote.prevClose)}</span>
+              <span>量 {fmtVol(quote.volume)}</span>
+            </div>
+          </>
+        )}
       </Link>
 
       {onDelete && (

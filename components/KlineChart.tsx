@@ -14,7 +14,8 @@ import {
 } from "lightweight-charts";
 import type { Candle } from "@/lib/providers/klineProvider";
 import { bollinger, rsi, kd, macd } from "@/lib/indicators";
-import { fmt, fmtVol } from "@/lib/format";
+import { fmt, fmtVol, arrowOf } from "@/lib/format";
+import { MA_COLORS } from "@/lib/klineColors";
 
 type Ind = "none" | "boll" | "kd" | "rsi" | "macd";
 
@@ -52,7 +53,6 @@ function legendDate(time: UTCTimestamp): string {
 // 台股紅漲綠跌（與全站 token 一致）
 const UP = "#E03131";
 const DOWN = "#2F9E44";
-export const MA_COLORS = { ma5: "#E8830C", ma20: "#4F6BED", ma60: "#2DAAA0" };
 const BOLL_COLOR = "#7A5AF8";
 
 function toTime(date: string): UTCTimestamp {
@@ -84,7 +84,7 @@ export default function KlineChart({ candles }: { candles: Candle[] }) {
       autoSize: true,
       layout: {
         background: { color: "transparent" },
-        textColor: "#8A929E",
+        textColor: "#6C727B",
         fontFamily: 'var(--font-sans), "PingFang TC", system-ui, sans-serif',
         panes: { separatorColor: "#EDF0F4", separatorHoverColor: "#DCE0E6" },
       },
@@ -250,7 +250,7 @@ export default function KlineChart({ candles }: { candles: Candle[] }) {
           color: p.hist >= 0 ? "rgba(224,49,49,0.5)" : "rgba(47,158,68,0.5)",
         }))
       );
-      indReadouts.push({ label: "柱", color: "#8A929E", series: hist });
+      indReadouts.push({ label: "柱", color: "#6C727B", series: hist });
       indReadouts.push({
         label: "DIF",
         color: MA_COLORS.ma5,
@@ -349,6 +349,7 @@ export default function KlineChart({ candles }: { candles: Candle[] }) {
   }, [candles, indicator]);
 
   const up = legend ? legend.close >= legend.open : true;
+  const closeTrend: "up" | "down" = up ? "up" : "down";
   const maLabels = ["MA5", "MA20", "MA60"];
   const maColorArr = [MA_COLORS.ma5, MA_COLORS.ma20, MA_COLORS.ma60];
 
@@ -382,7 +383,7 @@ export default function KlineChart({ candles }: { candles: Candle[] }) {
               <span className="text-muted">高 {fmt(legend.high)}</span>
               <span className="text-muted">低 {fmt(legend.low)}</span>
               <span className={up ? "text-up" : "text-down"}>
-                收 {fmt(legend.close)}
+                收 {arrowOf(closeTrend)} {fmt(legend.close)}
               </span>
               <span className="text-muted">量 {fmtVol(legend.volume)}</span>
             </div>

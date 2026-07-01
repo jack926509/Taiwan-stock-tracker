@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
 import type { Fundamental } from "@/lib/providers/fundamentalProvider";
-import KlineChart, { MA_COLORS } from "@/components/KlineChart";
+import { MA_COLORS } from "@/lib/klineColors";
 import FundamentalSection from "@/components/FundamentalSection";
 import PriceAlertCard from "@/components/PriceAlertCard";
 import {
@@ -25,6 +26,13 @@ import {
   klineRangeStats,
   type KlineRangeKey,
 } from "@/lib/klineRange";
+import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+
+// lightweight-charts 屬重量套件，動態載入避免拖慢個股頁首次 JS
+const KlineChart = dynamic(() => import("@/components/KlineChart"), {
+  ssr: false,
+  loading: () => <div className="h-[460px] animate-pulse rounded-lg bg-app" />,
+});
 
 interface KlineResponse {
   stockId: string;
@@ -52,7 +60,10 @@ export default function StockPage() {
   const id = (params.id ?? "").toUpperCase();
   const [range, setRange] = useState<KlineRangeKey>("6m");
   const [alertOpen, setAlertOpen] = useState(false);
+  const [autoPaused, setAutoPaused] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
+  const staleCount = useRef(0);
+  const lastTimeKey = useRef("");
 
   // 點擊浮層外（或按 Esc）關閉到價提醒
   useEffect(() => {
@@ -79,9 +90,34 @@ export default function StockPage() {
     id ? `/api/quote?ids=${encodeURIComponent(id)}` : null,
     fetcher,
     {
-      refreshInterval: (latest) => (latest && !latest.marketOpen ? 0 : 10_000),
+      refreshInterval: (latest) =>
+        autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+      refreshWhenHidden: false,
+      onSuccess: (data) => {
+        // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
+        const key = data.quotes.map((q) => q.time).join("|");
+        if (data.marketOpen && key && key === lastTimeKey.current) {
+          staleCount.current += 1;
+          if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
+        } else {
+          staleCount.current = 0;
+        }
+        lastTimeKey.current = key;
+      },
     }
   );
+
+  // 使用者切回分頁時解除自動暫停、重新輪詢
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState === "visible") {
+        staleCount.current = 0;
+        setAutoPaused(false);
+      }
+    };
+    document.addEventListener("visibilitychange", resume);
+    return () => document.removeEventListener("visibilitychange", resume);
+  }, []);
   const kline = useSWR<KlineResponse>(
     id ? `/api/kline?id=${encodeURIComponent(id)}` : null,
     fetcher,
@@ -120,12 +156,12 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/80 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               href={`/#stock-${id}`}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
               aria-label="返回首頁"
             >
               ←
@@ -209,7 +245,7 @@ export default function StockPage() {
                 <button
                   onClick={() => setAlertOpen((v) => !v)}
                   aria-label="到價提醒"
-                  className={`relative flex h-9 w-9 items-center justify-center rounded-full ring-1 transition-colors ${
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-full ring-1 transition-colors ${
                     alertOpen || hasAlert
                       ? "bg-primary-tint text-primary ring-primary/30"
                       : "bg-app text-muted ring-line hover:text-ink"
@@ -333,20 +369,32 @@ export default function StockPage() {
           )}
 
           {kline.error ? (
-            <div className="grid h-[420px] place-items-center text-sm text-warn">
+            <div className="grid h-[460px] place-items-center text-sm text-warn">
               {kline.error.message}
             </div>
           ) : visible.length > 0 ? (
             <KlineChart candles={visible} />
           ) : (
-            <div className="h-[420px] animate-pulse rounded-lg bg-app" />
+            <div className="h-[460px] animate-pulse rounded-lg bg-app" />
           )}
         </div>
 
         {/* 基本面：估值＋法人買賣超＋月營收＋EPS（ETF 等無資料的區塊自動隱藏） */}
-        {fundamental.data && (
-          <FundamentalSection fund={fundamental.data} price={q?.price ?? null} />
-        )}
+        {fundamental.data ? (
+          <FundamentalSection
+            fund={fundamental.data}
+            price={q?.price ?? null}
+            asOf={fundamental.data.asOf}
+          />
+        ) : !fundamental.error ? (
+          <div className="space-y-4">
+            <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="h-48 animate-pulse rounded-card bg-surface shadow-card" />
+              <div className="h-48 animate-pulse rounded-card bg-surface shadow-card" />
+            </div>
+          </div>
+        ) : null}
 
         <footer className="pb-4 pt-1 text-center text-[11px] text-muted">
           日 K 與基本面資料來源：FinMind（未還原價）・即時報價：MIS・僅供個人參考，非投資建議

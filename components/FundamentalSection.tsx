@@ -38,12 +38,17 @@ function DeltaBadge({ label, v }: { label: string; v: number }) {
   );
 }
 
+// 快取新鮮度：超過此時長顯示「顯示快取資料」提示，比照 K 線的 stale pill
+const STALE_DISPLAY_MS = 60 * 60 * 1000; // 1 小時
+
 export default function FundamentalSection({
   fund,
   price,
+  asOf,
 }: {
   fund: Fundamental;
   price?: number | null;
+  asOf?: string | null;
 }) {
   const { institutional, revenue, valuation } = fund;
   const eps = fund.eps ?? []; // 舊快取（無此欄位）過渡期防呆
@@ -75,8 +80,31 @@ export default function FundamentalSection({
     return null;
   }
 
+  const stale = asOf ? Date.now() - Date.parse(asOf) > STALE_DISPLAY_MS : false;
+
   return (
     <>
+      {asOf && (
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted tabular">
+          <span>
+            基本面更新於{" "}
+            {new Date(asOf).toLocaleString("zh-TW", {
+              month: "numeric",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+              timeZone: "Asia/Taipei",
+            })}
+          </span>
+          {stale && (
+            <span className="rounded-pill bg-warn-tint px-2 py-0.5 text-warn">
+              顯示快取資料
+            </span>
+          )}
+        </div>
+      )}
+
       {/* 估值（ETF 等無此資料時整塊隱藏） */}
       {valuation && (
         <div
@@ -114,7 +142,8 @@ export default function FundamentalSection({
           >
             <h3 className="text-sm font-semibold">三大法人買賣超</h3>
             <p className="mt-0.5 text-[11px] text-muted">單位：張，正為買超</p>
-            <table className="mt-3 w-full text-xs tabular">
+            <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[300px] text-xs tabular">
               <thead>
                 <tr className="text-muted">
                   <th className="pb-2 text-left font-normal">日期</th>
@@ -154,6 +183,7 @@ export default function FundamentalSection({
                 </tr>
               </tfoot>
             </table>
+            </div>
           </div>
         )}
 

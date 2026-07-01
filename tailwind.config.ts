@@ -10,7 +10,7 @@ const config: Config = {
         surface: "#FFFFFF",
         line: "#EDF0F4", // 極淺分隔線
         ink: "#1A1D24", // 主文字（深灰非純黑）
-        muted: "#8A929E", // 次要文字
+        muted: "#6C727B", // 次要文字（達 WCAG AA 4.5:1 對比，原 #8A929E 僅 ~3:1）
         primary: { DEFAULT: "#4F6BED", tint: "#EEF1FE" }, // 沉穩靛藍（chrome 用）
         up: { DEFAULT: "#E03131", tint: "#FFF1F1" }, // 漲・紅
         down: { DEFAULT: "#2F9E44", tint: "#EAFBEF" }, // 跌・綠

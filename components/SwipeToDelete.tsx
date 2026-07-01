@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const THRESHOLD = 72; // 左滑超過此距離（px）放開即刪除
 const MAX = 110; // 最大可滑距離
@@ -17,10 +17,30 @@ export default function SwipeToDelete({
 }) {
   const [dx, setDx] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const dxRef = useRef(0);
+  const frame = useRef<number | null>(null);
   const startX = useRef(0);
   const startY = useRef(0);
   const axis = useRef<"none" | "horizontal" | "vertical">("none");
   const swiped = useRef(false);
+
+  function scheduleDx(next: number) {
+    dxRef.current = next;
+    if (frame.current != null) return;
+    frame.current = window.requestAnimationFrame(() => {
+      frame.current = null;
+      setDx(dxRef.current);
+    });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (frame.current != null) {
+        window.cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
+    };
+  }, []);
 
   function onPointerDown(e: React.PointerEvent) {
     if (e.pointerType !== "touch") return;
@@ -48,17 +68,19 @@ export default function SwipeToDelete({
     }
     if (axis.current !== "horizontal") return;
     swiped.current = true;
-    setDx(Math.max(-MAX, Math.min(0, ddx)));
+    scheduleDx(Math.max(-MAX, Math.min(0, ddx)));
   }
 
   function finish(e: React.PointerEvent) {
     if (e.pointerType !== "touch") return;
     setAnimating(true);
-    if (axis.current === "horizontal" && dx <= -THRESHOLD) {
+    if (axis.current === "horizontal" && dxRef.current <= -THRESHOLD) {
       setDx(-window.innerWidth);
+      dxRef.current = -window.innerWidth;
       window.setTimeout(onDelete, 180);
     } else {
       setDx(0);
+      dxRef.current = 0;
     }
     axis.current = "none";
   }
@@ -102,6 +124,7 @@ export default function SwipeToDelete({
           transform: `translateX(${dx}px)`,
           transition: animating ? "transform 0.18s ease-out" : "none",
           touchAction: "pan-y",
+          willChange: dx !== 0 || animating ? "transform" : "auto",
         }}
       >
         {children}
