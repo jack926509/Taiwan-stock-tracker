@@ -33,9 +33,12 @@ function mmdd(iso: string): string {
 export default function PriceAlertCard({
   stockId,
   name,
+  currentPrice = null,
 }: {
   stockId: string;
   name: string;
+  /** 現價，供「現價 ±5%」快速填價按鈕使用；未提供時按鈕停用 */
+  currentPrice?: number | null;
 }) {
   const { data, mutate } = useSWR<{ items: WatchRow[] }>(
     "/api/watchlist",
@@ -68,6 +71,14 @@ export default function PriceAlertCard({
     } finally {
       setBusy(false);
     }
+  }
+
+  // 現價 ±5% 快速填價：四捨五入到小數 2 位，填入後使用者仍可手動修改
+  function quickFill(target: "high" | "low", pct: number) {
+    if (currentPrice == null) return;
+    const value = Math.round(currentPrice * (1 + pct) * 100) / 100;
+    if (target === "high") setHigh(String(value));
+    else setLow(String(value));
   }
 
   async function save() {
@@ -112,7 +123,7 @@ export default function PriceAlertCard({
   );
 
   const title = (
-    <span className="flex items-center gap-1.5 text-sm font-semibold">
+    <span className="flex items-center gap-1.5 font-serif text-sm font-semibold">
       {bellIcon}
       到價提醒
     </span>
@@ -140,41 +151,61 @@ export default function PriceAlertCard({
     <div className="flex flex-col gap-3">
       {title}
       {/* 漲到（紅） */}
-      <label className="flex items-center gap-2">
-        <span className="w-12 shrink-0 text-[11px] font-medium text-up">漲到 ▲</span>
-        <input
-          value={high}
-          onChange={(e) => setHigh(e.target.value)}
-          inputMode="decimal"
-          placeholder="未設定"
-          className="min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 py-1.5 text-sm tabular outline-none transition-colors focus:border-up"
-        />
-        <span className="w-16 shrink-0 text-right text-[10px] text-muted">
-          {row?.alert_high == null
-            ? "—"
-            : row.alert_high_hit_at
-              ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
-              : "監控中"}
-        </span>
-      </label>
+      <div className="flex flex-col gap-1.5">
+        <label className="flex items-center gap-2">
+          <span className="w-12 shrink-0 text-[11px] font-medium text-up">漲到 ▲</span>
+          <input
+            value={high}
+            onChange={(e) => setHigh(e.target.value)}
+            inputMode="decimal"
+            placeholder="未設定"
+            className="min-w-0 flex-1 rounded-card border border-line bg-app px-2.5 py-1.5 font-mono text-sm tabular outline-none transition-colors focus:border-up"
+          />
+          <span className="w-16 shrink-0 text-right font-mono text-[10px] text-muted">
+            {row?.alert_high == null
+              ? "—"
+              : row.alert_high_hit_at
+                ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
+                : "監控中"}
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={() => quickFill("high", 0.05)}
+          disabled={currentPrice == null}
+          className="ml-14 w-fit rounded-pill bg-up-tint px-2.5 py-1 text-[11px] font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          現價 +5%
+        </button>
+      </div>
       {/* 跌到（綠） */}
-      <label className="flex items-center gap-2">
-        <span className="w-12 shrink-0 text-[11px] font-medium text-down">跌到 ▼</span>
-        <input
-          value={low}
-          onChange={(e) => setLow(e.target.value)}
-          inputMode="decimal"
-          placeholder="未設定"
-          className="min-w-0 flex-1 rounded-lg border border-line bg-app px-2.5 py-1.5 text-sm tabular outline-none transition-colors focus:border-down"
-        />
-        <span className="w-16 shrink-0 text-right text-[10px] text-muted">
-          {row?.alert_low == null
-            ? "—"
-            : row.alert_low_hit_at
-              ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
-              : "監控中"}
-        </span>
-      </label>
+      <div className="flex flex-col gap-1.5">
+        <label className="flex items-center gap-2">
+          <span className="w-12 shrink-0 text-[11px] font-medium text-down">跌到 ▼</span>
+          <input
+            value={low}
+            onChange={(e) => setLow(e.target.value)}
+            inputMode="decimal"
+            placeholder="未設定"
+            className="min-w-0 flex-1 rounded-card border border-line bg-app px-2.5 py-1.5 font-mono text-sm tabular outline-none transition-colors focus:border-down"
+          />
+          <span className="w-16 shrink-0 text-right font-mono text-[10px] text-muted">
+            {row?.alert_low == null
+              ? "—"
+              : row.alert_low_hit_at
+                ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
+                : "監控中"}
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={() => quickFill("low", -0.05)}
+          disabled={currentPrice == null}
+          className="ml-14 w-fit rounded-pill bg-down-tint px-2.5 py-1 text-[11px] font-medium text-down transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          現價 −5%
+        </button>
+      </div>
       <button
         onClick={save}
         disabled={busy}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import type { QuoteResponse, WatchlistItem } from "@/lib/types";
+import type { Signal } from "@/lib/signals";
 import IndexCards from "@/components/IndexCard";
 import Link from "next/link";
 import QuoteCard from "@/components/QuoteCard";
@@ -13,7 +14,9 @@ import StockSearch from "@/components/StockSearch";
 import RelativeTime from "@/components/RelativeTime";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
+import EmptyState from "@/components/EmptyState";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+import { getMarketSessionDetail } from "@/lib/marketSession";
 
 // @dnd-kit 屬重量套件，動態載入避免拖慢首頁首次 JS；載入完成前退回不可拖曳的靜態格線
 const DraggableGrid = dynamic(() => import("@/components/DraggableGrid"), {
@@ -42,6 +45,35 @@ const FILTERS = [
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
+// masthead 日期時間：「2026 / 07 / 04　09:31 TPE」（台北時間，非依賴瀏覽器時區）
+function formatMastheadDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")} / ${get("month")} / ${get("day")}　${get("hour")}:${get("minute")} TPE`;
+}
+
+// 手機窄版 masthead 用的精簡日期「07/04 09:31」
+function formatMastheadDateShort(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("month")}/${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const json = await res.json().catch(() => ({}));
@@ -54,9 +86,15 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
-  const [compact, setCompact] = useState(false); // 精簡／詳細密度
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
+  const [now, setNow] = useState(() => new Date());
+
+  // masthead 的日期／盤別文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const watchlist = useSWR<{ items: WatchlistItem[]; storage: string }>(
     "/api/watchlist",
@@ -154,11 +192,11 @@ export default function Dashboard() {
         .join(","),
     [data?.quotes]
   );
-  const sparks = useSWR<{ data: Record<string, number[]> }>(
-    sparkIds ? `/api/sparklines?ids=${sparkIds}` : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
+  const sparks = useSWR<{
+    data: Record<string, { spark: number[]; signals: Signal[] }>;
+  }>(sparkIds ? `/api/sparklines?ids=${sparkIds}` : null, fetcher, {
+    revalidateOnFocus: false,
+  });
 
   // UI-1：依今日漲跌幅排序（null 一律排最後），預設依自訂拖曳順序
   const sortedQuotes = useMemo(() => {
@@ -205,54 +243,42 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
-      {/* 頂部 App Bar（sticky，毛玻璃感） */}
-      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      {/* masthead（sticky）：左＝站名（襯線），右＝日期＋盤別；下接 2px 實色深墨分隔線 */}
+      <header className="sticky top-0 z-10 bg-app/95 pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-b-2 border-ink px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-primary to-[#7B96F4] text-sm font-bold text-white shadow-card">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-card">
               台
             </span>
-            <span className="font-semibold">台股追蹤</span>
+            <span className="font-serif text-lg font-bold tracking-tight text-ink">
+              台股追蹤
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="hidden text-right font-mono text-xs leading-tight text-muted tabular sm:block">
+              <div>{formatMastheadDate(now)}</div>
+              <div className="mt-0.5 flex items-center justify-end gap-1">
+                {data?.marketOpen && <span className="pulse-dot text-primary">●</span>}
+                <span className={data?.marketOpen ? "font-semibold text-primary" : ""}>
+                  {getMarketSessionDetail(now)}
+                </span>
+              </div>
+            </div>
             {data && (
               <span
-                className={`rounded-pill px-2.5 py-1 font-medium ${
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-[11px] font-medium tabular sm:hidden ${
                   data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
                 }`}
               >
-                {data.marketOpen ? (
-                  <>
-                    <span className="pulse-dot">●</span> 盤中
-                  </>
-                ) : (
-                  "○ 已收盤"
-                )}
-              </span>
-            )}
-            {data && (
-              <span className="text-muted tabular">
-                <span className="hidden sm:inline">
-                  {new Date(data.asOf).toLocaleDateString("zh-TW", {
-                    month: "numeric",
-                    day: "numeric",
-                    weekday: "short",
-                    timeZone: "Asia/Taipei",
-                  })}
-                  <span className="mx-1.5 text-line">|</span>
-                  {new Date(data.asOf).toLocaleTimeString("zh-TW", {
-                    hour12: false,
-                    timeZone: "Asia/Taipei",
-                  })}
-                  <span className="mx-1.5 text-line">·</span>
-                </span>
-                <RelativeTime iso={data.asOf} />
+                {formatMastheadDateShort(now)}
+                <span className="text-primary/50">·</span>
+                {getMarketSessionDetail(now)}
               </span>
             )}
             <Link
               href="/alerts"
               aria-label="到價提醒總覽"
-              className="hidden h-7 w-7 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink md:flex"
+              className="hidden h-7 w-7 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] md:flex"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -271,13 +297,29 @@ export default function Dashboard() {
               onClick={refreshAll}
               disabled={quote.isValidating}
               aria-label="立即更新"
-              className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink disabled:opacity-50"
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] disabled:opacity-50"
             >
               <span className={quote.isValidating ? "inline-block animate-spin" : ""}>
                 ↻
               </span>
             </button>
           </div>
+        </div>
+
+        {/* 大盤指數：手機兩顆各半寬一次顯示，桌面版改為佔滿版寬的橫條帶 */}
+        <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6">
+          {data ? (
+            <IndexCards indices={data.indices} />
+          ) : (
+            <div className="flex gap-2 sm:gap-0 sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-card">
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="h-14 flex-1 animate-pulse rounded-card bg-surface sm:h-16 sm:rounded-none sm:bg-transparent"
+                />
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
@@ -313,26 +355,20 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 大盤指數 hero */}
-        {data ? (
-          <IndexCards indices={data.indices} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-card bg-surface shadow-card" />
-            ))}
-          </div>
-        )}
-
         {/* 自選股 */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold">自選股</h2>
               <p className="text-xs text-muted">
-                {data
-                  ? `${filteredQuotes.length} / ${data.quotes.length} 檔・盤中每 10 秒更新`
-                  : "載入中…"}
+                {data ? (
+                  <>
+                    {filteredQuotes.length} / {data.quotes.length} 檔・盤中每 10 秒更新・
+                    <RelativeTime iso={data.asOf} />
+                  </>
+                ) : (
+                  "載入中…"
+                )}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -342,7 +378,9 @@ export default function Dashboard() {
                     <button
                       key={s.key}
                       onClick={() => setSortKey(s.key)}
-                      className={`rounded-pill px-2.5 py-1 font-medium transition-colors ${
+                      aria-label={`依${s.label}排序`}
+                      aria-pressed={sortKey === s.key}
+                      className={`rounded-pill px-2.5 py-1 font-medium transition-colors active:scale-[0.97] ${
                         sortKey === s.key
                           ? "bg-surface text-ink shadow-card"
                           : "text-muted hover:text-ink"
@@ -352,19 +390,6 @@ export default function Dashboard() {
                     </button>
                   ))}
                 </div>
-              )}
-              {data && data.quotes.length > 1 && (
-                <button
-                  onClick={() => setCompact((v) => !v)}
-                  aria-pressed={compact}
-                  className={`rounded-pill px-2.5 py-1 text-xs font-medium ring-1 transition-colors ${
-                    compact
-                      ? "bg-primary-tint text-primary ring-primary/30"
-                      : "bg-app text-muted ring-line hover:text-ink"
-                  }`}
-                >
-                  {compact ? "詳細" : "精簡"}
-                </button>
               )}
               <div className="hidden md:block">
                 <AddStockForm onAdded={refreshAll} />
@@ -378,7 +403,9 @@ export default function Dashboard() {
                 <button
                   key={f.key}
                   onClick={() => setFilterKey(f.key)}
-                  className={`rounded-pill px-2.5 py-1 font-medium ring-1 transition-colors ${
+                  aria-label={`篩選：${f.label}`}
+                  aria-pressed={filterKey === f.key}
+                  className={`rounded-pill px-2.5 py-1 font-medium ring-1 transition-colors active:scale-[0.97] ${
                     filterKey === f.key
                       ? "bg-primary-tint text-primary ring-primary/30"
                       : "bg-surface text-muted ring-line hover:text-ink"
@@ -392,9 +419,7 @@ export default function Dashboard() {
 
           {data && data.quotes.length > 0 ? (
             filteredQuotes.length === 0 ? (
-              <div className="rounded-card border border-dashed border-line bg-surface/60 p-10 text-center">
-                <p className="text-sm text-muted">此篩選條件下沒有自選股</p>
-              </div>
+              <EmptyState description="此篩選條件下沒有自選股" />
             ) : (
               (() => {
                 // 僅「預設」排序、無篩選、且 ≥2 檔時可拖曳排序（漲幅/跌幅為即時計算、篩選中皆不可手動排）
@@ -413,8 +438,8 @@ export default function Dashboard() {
                         <QuoteCard
                           quote={q}
                           onDelete={handleDelete}
-                          spark={sparks.data?.data[q.stockId]}
-                          compact={compact}
+                          spark={sparks.data?.data[q.stockId]?.spark}
+                          signals={sparks.data?.data[q.stockId]?.signals}
                         />
                       </SwipeToDelete>
                     </div>
@@ -434,12 +459,10 @@ export default function Dashboard() {
               })()
             )
           ) : data ? (
-            <div className="rounded-card border border-dashed border-line bg-surface/60 p-10 text-center">
-              <div className="text-2xl">📈</div>
-              <p className="mt-2 text-sm text-muted">
-                還沒有自選股，輸入代號加入第一檔吧（例如 2330 台積電）
-              </p>
-            </div>
+            <EmptyState
+              emoji="📈"
+              description="還沒有自選股，輸入代號加入第一檔吧（例如 2330 台積電）"
+            />
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (

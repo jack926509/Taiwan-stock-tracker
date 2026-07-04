@@ -3,19 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-sans: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+  --font-serif: "Songti TC", "Noto Serif CJK TC", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", monospace;
 }
 
-/* 中文用系統字（Mac 上 PingFang TC 極佳），數字/英文用 Manrope；CJK 不額外下載 */
+/* 中文本文用 PingFang TC 系統字；標題另走 --font-serif，數字另走 --font-mono */
 body {
-  font-family: var(--font-sans), "PingFang TC", "Noto Sans TC",
-    "Microsoft JhengHei", sans-serif;
-  /* 淺色現代風：柔和漸層底 + 雙色極淡光暈（靛藍 + 一絲青綠），避免大片純白死板 */
-  background-color: #f5f7fa;
+  font-family: var(--font-sans);
+  /* 晨間財經誌：暖白紙感底，單一暖色光暈，避免冷灰調 */
+  background-color: #f2ecdd;
   background-image:
-    radial-gradient(1200px 600px at 85% -8%, rgba(79, 107, 237, 0.07), transparent 60%),
-    radial-gradient(900px 500px at -5% 5%, rgba(45, 170, 160, 0.05), transparent 55%),
-    radial-gradient(700px 400px at 50% 110%, rgba(79, 107, 237, 0.04), transparent 60%);
+    radial-gradient(circle at 12% 0%, #fbf7ec, transparent 60%);
   background-attachment: fixed;
 }
 
@@ -27,7 +26,7 @@ body {
 }
 
 ::selection {
-  background: rgba(79, 107, 237, 0.16);
+  background: rgba(26, 58, 99, 0.16);
 }
 
 /* 價格數字等寬，跳動時不位移（附錄 B.3） */
@@ -38,11 +37,11 @@ body {
 
 /* 報價更新閃動：漲紅閃／跌綠閃後回中性（附錄 B.5） */
 @keyframes flash-up {
-  0% { background-color: rgba(224, 49, 49, 0.07); }
+  0% { background-color: rgba(192, 25, 38, 0.07); }
   100% { background-color: transparent; }
 }
 @keyframes flash-down {
-  0% { background-color: rgba(47, 158, 68, 0.07); }
+  0% { background-color: rgba(10, 122, 69, 0.07); }
   100% { background-color: transparent; }
 }
 .flash-up { animation: flash-up 0.7s ease-out; }

@@ -1,32 +1,34 @@
 import type { Config } from "tailwindcss";
 
-// 淺色現代風 token（計劃書附錄 B.2 護眼基礎上精煉）。台股紅漲綠跌不變。
+// 「晨間財經誌」風格 token（暖白紙感底＋深墨文字＋襯線標題＋單一靛藍點綴）。台股紅漲綠跌不變。
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        app: "#F5F7FA", // 柔和淺灰底
-        surface: "#FFFFFF",
-        line: "#EDF0F4", // 極淺分隔線
-        ink: "#1A1D24", // 主文字（深灰非純黑）
-        muted: "#6C727B", // 次要文字（達 WCAG AA 4.5:1 對比，原 #8A929E 僅 ~3:1）
-        primary: { DEFAULT: "#4F6BED", tint: "#EEF1FE" }, // 沉穩靛藍（chrome 用）
-        up: { DEFAULT: "#E03131", tint: "#FFF1F1" }, // 漲・紅
-        down: { DEFAULT: "#2F9E44", tint: "#EAFBEF" }, // 跌・綠
-        flat: "#868E96",
-        warn: { DEFAULT: "#E8830C", tint: "#FFF6E9" },
+        app: "#F7F2E7", // 暖白紙感底（--paper）
+        surface: "#FFFDF7", // 卡片底色（--card）
+        line: "#DDD3BF", // 分隔線（--rule）
+        ink: "#211D16", // 主文字（--ink）
+        muted: "#7D7361", // 次要文字（--sub）
+        primary: { DEFAULT: "#1A3A63", tint: "#E7ECF3" }, // 單一飽和點綴：靛藍（--accent）
+        up: { DEFAULT: "#C01926", tint: "#F7E2E0", strong: "#8F1119" }, // 漲・紅（strong：|漲跌幅|≥3% 加深一階）
+        down: { DEFAULT: "#0A7A45", tint: "#DCEFE3", strong: "#075C34" }, // 跌・綠（strong：|漲跌幅|≥3% 加深一階）
+        flat: "#5F5745", // 介於 muted 與 ink 之間的暖灰
+        warn: { DEFAULT: "#C97A1B", tint: "#F7ECD9" }, // 橘色系暖化以貼近整體暖色調
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
-        // 柔和浮起（淺色現代風關鍵）
-        card: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -12px rgba(16,24,40,0.10)",
-        lift: "0 2px 4px rgba(16,24,40,0.05), 0 16px 32px -16px rgba(16,24,40,0.14)",
+        // 扁平雜誌排版：極輕陰影，靠實色分隔線分界，不做厚重浮起感
+        card: "0 1px 0 rgba(33,29,22,0.06)",
+        lift: "0 1px 2px rgba(33,29,22,0.08)",
       },
       borderRadius: {
-        card: "16px",
+        card: "4px",
         pill: "999px",
       },
     },

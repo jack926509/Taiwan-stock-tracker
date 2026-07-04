@@ -1,6 +1,7 @@
 // 迷你走勢圖：近 N 日收盤折線。依整體方向上紅下綠（台股紅漲綠跌）
-const UP = "#E03131";
-const DOWN = "#2F9E44";
+// 顏色對齊「晨間財經誌」token（tailwind.config.ts 的 up/down）
+const UP = "#C01926";
+const DOWN = "#0A7A45";
 
 export default function Sparkline({ points }: { points: number[] }) {
   if (!points || points.length < 2) return null;

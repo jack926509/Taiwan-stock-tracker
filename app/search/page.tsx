@@ -13,12 +13,12 @@ export default function SearchPage() {
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink md:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] md:hidden"
             aria-label="返回自選"
           >
             ←
           </Link>
-          <span className="font-semibold">搜尋個股</span>
+          <span className="font-serif font-semibold">搜尋個股</span>
         </div>
       </header>
 
@@ -31,7 +31,7 @@ export default function SearchPage() {
         </section>
 
         <section className="rounded-card bg-surface p-4 shadow-card ring-1 ring-line">
-          <h2 className="mb-3 text-sm font-semibold">加入自選股</h2>
+          <h2 className="mb-3 font-serif text-sm font-semibold">加入自選股</h2>
           <AddStockForm onAdded={() => {}} />
         </section>
       </main>

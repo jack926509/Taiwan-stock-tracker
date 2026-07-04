@@ -63,7 +63,7 @@ export default function StockSearch() {
         placeholder="搜尋任意個股看 K 線與基本面，輸入代號如 2330"
         inputMode="numeric"
         aria-label="搜尋個股"
-        className="w-full rounded-pill border border-line bg-surface py-3 pl-11 pr-28 text-sm shadow-card outline-none transition-colors focus:border-primary"
+        className="w-full rounded-pill border border-line bg-surface py-3 pl-11 pr-28 font-mono text-sm shadow-card outline-none transition-colors focus:border-primary"
       />
       {/* 右側即時狀態／前往按鈕 */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2">

@@ -72,10 +72,16 @@ export default function BottomNav() {
               href={tab.href}
               aria-label={tab.label}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+              className={`relative flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
                 active ? "text-primary" : "text-muted"
               }`}
             >
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 mx-auto h-0.5 w-8 rounded-full bg-primary"
+                />
+              )}
               <span className="relative">
                 <svg
                   viewBox="0 0 24 24"

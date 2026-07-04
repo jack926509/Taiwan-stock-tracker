@@ -11,8 +11,9 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     orientation: "portrait",
     lang: "zh-Hant",
-    background_color: "#F5F7FA",
-    theme_color: "#F5F7FA",
+    // 對齊「晨間財經誌」暖白紙感底（tailwind.config.ts 的 app token）
+    background_color: "#F7F2E7",
+    theme_color: "#F7F2E7",
     icons: [
       { src: "/icons/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },

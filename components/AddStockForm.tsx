@@ -87,7 +87,7 @@ export default function AddStockForm({ onAdded }: { onAdded: () => void }) {
             onChange={(e) => setCode(e.target.value)}
             placeholder="輸入代號，如 2330"
             inputMode="numeric"
-            className="w-44 rounded-pill border border-line bg-surface py-2 pl-9 pr-3 text-sm shadow-card outline-none transition-colors focus:border-primary"
+            className="w-44 rounded-pill border border-line bg-surface py-2 pl-9 pr-3 font-mono text-sm shadow-card outline-none transition-colors focus:border-primary"
           />
         </div>
         <button

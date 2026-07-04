@@ -8,7 +8,6 @@ import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
 import type { Fundamental } from "@/lib/providers/fundamentalProvider";
-import { MA_COLORS } from "@/lib/klineColors";
 import FundamentalSection from "@/components/FundamentalSection";
 import PriceAlertCard from "@/components/PriceAlertCard";
 import {
@@ -31,7 +30,7 @@ import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 // lightweight-charts 屬重量套件，動態載入避免拖慢個股頁首次 JS
 const KlineChart = dynamic(() => import("@/components/KlineChart"), {
   ssr: false,
-  loading: () => <div className="h-[460px] animate-pulse rounded-lg bg-app" />,
+  loading: () => <div className="h-[460px] animate-pulse rounded-card bg-app" />,
 });
 
 interface KlineResponse {
@@ -156,42 +155,62 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href={`/#stock-${id}`}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
-              aria-label="返回首頁"
-            >
-              ←
-            </Link>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="truncate font-semibold">
-                  {q?.name ?? id}
-                </span>
-                <span className="rounded-pill bg-surface px-2 py-0.5 text-[11px] text-muted ring-1 ring-line">
-                  {id}
-                  {q && `・${q.market === "tse" ? "上市" : "上櫃"}`}
-                </span>
+      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link
+                href={`/#stock-${id}`}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
+                aria-label="返回首頁"
+              >
+                ←
+              </Link>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-serif font-semibold">
+                    {q?.name ?? id}
+                  </span>
+                  <span className="rounded-pill bg-surface px-2 py-0.5 text-[11px] text-muted ring-1 ring-line">
+                    {id}
+                    {q && `・${q.market === "tse" ? "上市" : "上櫃"}`}
+                  </span>
+                </div>
               </div>
             </div>
+            {quote.data && (
+              <span
+                className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-medium ${
+                  quote.data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
+                }`}
+              >
+                {quote.data.marketOpen ? (
+                  <>
+                    <span className="pulse-dot">●</span> 盤中
+                  </>
+                ) : (
+                  "○ 已收盤"
+                )}
+              </span>
+            )}
           </div>
-          {quote.data && (
-            <span
-              className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-medium ${
-                quote.data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
-              }`}
-            >
-              {quote.data.marketOpen ? (
-                <>
-                  <span className="pulse-dot">●</span> 盤中
-                </>
-              ) : (
-                "○ 已收盤"
-              )}
-            </span>
+          {/* 頂部價格摘要（sticky，毛玻璃樣式沿用 header bg-app/95）：滾動時仍能看到即時股價 */}
+          {q && (
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-[3.25rem]">
+              <span className={`font-mono text-xl font-bold tabular ${textColor[t]}`}>
+                {fmt(q.price)}
+              </span>
+              <span className={`font-mono text-xs font-semibold tabular ${textColor[t]}`}>
+                {q.change === null
+                  ? ""
+                  : `${q.change > 0 ? "+" : ""}${fmt(q.change)}`}
+              </span>
+              <span
+                className={`rounded-pill px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular ${chipColor[t]}`}
+              >
+                {arrowOf(t)} {fmtPct(q.changePct)}
+              </span>
+            </div>
           )}
         </div>
       </header>
@@ -203,21 +222,21 @@ export default function StockPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className={`text-4xl font-bold tracking-tight tabular ${textColor[t]}`}>
+                  <span className={`font-mono text-4xl font-bold tracking-tight tabular ${textColor[t]}`}>
                     {fmt(q.price)}
                   </span>
-                  <span className={`text-sm font-semibold tabular ${textColor[t]}`}>
+                  <span className={`font-mono text-sm font-semibold tabular ${textColor[t]}`}>
                     {q.change === null
                       ? ""
                       : `${q.change > 0 ? "+" : ""}${fmt(q.change)}`}
                   </span>
                   <span
-                    className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
+                    className={`rounded-pill px-2 py-1 font-mono text-xs font-semibold tabular ${chipColor[t]}`}
                   >
                     {arrowOf(t)} {fmtPct(q.changePct)}
                   </span>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted tabular">
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-muted tabular">
                   <span className="whitespace-nowrap">開 {fmt(q.open)}</span>
                   <span className="whitespace-nowrap">高 {fmt(q.high)}</span>
                   <span className="whitespace-nowrap">低 {fmt(q.low)}</span>
@@ -225,7 +244,7 @@ export default function StockPage() {
                   <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
                 </div>
                 {hasAlert && (
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs tabular">
+                  <div className="mt-3 flex flex-wrap gap-2 font-mono text-xs tabular">
                     {currentWatch?.alert_high != null && (
                       <span className="rounded-pill bg-up-tint px-2.5 py-1 font-medium text-up">
                         提醒 ▲ {fmt(currentWatch.alert_high)}
@@ -245,7 +264,7 @@ export default function StockPage() {
                 <button
                   onClick={() => setAlertOpen((v) => !v)}
                   aria-label="到價提醒"
-                  className={`relative flex h-11 w-11 items-center justify-center rounded-full ring-1 transition-colors ${
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-card ring-1 transition-colors ${
                     alertOpen || hasAlert
                       ? "bg-primary-tint text-primary ring-primary/30"
                       : "bg-app text-muted ring-line hover:text-ink"
@@ -270,7 +289,11 @@ export default function StockPage() {
 
                 {alertOpen && (
                   <div className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lg ring-1 ring-line">
-                    <PriceAlertCard stockId={id} name={q.name ?? id} />
+                    <PriceAlertCard
+                      stockId={id}
+                      name={q.name ?? id}
+                      currentPrice={q.price ?? null}
+                    />
                   </div>
                 )}
               </div>
@@ -280,58 +303,13 @@ export default function StockPage() {
           <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
         )}
 
-        {(prevWatch || nextWatch) && (
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            {prevWatch ? (
-              <Link
-                href={`/stock/${prevWatch.stock_id}`}
-                className="rounded-card bg-surface px-3 py-2 text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
-              >
-                <span className="block text-[11px]">上一檔</span>
-                <span className="mt-0.5 block truncate font-semibold text-ink">
-                  ← {prevWatch.name}
-                </span>
-              </Link>
-            ) : (
-              <span />
-            )}
-            {nextWatch ? (
-              <Link
-                href={`/stock/${nextWatch.stock_id}`}
-                className="rounded-card bg-surface px-3 py-2 text-right text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
-              >
-                <span className="block text-[11px]">下一檔</span>
-                <span className="mt-0.5 block truncate font-semibold text-ink">
-                  {nextWatch.name} →
-                </span>
-              </Link>
-            ) : (
-              <span />
-            )}
-          </div>
-        )}
-
         {/* K 線圖 */}
         <div
           className="rise-in rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5"
           style={{ animationDelay: "80ms" }}
         >
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 text-[11px] text-muted">
-              <span className="text-sm font-semibold text-ink">日 K</span>
-              <span className="flex items-center gap-1">
-                <i className="h-0.5 w-3 rounded" style={{ background: MA_COLORS.ma5 }} />
-                MA5
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="h-0.5 w-3 rounded" style={{ background: MA_COLORS.ma20 }} />
-                MA20
-              </span>
-              <span className="flex items-center gap-1">
-                <i className="h-0.5 w-3 rounded" style={{ background: MA_COLORS.ma60 }} />
-                MA60
-              </span>
-            </div>
+            <span className="font-serif text-sm font-semibold text-ink">日 K</span>
             <div className="flex flex-wrap rounded-pill bg-app p-0.5">
               {KLINE_RANGES.map((r) => (
                 <button
@@ -350,7 +328,7 @@ export default function StockPage() {
           </div>
 
           {visible.length > 0 && (
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted tabular">
+            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-muted tabular">
               <span>
                 區間
                 <span className={`ml-1 font-semibold ${textColor[rangeTrend]}`}>
@@ -373,7 +351,11 @@ export default function StockPage() {
               {kline.error.message}
             </div>
           ) : visible.length > 0 ? (
-            <KlineChart candles={visible} />
+            <KlineChart
+              candles={visible}
+              alertHigh={currentWatch?.alert_high ?? null}
+              alertLow={currentWatch?.alert_low ?? null}
+            />
           ) : (
             <div className="h-[460px] animate-pulse rounded-lg bg-app" />
           )}
@@ -395,6 +377,44 @@ export default function StockPage() {
             </div>
           </div>
         ) : null}
+
+        {/* 自選清單前後檔切換：僅在目前個股在自選清單內時顯示（非自選、直接搜尋進來則隱藏） */}
+        {(prevWatch || nextWatch) && (
+          <div className="grid grid-cols-2 gap-2 border-t border-line pt-4 text-xs">
+            {prevWatch ? (
+              <Link
+                href={`/stock/${prevWatch.stock_id}`}
+                className="rounded-card bg-surface px-3 py-2 text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+              >
+                <span className="block text-[11px]">上一檔</span>
+                <span className="mt-0.5 block truncate font-serif font-semibold text-ink">
+                  ← {prevWatch.name}
+                  <span className="ml-1 font-mono text-[11px] font-normal text-muted">
+                    {prevWatch.stock_id}
+                  </span>
+                </span>
+              </Link>
+            ) : (
+              <span />
+            )}
+            {nextWatch ? (
+              <Link
+                href={`/stock/${nextWatch.stock_id}`}
+                className="rounded-card bg-surface px-3 py-2 text-right text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+              >
+                <span className="block text-[11px]">下一檔</span>
+                <span className="mt-0.5 block truncate font-serif font-semibold text-ink">
+                  <span className="mr-1 font-mono text-[11px] font-normal text-muted">
+                    {nextWatch.stock_id}
+                  </span>
+                  {nextWatch.name} →
+                </span>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </div>
+        )}
 
         <footer className="pb-4 pt-1 text-center text-[11px] text-muted">
           日 K 與基本面資料來源：FinMind（未還原價）・即時報價：MIS・僅供個人參考，非投資建議

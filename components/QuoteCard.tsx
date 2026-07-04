@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Quote } from "@/lib/types";
+import type { Signal } from "@/lib/signals";
 import Sparkline from "@/components/Sparkline";
 import {
   fmt,
@@ -13,7 +14,47 @@ import {
   textColor,
   chipColor,
   limitOf,
+  type Trend,
 } from "@/lib/format";
+
+// |漲跌幅| ≥3% 視為劇烈變動：字加粗、色彩加深一階，方便快速掃讀
+const STRONG_MOVE_THRESHOLD = 0.03;
+
+function strongMoveOf(changePct: number | null): boolean {
+  return changePct !== null && Math.abs(changePct) >= STRONG_MOVE_THRESHOLD;
+}
+
+// 加深一階文字色（僅 up/down 有對應 strong 色階，flat 沿用原色）
+const strongTextColor: Record<Trend, string> = {
+  up: "text-up-strong",
+  down: "text-down-strong",
+  flat: "text-flat",
+};
+
+// 訊號徽章色階：中性（站上/跌破 MA20）用暖灰，偏多/偏空沿用既有紅綠系
+// 扁平雜誌感：小圓角（非膠囊），呼應卡片整體 rounded-card 的方正調性
+const signalToneClass: Record<Signal["tone"], string> = {
+  neutral: "bg-line/35 text-muted",
+  up: "bg-up-tint text-up",
+  down: "bg-down-tint text-down",
+};
+
+function SignalBadges({ signals }: { signals?: Signal[] }) {
+  if (!signals || signals.length === 0) return null;
+  const shown = signals.slice(0, 2);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {shown.map((s) => (
+        <span
+          key={s.kind}
+          className={`rounded px-2 py-0.5 text-[11px] font-medium ${signalToneClass[s.tone]}`}
+        >
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 // 當日區間條：現價落在當日 低～高 的位置（真實資料的現代化視覺）
 function DayRangeBar({ q }: { q: Quote }) {
@@ -54,15 +95,16 @@ export default function QuoteCard({
   quote,
   onDelete,
   spark,
-  compact = false,
+  signals,
 }: {
   quote: Quote;
   onDelete?: (stockId: string) => void;
   spark?: number[];
-  compact?: boolean;
+  signals?: Signal[];
 }) {
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
+  const strongMove = strongMoveOf(quote.changePct);
   const prevPrice = useRef<number | null>(quote.price);
   const [flash, setFlash] = useState("");
 
@@ -81,9 +123,7 @@ export default function QuoteCard({
     <div className="group relative">
       <Link
         href={`/stock/${quote.stockId}`}
-        className={`block rounded-card bg-surface shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-          compact ? "p-3" : "p-4"
-        } ${
+        className={`block rounded-card bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           limit === "up"
             ? "ring-2 ring-up"
             : limit === "down"
@@ -91,37 +131,13 @@ export default function QuoteCard({
               : "ring-1 ring-line"
         } ${flash}`}
       >
-        {compact ? (
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold leading-tight">
-                {quote.name}
-              </div>
-              <div className="mt-0.5 text-[11px] text-muted">{quote.stockId}</div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className={`text-base font-bold tabular ${textColor[t]}`}>
-                {fmt(quote.price)}
+        {/* 第一行 kicker：漲跌方向 · 代號，等寬字＋靛藍點綴，掃讀動線起點 */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
+                {t === "up" ? "上漲" : t === "down" ? "下跌" : "持平"}
+                <span className="mx-1 text-primary/40">·</span>
+                {quote.stockId}
               </span>
-              <span
-                className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
-              >
-                {arrowOf(t)} {fmtPct(quote.changePct)}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="truncate font-semibold leading-tight">{quote.name}</div>
-                <div className="mt-0.5 text-xs text-muted">
-                  {quote.stockId}
-                  <span className="mx-1 text-line">·</span>
-                  {quote.market === "tse" ? "上市" : "上櫃"}
-                  {!quote.traded && <span className="ml-1.5 text-warn">未成交</span>}
-                </div>
-              </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 {limit && (
                   <span
@@ -132,29 +148,53 @@ export default function QuoteCard({
                     {limit === "up" ? "漲停" : "跌停"}
                   </span>
                 )}
-                <span
-                  className={`rounded-pill px-2 py-1 text-xs font-semibold tabular ${chipColor[t]}`}
-                >
-                  {arrowOf(t)} {fmtPct(quote.changePct)}
-                </span>
+                {!quote.traded && <span className="text-[11px] text-warn">未成交</span>}
               </div>
             </div>
 
-            <div className="mt-3 flex items-end justify-between gap-2">
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={`text-2xl font-bold tracking-tight tabular ${textColor[t]}`}
-                >
-                  {fmt(quote.price)}
-                </span>
-                <span className={`text-sm font-medium tabular ${textColor[t]}`}>
-                  {quote.change === null
-                    ? ""
-                    : `${quote.change > 0 ? "+" : ""}${fmt(quote.change)}`}
-                </span>
-              </div>
-              {spark && <Sparkline points={spark} />}
+            {/* 第二行：左 sparkline、右現價（卡片內最大字級） */}
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {spark ? <Sparkline points={spark} /> : <span />}
+              <span
+                className={`text-3xl tracking-tight tabular ${
+                  strongMove ? "font-extrabold" : "font-bold"
+                } ${strongMove ? strongTextColor[t] : textColor[t]}`}
+              >
+                {fmt(quote.price)}
+              </span>
             </div>
+
+            {/* 第三行：左股票名稱（襯線字）、右漲跌幅＋漲跌值 */}
+            <div className="mt-1.5 flex items-baseline justify-between gap-2">
+              <div className="min-w-0">
+                <div className="truncate font-serif text-base font-medium leading-tight text-ink">
+                  {quote.name}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted">
+                  {quote.market === "tse" ? "上市" : "上櫃"}
+                </div>
+              </div>
+              <span
+                className={`shrink-0 rounded-pill px-2 py-1 text-right font-mono text-xs tabular ${
+                  strongMove ? "font-extrabold" : "font-semibold"
+                } ${chipColor[t]}`}
+              >
+                {arrowOf(t)} {fmtPct(quote.changePct)}
+                {quote.change !== null && (
+                  <span className="ml-1 opacity-80">
+                    {quote.change > 0 ? "+" : ""}
+                    {fmt(quote.change)}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* dotted 分隔線後放技術訊號徽章 */}
+            {signals && signals.length > 0 && (
+              <div className="mt-3 border-t border-dotted border-line pt-2.5">
+                <SignalBadges signals={signals} />
+              </div>
+            )}
 
             <DayRangeBar q={quote} />
 
@@ -163,15 +203,13 @@ export default function QuoteCard({
               <span>昨收 {fmt(quote.prevClose)}</span>
               <span>量 {fmtVol(quote.volume)}</span>
             </div>
-          </>
-        )}
       </Link>
 
       {onDelete && (
         <button
           onClick={() => onDelete(quote.stockId)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100"
+          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
         >
           ✕
         </button>

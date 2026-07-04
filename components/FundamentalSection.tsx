@@ -13,7 +13,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className="text-xs text-muted">{label}</div>
-      <div className="mt-1 text-xl font-bold tracking-tight tabular">{value}</div>
+      <div className="mt-1 font-mono text-xl font-bold tracking-tight tabular">{value}</div>
     </div>
   );
 }
@@ -31,7 +31,7 @@ function pctChange(cur: number, base: number): number | null {
 function DeltaBadge({ label, v }: { label: string; v: number }) {
   const cls = v >= 0 ? "bg-up-tint text-up" : "bg-down-tint text-down";
   return (
-    <span className={`rounded-pill px-1.5 py-0.5 ${cls}`}>
+    <span className={`rounded-pill px-1.5 py-0.5 font-mono ${cls}`}>
       {label} {v > 0 ? "+" : ""}
       {v.toFixed(1)}%
     </span>
@@ -85,7 +85,7 @@ export default function FundamentalSection({
   return (
     <>
       {asOf && (
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted tabular">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted tabular">
           <span>
             基本面更新於{" "}
             {new Date(asOf).toLocaleString("zh-TW", {
@@ -123,7 +123,7 @@ export default function FundamentalSection({
               }
             />
           </div>
-          <span className="text-[11px] text-muted tabular">
+          <span className="font-mono text-[11px] text-muted tabular">
             估值日期 {valuation.date}
           </span>
         </div>
@@ -140,10 +140,10 @@ export default function FundamentalSection({
             className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
             style={{ animationDelay: "200ms" }}
           >
-            <h3 className="text-sm font-semibold">三大法人買賣超</h3>
+            <h3 className="font-serif text-sm font-semibold">三大法人買賣超</h3>
             <p className="mt-0.5 text-[11px] text-muted">單位：張，正為買超</p>
             <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[300px] text-xs tabular">
+            <table className="w-full min-w-[300px] font-mono text-xs tabular">
               <thead>
                 <tr className="text-muted">
                   <th className="pb-2 text-left font-normal">日期</th>
@@ -193,11 +193,11 @@ export default function FundamentalSection({
             className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
             style={{ animationDelay: "260ms" }}
           >
-            <h3 className="text-sm font-semibold">月營收</h3>
+            <h3 className="font-serif text-sm font-semibold">月營收</h3>
             <p className="mt-0.5 text-[11px] text-muted">
               單位：億元，YoY 為與去年同月相比
             </p>
-            <div className="mt-3 space-y-1.5 text-xs tabular">
+            <div className="mt-3 space-y-1.5 font-mono text-xs tabular">
               {[...revenue].reverse().map((r) => (
                 <div
                   key={`${r.year}-${r.month}`}
@@ -237,7 +237,7 @@ export default function FundamentalSection({
         >
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h3 className="text-sm font-semibold">每股盈餘 EPS</h3>
+              <h3 className="font-serif text-sm font-semibold">每股盈餘 EPS</h3>
               <p className="mt-0.5 text-[11px] text-muted">單位：元，單季</p>
               {latestEps && (qoq !== null || yoy !== null) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -252,18 +252,18 @@ export default function FundamentalSection({
             {eps.length >= 4 && (
               <div className="text-right">
                 <div className="text-[11px] text-muted">近四季合計 EPS</div>
-                <div className={`text-xl font-bold tabular ${netColor(ttmEps)}`}>
+                <div className={`font-mono text-xl font-bold tabular ${netColor(ttmEps)}`}>
                   {fmt(ttmEps)}
                 </div>
                 {dynPer !== null && (
-                  <div className="mt-0.5 text-[11px] text-muted tabular">
+                  <div className="mt-0.5 font-mono text-[11px] text-muted tabular">
                     本益比 {fmt(dynPer, 1)} 倍
                   </div>
                 )}
               </div>
             )}
           </div>
-          <div className="mt-3 space-y-1.5 text-xs tabular">
+          <div className="mt-3 space-y-1.5 font-mono text-xs tabular">
             {[...eps].reverse().map((q) => (
               <div key={q.date} className="flex items-center gap-2">
                 <span className="w-14 shrink-0 text-muted">
