@@ -29,7 +29,7 @@ async function fetcher<T>(url: string): Promise<T> {
 }
 
 // 單張提醒卡片：視覺沿用首頁 QuoteCard 語彙（kicker 代號、大字現價、襯線股名、紅漲綠跌），
-// 點擊整卡展開/收合門檻設定面板（PriceAlertCard），毋須進個股頁。
+// 點擊整卡從畫面底部彈出設定面板（BottomSheet + PriceAlertCard），毋須進個股頁、也不佔用卡片牆版位。
 function AlertQuoteCard({
   row,
   quote,
@@ -58,8 +58,9 @@ function AlertQuoteCard({
       <button
         type="button"
         onClick={onToggle}
+        aria-haspopup="dialog"
         aria-expanded={isEditing}
-        aria-label={`${isEditing ? "收合" : "展開"} ${row.name} 到價提醒設定`}
+        aria-label={`${row.name} 到價提醒設定`}
         className="block w-full p-4 text-left active:scale-[0.99]"
       >
         {/* 第一行 kicker：漲跌方向 · 代號，等寬字＋靛藍點綴 */}
@@ -69,12 +70,7 @@ function AlertQuoteCard({
             <span className="mx-1 text-primary/40">·</span>
             {row.stock_id}
           </span>
-          <span
-            className={`shrink-0 text-muted transition-transform ${
-              isEditing ? "rotate-180" : ""
-            }`}
-            aria-hidden="true"
-          >
+          <span className="shrink-0 text-muted" aria-hidden="true">
             ⌄
           </span>
         </div>
@@ -147,18 +143,66 @@ function AlertQuoteCard({
           )}
         </div>
       </button>
+    </div>
+  );
+}
 
-      {isEditing && (
-        <div className="border-t border-line px-4 pb-4 pt-3">
-          <PriceAlertCard stockId={row.stock_id} name={row.name} currentPrice={price} />
-          <Link
-            href={`/stock/${row.stock_id}`}
-            className="mt-3 inline-block text-xs text-primary hover:underline"
+// 底部彈出面板：手機／桌面共用同一種樣式（從畫面底部滑上、背景暗化遮罩），
+// 取代原本「就地展開」——避免同一列其他卡片被撐開高度、留下大片空白。
+function BottomSheet({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <div
+        className="absolute inset-0 bg-ink/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="sheet-pop relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-lift ring-1 ring-line sm:max-w-md sm:rounded-card"
+      >
+        <div className="sticky top-0 flex items-center justify-between border-b border-line bg-surface px-4 py-3">
+          <span className="font-serif text-base font-bold text-ink">
+            {title}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="關閉"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink active:scale-[0.95]"
           >
-            查看走勢與基本面 →
-          </Link>
+            ✕
+          </button>
         </div>
-      )}
+        <div className="px-4 pb-6 pt-3">{children}</div>
+      </div>
     </div>
   );
 }
@@ -233,6 +277,8 @@ export default function AlertsPage() {
     await Promise.all([watchlist.mutate(), quote.mutate()]);
   }, [watchlist, quote]);
 
+  const editingRow = items.find((a) => a.stock_id === editing) ?? null;
+
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
@@ -289,7 +335,7 @@ export default function AlertsPage() {
             description="還沒有自選股。先到「自選」分頁加入個股，再回來設定到價提醒。"
           />
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((a) => (
               <AlertQuoteCard
                 key={a.stock_id}
@@ -304,6 +350,28 @@ export default function AlertsPage() {
           </div>
         )}
       </main>
+
+      <BottomSheet
+        open={!!editingRow}
+        title={editingRow ? `${editingRow.name} 到價提醒` : "到價提醒"}
+        onClose={() => setEditing(null)}
+      >
+        {editingRow && (
+          <>
+            <PriceAlertCard
+              stockId={editingRow.stock_id}
+              name={editingRow.name}
+              currentPrice={priceOf.get(editingRow.stock_id)?.price ?? null}
+            />
+            <Link
+              href={`/stock/${editingRow.stock_id}`}
+              className="mt-3 inline-block text-xs text-primary hover:underline"
+            >
+              查看走勢與基本面 →
+            </Link>
+          </>
+        )}
+      </BottomSheet>
     </div>
   );
 }

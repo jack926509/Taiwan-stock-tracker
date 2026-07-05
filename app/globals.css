@@ -65,6 +65,15 @@ body {
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
+/* 提醒設定底部彈出面板：手機從畫面底部滑入，桌面置中淡入放大 */
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+.sheet-pop {
+  animation: sheet-up 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flash-up, .flash-down, .rise-in, .pulse-dot { animation: none; }
+  .flash-up, .flash-down, .rise-in, .pulse-dot, .sheet-pop { animation: none; }
 }
