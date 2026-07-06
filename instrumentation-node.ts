@@ -31,15 +31,25 @@ if (usingSupabase() && process.env.NODE_ENV === "production") {
     { timezone: "Asia/Taipei" }
   );
   // 工作日每分鐘：盤中才檢查到價提醒（isMarketOpenNow 守門，非盤中不抓報價）
+  // in-flight 旗標防重疊：LINE 慢或自選股多時，若上一輪還沒跑完就跳過本輪，避免與下一輪疊加執行
+  let alertsRunning = false;
   schedule(
     "* * * * 1-5",
     async () => {
       if (!(await isMarketOpenNow())) return;
-      checkAlerts()
-        .then((n) => {
-          if (n > 0) console.log(`[alerts] 推播 ${n} 則到價提醒`);
-        })
-        .catch((e) => console.error("[alerts] 檢查失敗：", e));
+      if (alertsRunning) {
+        console.log("[alerts] 上一輪尚未結束，跳過本輪");
+        return;
+      }
+      alertsRunning = true;
+      try {
+        const n = await checkAlerts();
+        if (n > 0) console.log(`[alerts] 推播 ${n} 則到價提醒`);
+      } catch (e) {
+        console.error("[alerts] 檢查失敗：", e);
+      } finally {
+        alertsRunning = false;
+      }
     },
     { timezone: "Asia/Taipei" }
   );

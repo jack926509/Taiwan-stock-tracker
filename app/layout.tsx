@@ -29,7 +29,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover", // 讓 env(safe-area-inset-*) 在 iPhone 瀏海/底欄生效
-  themeColor: "#F5F7FA",
+  themeColor: "#F7F2E7",
 };
 
 export default function RootLayout({

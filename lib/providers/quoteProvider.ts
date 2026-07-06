@@ -168,6 +168,15 @@ interface Snapshot {
 
 let lastSnapshot: Snapshot | null = null;
 
+// 單檔粒度的 stale 快取：批次請求的組合（自選股增減）常變動，若仍以整批 key
+// 比對，只要組合跟上次不完全一樣就會找不到快照、直接對外回 502。改成每檔各自
+// 記錄最後一次成功的報價，MIS 失敗時逐檔查詢，有查到的先頂著用。
+const perStockCache = new Map<string, { at: number; quote: Quote }>();
+
+function stockCacheKey(t: { stockId: string; market: Market }): string {
+  return `${t.market}_${t.stockId}`;
+}
+
 export interface QuoteResult {
   quotes: Quote[];
   source: "mis" | "stale";
@@ -213,14 +222,33 @@ export async function fetchQuotes(targets: QuoteTarget[]): Promise<QuoteResult> 
       }
     }
     const quotes = msgs.map(toQuote);
-    lastSnapshot = { at: Date.now(), key: exCh, quotes };
+    const fetchedAt = Date.now();
+    lastSnapshot = { at: fetchedAt, key: exCh, quotes };
+    for (const q of quotes) {
+      perStockCache.set(stockCacheKey({ stockId: q.stockId, market: q.market }), {
+        at: fetchedAt,
+        quote: q,
+      });
+    }
     return { quotes, source: "mis", asOf: new Date().toISOString() };
   } catch (err) {
+    // 先試整批快照（未變動時最準確），沒有才退回逐檔比對
     if (lastSnapshot && lastSnapshot.key === exCh) {
       return {
         quotes: lastSnapshot.quotes,
         source: "stale",
         asOf: new Date(lastSnapshot.at).toISOString(),
+      };
+    }
+    const staleEntries = targets
+      .map((t) => perStockCache.get(stockCacheKey(t)))
+      .filter((entry): entry is { at: number; quote: Quote } => entry !== undefined);
+    if (staleEntries.length > 0) {
+      const oldestAt = Math.min(...staleEntries.map((e) => e.at));
+      return {
+        quotes: staleEntries.map((e) => e.quote),
+        source: "stale",
+        asOf: new Date(oldestAt).toISOString(),
       };
     }
     throw err;

@@ -5,7 +5,7 @@ import { listWatchlist, markAlertHit, type WatchItem } from "@/lib/store";
 import { fetchQuotes, type Quote } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
 import { pushLine, lineConfigured } from "@/lib/notify";
-import { taipeiNow } from "@/lib/market-hours";
+import { isArmed, decideAlerts, hitToday } from "@/lib/alertLogic";
 
 function hhmm(now: Date): string {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -49,12 +49,6 @@ function buildMessage(
     `開 ${fmtPrice(q.open)}　高 ${fmtPrice(q.high)}　低 ${fmtPrice(q.low)}`,
     `🕙 ${time}　👉 ${BASE_URL}/stock/${q.stockId}`,
   ].join("\n");
-}
-
-// 每日一次性提醒（漲跌幅／爆量）：hit_at 的台北日期＝今天才算「今天已觸發」，跨日自動重新武裝
-function hitToday(hitAt: string | null, now: Date): boolean {
-  if (!hitAt) return false;
-  return taipeiNow(new Date(hitAt)).isoDate === taipeiNow(now).isoDate;
 }
 
 // 漲跌幅提醒訊息：📈 紅漲／📉 綠跌（changePct 為小數，顯示需 ×100）
@@ -102,13 +96,7 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
   if (!lineConfigured()) return 0;
 
   const items = await listWatchlist();
-  const armed = items.filter(
-    (i: WatchItem) =>
-      (i.alert_high !== null && i.alert_high_hit_at === null) ||
-      (i.alert_low !== null && i.alert_low_hit_at === null) ||
-      (i.alert_change_pct !== null && !hitToday(i.alert_change_hit_at, now)) ||
-      (i.alert_volume_on && !hitToday(i.alert_volume_hit_at, now))
-  );
+  const armed = items.filter((i: WatchItem) => isArmed(i, now));
   if (armed.length === 0) return 0;
 
   const result = await fetchQuotes(
@@ -121,58 +109,35 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
 
   for (const row of armed) {
     const q = quoteOf.get(row.stock_id);
-    const price = q?.price;
-    if (!q || price === null || price === undefined) continue;
 
-    // 漲破（🔺 紅）
-    if (
-      row.alert_high !== null &&
-      row.alert_high_hit_at === null &&
-      price >= row.alert_high
-    ) {
-      if (await pushLine(buildMessage(q, "high", row.alert_high, time))) {
-        await markAlertHit(row.stock_id, "high", at);
-        sent++;
-      }
-    }
-
-    // 跌破（🟢 綠）
-    if (
-      row.alert_low !== null &&
-      row.alert_low_hit_at === null &&
-      price <= row.alert_low
-    ) {
-      if (await pushLine(buildMessage(q, "low", row.alert_low, time))) {
-        await markAlertHit(row.stock_id, "low", at);
-        sent++;
-      }
-    }
-
-    // 漲跌幅（每日一次性）
-    if (
-      row.alert_change_pct !== null &&
-      !hitToday(row.alert_change_hit_at, now) &&
-      q.changePct !== null &&
-      Math.abs(q.changePct * 100) >= row.alert_change_pct
-    ) {
-      if (await pushLine(buildChangeMessage(q, row.alert_change_pct, time))) {
-        await markAlertHit(row.stock_id, "change", at);
-        sent++;
-      }
-    }
-
-    // 爆量（每日一次性）：均量快取缺料或不足 5 根就跳過，不誤報
-    if (
+    // 爆量判斷需要均量，且讀日 K 快取有成本，只在可能觸發爆量時才抓（不誤報、也不白白讀取）
+    const needsVolumeCheck =
       row.alert_volume_on &&
       !hitToday(row.alert_volume_hit_at, now) &&
-      q.volume !== null
-    ) {
-      const avg = await avgVolume5d(row.stock_id);
-      if (avg !== null && avg > 0 && q.volume >= 2 * avg) {
-        if (await pushLine(buildVolumeMessage(q, avg, time))) {
-          await markAlertHit(row.stock_id, "volume", at);
-          sent++;
-        }
+      q?.volume !== null &&
+      q?.volume !== undefined;
+    const avg = needsVolumeCheck ? await avgVolume5d(row.stock_id) : null;
+
+    const decisions = decideAlerts(row, q, avg, now);
+
+    for (const decision of decisions) {
+      if (!q) continue;
+      let message: string;
+      switch (decision.kind) {
+        case "high":
+        case "low":
+          message = buildMessage(q, decision.kind, decision.threshold, time);
+          break;
+        case "change":
+          message = buildChangeMessage(q, decision.threshold, time);
+          break;
+        case "volume":
+          message = buildVolumeMessage(q, decision.threshold, time);
+          break;
+      }
+      if (await pushLine(message)) {
+        await markAlertHit(row.stock_id, decision.kind, at);
+        sent++;
       }
     }
   }

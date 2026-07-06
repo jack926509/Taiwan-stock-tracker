@@ -2,6 +2,7 @@
 // 因 Zeabur CLI 無法拉 stdout，改把關鍵狀態寫進 news_cache 供 /api/health?detail=1 查詢。
 import { getSupabase } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getLineUsage, getLineLastFailure, type LineUsage } from "@/lib/notify";
 
 export interface BackfillRecord {
   ranAt: string; // ISO
@@ -43,6 +44,8 @@ export interface BackendStatus {
   tables?: Record<string, number>;
   lastBackfill?: BackfillRecord | null;
   misSessionAgeMin?: number | null; // MIS session cookie 距今幾分鐘
+  lineUsage?: (LineUsage & { dailyCap: number }) | null; // 本月/本日 LINE 推播用量
+  lineLastFailure?: { at: string; reason: string; minutesAgo: number } | null; // 最近一次推播失敗
 }
 
 async function rowCount(db: SupabaseClient, table: string): Promise<number> {
@@ -92,6 +95,11 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
   if (backfill.error) throw new Error(`news_cache meta: ${backfill.error.message}`);
   if (sess.error) throw new Error(`mis_session: ${sess.error.message}`);
 
+  const [lineUsage, lineFailure] = await Promise.all([
+    getLineUsage(now),
+    getLineLastFailure(),
+  ]);
+
   const sessAt = sess.data?.fetched_at as string | undefined;
   return {
     storage: "supabase",
@@ -107,6 +115,13 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
     lastBackfill: (backfill.data?.payload as BackfillRecord) ?? null,
     misSessionAgeMin: sessAt
       ? Math.round((now.getTime() - Date.parse(sessAt)) / 60000)
+      : null,
+    lineUsage,
+    lineLastFailure: lineFailure
+      ? {
+          ...lineFailure,
+          minutesAgo: Math.round((now.getTime() - Date.parse(lineFailure.at)) / 60000),
+        }
       : null,
   };
 }

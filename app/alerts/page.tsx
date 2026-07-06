@@ -23,11 +23,27 @@ interface AlertRow {
   alert_volume_on: boolean;
 }
 
+interface HealthDetail {
+  lineLastFailure?: { at: string; reason: string; minutesAgo: number } | null;
+}
+
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
   return json as T;
+}
+
+// LINE 推播異常橫幅：健康檢查回報「有失敗紀錄且距今不到 3 小時」就提醒——
+// 簡化判斷（不做連續失敗次數計數），失敗後成功推播一次即會清掉紀錄，橫幅自然消失。
+const LINE_FAILURE_STALE_MIN = 180;
+
+function LineFailureBanner({ minutesAgo }: { minutesAgo: number }) {
+  return (
+    <div className="rounded-xl border border-warn/20 bg-warn-tint px-4 py-3 text-sm font-medium text-warn">
+      ⚠️ LINE 推播可能異常（最近一次失敗約 {minutesAgo} 分鐘前），提醒可能未送達，請檢查。
+    </div>
+  );
 }
 
 // 單張提醒卡片：視覺沿用首頁 QuoteCard 語彙（kicker 代號、大字現價、襯線股名、紅漲綠跌），
@@ -229,6 +245,14 @@ export default function AlertsPage() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
+  // 每 5 分鐘查一次健康檢查，顯示 LINE 推播異常橫幅；未登入（401）時靜默失敗，不影響頁面其餘功能
+  const health = useSWR<HealthDetail>("/api/health?detail=1", fetcher, {
+    refreshInterval: 5 * 60_000,
+    shouldRetryOnError: false,
+  });
+  const lineFailure = health.data?.lineLastFailure;
+  const showLineFailureBanner =
+    !!lineFailure && lineFailure.minutesAgo < LINE_FAILURE_STALE_MIN;
   const [autoPaused, setAutoPaused] = useState(false);
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
@@ -335,6 +359,10 @@ export default function AlertsPage() {
           stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
         />
+
+        {showLineFailureBanner && lineFailure && (
+          <LineFailureBanner minutesAgo={lineFailure.minutesAgo} />
+        )}
 
         {!watchlist.data ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
