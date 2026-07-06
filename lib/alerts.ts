@@ -31,7 +31,7 @@ function fmtChange(change: number | null, pct: number | null): string {
 
 const BASE_URL = process.env.APP_BASE_URL ?? "https://tw-stock-tracker.zeabur.app";
 
-// 組一則到價提醒訊息（B 風格：資訊完整）
+// 組一則到價提醒訊息（精簡 4 行：標題／現價／今日高低／時間＋連結）
 function buildMessage(
   q: { stockId: string; name: string; price: number | null; change: number | null; changePct: number | null; open: number | null; high: number | null; low: number | null },
   side: "high" | "low",
@@ -41,16 +41,13 @@ function buildMessage(
   // 標題重點前置：色點＋標的＋方向＋門檻（通知列預覽即可看懂）
   const head =
     side === "high"
-      ? `🔴 ${q.name} 漲破 ${fmtPrice(threshold)}`
-      : `🟢 ${q.name} 跌破 ${fmtPrice(threshold)}`;
+      ? `🔴 ${q.name} ${q.stockId} 漲破 ${fmtPrice(threshold)}`
+      : `🟢 ${q.name} ${q.stockId} 跌破 ${fmtPrice(threshold)}`;
   return [
     head,
-    "━━━━━━━━━━",
-    `${q.name}（${q.stockId}）`,
     `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
-    `📊 今日　開 ${fmtPrice(q.open)}　高 ${fmtPrice(q.high)}　低 ${fmtPrice(q.low)}`,
-    `🕙 ${time}`,
-    `👉 ${BASE_URL}/stock/${q.stockId}`,
+    `開 ${fmtPrice(q.open)}　高 ${fmtPrice(q.high)}　低 ${fmtPrice(q.low)}`,
+    `🕙 ${time}　👉 ${BASE_URL}/stock/${q.stockId}`,
   ].join("\n");
 }
 
@@ -67,10 +64,8 @@ function buildChangeMessage(q: Quote, thresholdPct: number, time: string): strin
   const dot = pct >= 0 ? "🔴" : "🟢";
   return [
     `${dot} ${q.name} ${q.stockId} 今日${dir} ${Math.abs(pct).toFixed(1)}%（門檻 ${thresholdPct}%）`,
-    "━━━━━━━━━━",
     `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
-    `🕙 ${time}`,
-    `👉 ${BASE_URL}/stock/${q.stockId}`,
+    `🕙 ${time}　👉 ${BASE_URL}/stock/${q.stockId}`,
   ].join("\n");
 }
 
@@ -88,10 +83,8 @@ function buildVolumeMessage(
   const ratio = avgVolume > 0 ? q.volume! / avgVolume : 0;
   return [
     `📊 ${q.name} ${q.stockId} 爆量 ${fmtVolume(q.volume ?? 0)}（近 5 日均量 ${fmtVolume(avgVolume)} 的 ${ratio.toFixed(1)} 倍）`,
-    "━━━━━━━━━━",
     `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
-    `🕙 ${time}`,
-    `👉 ${BASE_URL}/stock/${q.stockId}`,
+    `🕙 ${time}　👉 ${BASE_URL}/stock/${q.stockId}`,
   ].join("\n");
 }
 

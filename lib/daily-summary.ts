@@ -1,5 +1,5 @@
 // 每日收盤總覽：工作日 13:35（收盤後）由常駐排程呼叫一次。
-// 內容：加權＋櫃買指數背景 + 漲跌家數 + 各自選股（收盤價／漲跌點數／當日幅／本週累計／高低）+ 最強最弱
+// 內容：加權＋櫃買指數背景 + 漲跌家數 + 各自選股（單行緊湊：收盤價／當日幅／本週累計）+ 最強最弱
 // + 今日新出現的技術訊號 + 今日觸發提醒則數。排序依當日漲跌幅由大到小，紅漲（▲）綠跌（▼）。
 import { listWatchlist, type WatchItem } from "@/lib/store";
 import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
@@ -16,17 +16,11 @@ function fmtPrice(n: number | null): string {
   return n === null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
-// p 為小數（0.0236）→ 顯示 +2.36%
-function fmtPct(p: number | null): string {
+// p 為小數（0.0236）→ 顯示 +2.36%；本週欄用 1 位小數縮短行寬
+function fmtPct(p: number | null, decimals = 2): string {
   if (p === null) return "—";
   const sign = p > 0 ? "+" : "";
-  return `${sign}${(p * 100).toFixed(2)}%`;
-}
-
-function fmtPoint(n: number | null): string {
-  if (n === null) return "—";
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${fmtPrice(n)}`;
+  return `${sign}${(p * 100).toFixed(decimals)}%`;
 }
 
 // 本週一（台北）的 ISO 日期；用來界定「本週累計」基準
@@ -136,23 +130,21 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
   if (weightedIndex) {
     const ip = weightedIndex.changePct;
     const ie = ip === null || ip === 0 ? "➡️" : ip > 0 ? "📈" : "📉";
-    head.push(`${ie} 加權指數 ${fmtPrice(weightedIndex.price)}　${fmtPct(ip)}`);
+    head.push(`${ie} 加權 ${fmtPrice(weightedIndex.price)} ${fmtPct(ip)}`);
   }
   if (otcIndex) {
     const op = otcIndex.changePct;
     const oe = op === null || op === 0 ? "➡️" : op > 0 ? "📈" : "📉";
-    head.push(`${oe} 櫃買指數 ${fmtPrice(otcIndex.price)}　${fmtPct(op)}`);
+    head.push(`${oe} 櫃買 ${fmtPrice(otcIndex.price)} ${fmtPct(op)}`);
   }
   head.push(`漲 ${up}　跌 ${down}　平 ${flat}`);
 
-  // 每檔以 ▪ 起點（方向交由群組標題表達），三行：名稱／價＋幅／本週＋高低
+  // 每檔單行緊湊：方向記號＋名稱＋收盤價＋當日幅｜本週累計（高低價點連結進網頁看）
   const fmtRow = (q: (typeof rows)[number]): string => {
     const w = weekPct.get(q.stockId) ?? null;
-    return [
-      `▪${q.name}（${q.stockId}）`,
-      `　${fmtPrice(q.price)}　${fmtPoint(q.change)}（${fmtPct(q.changePct)}）`,
-      `　本週 ${fmtPct(w)}・高 ${fmtPrice(q.high)} 低 ${fmtPrice(q.low)}`,
-    ].join("\n");
+    const c = q.changePct ?? 0;
+    const mark = c > 0 ? "▲" : c < 0 ? "▼" : "▪";
+    return `${mark} ${q.name} ${fmtPrice(q.price)} ${fmtPct(q.changePct)}｜週 ${fmtPct(w, 1)}`;
   };
   // 依方向分組（null 視為持平）；空組不顯示。組間用比主線淡的虛線分隔。
   const groups = [
@@ -192,13 +184,13 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
   if (ranked.length > 0) {
     const best = ranked[0];
     const worst = ranked[ranked.length - 1];
-    foot.push(`🏆 最強 ${best.name} ${fmtPct(best.changePct)}`);
-    if (worst.stockId !== best.stockId) {
-      foot.push(`最弱 ${worst.name} ${fmtPct(worst.changePct)}`);
-    }
+    foot.push(
+      worst.stockId !== best.stockId
+        ? `🏆 最強 ${best.name} ${fmtPct(best.changePct)}　最弱 ${worst.name} ${fmtPct(worst.changePct)}`
+        : `🏆 最強 ${best.name} ${fmtPct(best.changePct)}`
+    );
   }
   foot.push(`🔔 今日觸發提醒 ${countTodayHits(items, now)} 則`);
-  foot.push(`⏰ 共 ${rows.length} 檔・收盤 13:35`);
 
   const text = [
     ...head,
