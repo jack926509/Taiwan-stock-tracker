@@ -6,7 +6,11 @@ export const KLINE_RANGES = [
   { key: "3m", label: "3月", months: 3 },
   { key: "6m", label: "6月", months: 6 },
   { key: "1y", label: "1年", months: 12 },
+  { key: "3y", label: "3年", months: 36 },
 ] as const;
+
+// 週 K 模式下區間鈕只顯示這幾個（歷史夠長才有聚合意義）
+export const WEEK_RANGE_KEYS: KlineRangeKey[] = ["6m", "1y", "3y"];
 
 export type KlineRangeKey = (typeof KLINE_RANGES)[number]["key"];
 

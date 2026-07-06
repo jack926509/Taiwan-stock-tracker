@@ -31,6 +31,7 @@ test("migration history mirrors live Supabase versions", () => {
     "20260613055617_comment_reserved_normalized_tables.sql",
     "20260613123937_add_alert_hit_timestamps.sql",
     "20260619130901_assistant_and_news.sql",
+    "20260705215147_add_change_and_volume_alerts.sql",
   ]);
 });
 

@@ -14,6 +14,10 @@ export interface WatchItem {
   alert_low: number | null;
   alert_high_hit_at: string | null; // 已觸發時間戳；null = 待觸發（一次性去重用）
   alert_low_hit_at: string | null;
+  alert_change_pct: number | null; // 漲跌幅提醒門檻（百分比數字，例如 5 代表 5%）
+  alert_change_hit_at: string | null; // 最近一次觸發時間戳；每日一次性（跨日自動重新武裝，非「觸發後靜音直到重設」）
+  alert_volume_on: boolean; // 爆量提醒開關
+  alert_volume_hit_at: string | null; // 最近一次觸發時間戳；每日一次性
   sort_order: number;
 }
 
@@ -43,6 +47,10 @@ function mk(
     alert_low: null,
     alert_high_hit_at: null,
     alert_low_hit_at: null,
+    alert_change_pct: null,
+    alert_change_hit_at: null,
+    alert_volume_on: false,
+    alert_volume_hit_at: null,
     sort_order,
   };
 }
@@ -156,17 +164,24 @@ export async function removeWatch(stockId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// 設定到價門檻：任何一側被設定（含修改）即重新武裝（清掉該側 *_hit_at），達成一次性提醒可重設
+// 設定各項提醒門檻：任何一次儲存都會重新武裝全部四種（清掉對應 *_hit_at），
+// 到價（high/low）達成後需使用者重設才會再次推播；漲跌幅／爆量另外每日跨日也會自動重新武裝（見 markAlertHit 呼叫端）。
 export async function setAlert(
   stockId: string,
   high: number | null,
-  low: number | null
+  low: number | null,
+  changePct: number | null = null,
+  volumeOn = false
 ): Promise<void> {
   const patch = {
     alert_high: high,
     alert_low: low,
     alert_high_hit_at: null,
     alert_low_hit_at: null,
+    alert_change_pct: changePct,
+    alert_change_hit_at: null,
+    alert_volume_on: volumeOn,
+    alert_volume_hit_at: null,
   };
   const db = getSupabase();
   if (!db) {
@@ -181,20 +196,29 @@ export async function setAlert(
   if (error) throw new Error(error.message);
 }
 
-// 標記某側已觸發（寫入時間戳），避免一次性提醒重複推播
+type AlertSide = "high" | "low" | "change" | "volume";
+
+const HIT_COL: Record<AlertSide, keyof WatchItem> = {
+  high: "alert_high_hit_at",
+  low: "alert_low_hit_at",
+  change: "alert_change_hit_at",
+  volume: "alert_volume_hit_at",
+};
+
+// 標記某側已觸發（寫入時間戳）。到價（high/low）為「觸發後靜音直到使用者重設」；
+// 漲跌幅／爆量（change/volume）為「每日一次性」，呼叫端（lib/alerts.ts）自行判斷 hit_at 是否為今天。
 export async function markAlertHit(
   stockId: string,
-  side: "high" | "low",
+  side: AlertSide,
   at: string
 ): Promise<void> {
-  const col = side === "high" ? "alert_high_hit_at" : "alert_low_hit_at";
+  const col = HIT_COL[side];
   const db = getSupabase();
   if (!db) {
     const items = await fileRead();
     const row = items.find((i) => i.stock_id === stockId);
     if (!row) return;
-    if (side === "high") row.alert_high_hit_at = at;
-    else row.alert_low_hit_at = at;
+    (row as unknown as Record<string, string>)[col] = at;
     await fileWrite(items);
     return;
   }

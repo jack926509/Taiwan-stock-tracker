@@ -19,6 +19,8 @@ interface AlertRow {
   market: "tse" | "otc";
   alert_high: number | null;
   alert_low: number | null;
+  alert_change_pct: number | null;
+  alert_volume_on: boolean;
 }
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -43,7 +45,11 @@ function AlertQuoteCard({
 }) {
   const price = quote?.price ?? null;
   const t = trendOf(quote?.change ?? null);
-  const hasAlert = row.alert_high != null || row.alert_low != null;
+  const hasAlert =
+    row.alert_high != null ||
+    row.alert_low != null ||
+    row.alert_change_pct != null ||
+    row.alert_volume_on;
   const highHit =
     price != null && row.alert_high != null && price >= row.alert_high;
   const lowHit =
@@ -135,6 +141,16 @@ function AlertQuoteCard({
                         ? `・差 ${fmtPct((price - row.alert_low) / price)}`
                         : ""}
                   </span>
+                </span>
+              )}
+              {row.alert_change_pct != null && (
+                <span className="rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
+                  ±{row.alert_change_pct}%
+                </span>
+              )}
+              {row.alert_volume_on && (
+                <span className="rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
+                  📊 爆量
                 </span>
               )}
             </div>

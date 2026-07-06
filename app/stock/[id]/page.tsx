@@ -22,10 +22,20 @@ import {
 import {
   filterCandlesByRange,
   KLINE_RANGES,
+  WEEK_RANGE_KEYS,
   klineRangeStats,
   type KlineRangeKey,
 } from "@/lib/klineRange";
+import { aggregateCandles } from "@/lib/aggregateKline";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+
+type KlinePeriod = "day" | "week" | "month";
+
+const PERIOD_OPTIONS: { key: KlinePeriod; label: string }[] = [
+  { key: "day", label: "日" },
+  { key: "week", label: "週" },
+  { key: "month", label: "月" },
+];
 
 // lightweight-charts 屬重量套件，動態載入避免拖慢個股頁首次 JS
 const KlineChart = dynamic(() => import("@/components/KlineChart"), {
@@ -58,6 +68,7 @@ export default function StockPage() {
   const params = useParams<{ id: string }>();
   const id = (params.id ?? "").toUpperCase();
   const [range, setRange] = useState<KlineRangeKey>("6m");
+  const [period, setPeriod] = useState<KlinePeriod>("day");
   const [alertOpen, setAlertOpen] = useState(false);
   const [autoPaused, setAutoPaused] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
@@ -146,12 +157,35 @@ export default function StockPage() {
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
 
-  const visible = useMemo(() => {
+  // 週 K 模式的區間鈕只開放 6月/1年/3年；切到週 K 時若目前區間不在其中，改用 1 年
+  useEffect(() => {
+    if (period === "week" && !WEEK_RANGE_KEYS.includes(range)) {
+      setRange("1y");
+    }
+  }, [period, range]);
+
+  const dayVisible = useMemo(() => {
     const all = kline.data?.candles ?? [];
     return filterCandlesByRange(all, range);
   }, [kline.data, range]);
+
+  // 週 K：先按區間濾出日 K 再聚合；月 K：固定用全部 3 年快取資料聚合（不受區間鈕影響）
+  const visible = useMemo(() => {
+    if (period === "week") return aggregateCandles(dayVisible, "week");
+    if (period === "month") {
+      return aggregateCandles(kline.data?.candles ?? [], "month");
+    }
+    return dayVisible;
+  }, [period, dayVisible, kline.data]);
+
   const rangeStats = useMemo(() => klineRangeStats(visible), [visible]);
   const rangeTrend = trendOf(rangeStats.change);
+  const periodLabel =
+    period === "day" ? "日" : period === "week" ? "週" : "月";
+  const visibleRangeOptions =
+    period === "week"
+      ? KLINE_RANGES.filter((r) => WEEK_RANGE_KEYS.includes(r.key))
+      : KLINE_RANGES;
 
   return (
     <div className="min-h-screen">
@@ -309,21 +343,42 @@ export default function StockPage() {
           style={{ animationDelay: "80ms" }}
         >
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="font-serif text-sm font-semibold text-ink">日 K</span>
-            <div className="flex flex-wrap rounded-pill bg-app p-0.5">
-              {KLINE_RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  onClick={() => setRange(r.key)}
-                  className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
-                    range === r.key
-                      ? "bg-surface text-ink shadow-card"
-                      : "text-muted hover:text-ink"
-                  }`}
-                >
-                  {r.label}
-                </button>
-              ))}
+            <span className="font-serif text-sm font-semibold text-ink">
+              {periodLabel} K
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap rounded-pill bg-app p-0.5">
+                {PERIOD_OPTIONS.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setPeriod(p.key)}
+                    className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
+                      period === p.key
+                        ? "bg-surface text-ink shadow-card"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              {period !== "month" && (
+                <div className="flex flex-wrap rounded-pill bg-app p-0.5">
+                  {visibleRangeOptions.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => setRange(r.key)}
+                      className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
+                        range === r.key
+                          ? "bg-surface text-ink shadow-card"
+                          : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

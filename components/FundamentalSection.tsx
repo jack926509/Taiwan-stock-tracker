@@ -52,6 +52,7 @@ export default function FundamentalSection({
 }) {
   const { institutional, revenue, valuation } = fund;
   const eps = fund.eps ?? []; // 舊快取（無此欄位）過渡期防呆
+  const dividend = fund.dividend ?? []; // 舊快取（無此欄位）過渡期防呆
   const instRecent = institutional.slice(-10).reverse(); // 新→舊
   const inst5 = institutional.slice(-5);
   const sum5 = {
@@ -70,12 +71,25 @@ export default function FundamentalSection({
   // 動態本益比＝現價 ÷ 近四季 EPS（近四季為正才有意義）
   const dynPer =
     price && price > 0 && eps.length >= 4 && ttmEps > 0 ? price / ttmEps : null;
+  const maxDividend = Math.max(...dividend.map((d) => d.total), 1);
+  // 現金殖利率＝最近一個「完整年度」的現金股利合計 ÷ 現價。
+  // 今年（年度尚未走完，可能只配到一半）不算完整年度，改用上一年。
+  const thisYear = String(new Date().getFullYear());
+  const yieldBase =
+    [...dividend]
+      .reverse()
+      .find((d) => d.year < thisYear && d.cashDividend > 0) ?? null;
+  const cashYield =
+    price && price > 0 && yieldBase
+      ? (yieldBase.cashDividend / price) * 100
+      : null;
 
   if (
     !valuation &&
     institutional.length === 0 &&
     revenue.length === 0 &&
-    eps.length === 0
+    eps.length === 0 &&
+    dividend.length === 0
   ) {
     return null;
   }
@@ -279,6 +293,53 @@ export default function FundamentalSection({
                 </div>
                 <span className={`w-14 shrink-0 text-right ${netColor(q.eps)}`}>
                   {fmt(q.eps)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 股利政策（近 5 年；ETF 等無配息資料整卡自動隱藏） */}
+      {dividend.length > 0 && (
+        <div
+          className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          style={{ animationDelay: "380ms" }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-serif text-sm font-semibold">股利政策</h3>
+              <p className="mt-0.5 text-[11px] text-muted">
+                近 5 年，單位：元／股
+              </p>
+            </div>
+            {cashYield !== null && yieldBase && (
+              <div className="text-right">
+                <div className="text-[11px] text-muted">
+                  現金殖利率（{yieldBase.year} 年）
+                </div>
+                <div className="font-mono text-xl font-bold tabular text-ink">
+                  {cashYield.toFixed(2)}%
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 space-y-1.5 font-mono text-xs tabular">
+            {[...dividend].reverse().map((d) => (
+              <div key={d.year} className="flex items-center gap-2">
+                <span className="w-12 shrink-0 text-muted">{d.year}</span>
+                <div className="h-2 flex-1 rounded-pill bg-app">
+                  <div
+                    className="h-full rounded-pill bg-primary/35"
+                    style={{ width: `${(d.total / maxDividend) * 100}%` }}
+                  />
+                </div>
+                <span className="w-32 shrink-0 text-right text-muted">
+                  現金 {fmt(d.cashDividend)}
+                  {d.stockDividend > 0 ? `／股票 ${fmt(d.stockDividend)}` : ""}
+                </span>
+                <span className="w-14 shrink-0 text-right font-semibold">
+                  {fmt(d.total)}
                 </span>
               </div>
             ))}

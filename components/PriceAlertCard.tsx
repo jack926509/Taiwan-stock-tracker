@@ -9,6 +9,10 @@ interface WatchRow {
   alert_low: number | null;
   alert_high_hit_at: string | null;
   alert_low_hit_at: string | null;
+  alert_change_pct: number | null;
+  alert_change_hit_at: string | null;
+  alert_volume_on: boolean;
+  alert_volume_hit_at: string | null;
 }
 
 async function fetcher(url: string) {
@@ -49,6 +53,8 @@ export default function PriceAlertCard({
 
   const [high, setHigh] = useState("");
   const [low, setLow] = useState("");
+  const [changePct, setChangePct] = useState("");
+  const [volumeOn, setVolumeOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -56,7 +62,9 @@ export default function PriceAlertCard({
   useEffect(() => {
     setHigh(row?.alert_high != null ? String(row.alert_high) : "");
     setLow(row?.alert_low != null ? String(row.alert_low) : "");
-  }, [row?.stock_id, row?.alert_high, row?.alert_low]);
+    setChangePct(row?.alert_change_pct != null ? String(row.alert_change_pct) : "");
+    setVolumeOn(row?.alert_volume_on ?? false);
+  }, [row?.stock_id, row?.alert_high, row?.alert_low, row?.alert_change_pct, row?.alert_volume_on]);
 
   async function addToWatch() {
     setBusy(true);
@@ -92,6 +100,8 @@ export default function PriceAlertCard({
           stockId,
           high: high.trim() || null,
           low: low.trim() || null,
+          changePct: changePct.trim() || null,
+          volumeOn,
         }),
       });
       if (!res.ok) {
@@ -206,6 +216,53 @@ export default function PriceAlertCard({
           現價 −5%
         </button>
       </div>
+      <div className="border-t border-dotted border-line pt-3" />
+      {/* 漲跌幅提醒（每日一次性，隔日自動重新啟用，不需手動重設） */}
+      <div className="flex flex-col gap-1.5">
+        <label className="flex items-center gap-2">
+          <span className="w-12 shrink-0 text-[11px] font-medium text-ink">漲跌幅</span>
+          <div className="flex min-w-0 flex-1 items-center gap-1 rounded-card border border-line bg-app px-2.5 py-1.5 focus-within:border-primary">
+            <span className="shrink-0 font-mono text-sm text-muted">±</span>
+            <input
+              value={changePct}
+              onChange={(e) => setChangePct(e.target.value)}
+              inputMode="decimal"
+              placeholder="未設定"
+              className="min-w-0 flex-1 bg-transparent font-mono text-sm tabular outline-none"
+            />
+            <span className="shrink-0 font-mono text-sm text-muted">%</span>
+          </div>
+          <span className="w-16 shrink-0 text-right font-mono text-[10px] text-muted">
+            {row?.alert_change_pct == null
+              ? "—"
+              : row.alert_change_hit_at
+                ? `${mmdd(row.alert_change_hit_at)} 已觸發`
+                : "監控中"}
+          </span>
+        </label>
+      </div>
+      {/* 爆量提醒：現量達近 5 日均量 2 倍即推播；同樣每日一次性 */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] leading-relaxed text-ink">
+          爆量提醒
+          <span className="ml-1 text-muted">（現量達近 5 日均量 2 倍）</span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={volumeOn}
+          onClick={() => setVolumeOn((v) => !v)}
+          className={`relative h-5 w-9 shrink-0 rounded-pill transition-colors ${
+            volumeOn ? "bg-primary" : "bg-line"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+              volumeOn ? "translate-x-4" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
       <button
         onClick={save}
         disabled={busy}
@@ -214,7 +271,8 @@ export default function PriceAlertCard({
         {busy ? "儲存中…" : "儲存"}
       </button>
       <p className="text-[10px] leading-relaxed text-muted">
-        {msg ?? "留空＝取消該側；重設門檻會重新啟用提醒"}
+        {msg ??
+          "到價／漲跌幅：留空＝取消；漲跌幅與爆量觸發後隔日自動重新啟用，到價需重設門檻"}
       </p>
     </div>
   );

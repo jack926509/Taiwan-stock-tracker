@@ -47,9 +47,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// 設定到價門檻：{ stockId, high, low }，high/low 為數字或 null（null=取消該側）
+// 設定提醒門檻：{ stockId, high, low, changePct, volumeOn }
+// high/low/changePct 為數字或 null（null=取消該側）；volumeOn 為布林（開關爆量提醒）
 export async function PATCH(req: NextRequest) {
-  let body: { stockId?: unknown; high?: unknown; low?: unknown };
+  let body: {
+    stockId?: unknown;
+    high?: unknown;
+    low?: unknown;
+    changePct?: unknown;
+    volumeOn?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -67,12 +74,14 @@ export async function PATCH(req: NextRequest) {
   };
   const high = parse(body.high);
   const low = parse(body.low);
-  if (Number.isNaN(high) || Number.isNaN(low)) {
+  const changePct = parse(body.changePct);
+  if (Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(changePct)) {
     return NextResponse.json({ error: "門檻需為正數" }, { status: 400 });
   }
+  const volumeOn = body.volumeOn === true;
   try {
-    await setAlert(stockId, high, low);
-    return NextResponse.json({ ok: true, stockId, high, low });
+    await setAlert(stockId, high, low, changePct, volumeOn);
+    return NextResponse.json({ ok: true, stockId, high, low, changePct, volumeOn });
   } catch (err) {
     logApiError("api/watchlist PATCH", err);
     return NextResponse.json(publicErrorBody("設定到價提醒失敗", err), { status: 500 });

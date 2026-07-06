@@ -29,11 +29,19 @@ export interface EpsQuarter {
   eps: number; // 單季每股盈餘（元；FinMind 已是單季值，非累計）
 }
 
+export interface DividendYear {
+  year: string; // 西元年份（取自除息／公告日期 date 欄位）
+  cashDividend: number; // 現金股利（元／股）
+  stockDividend: number; // 股票股利（元／股，換算後）
+  total: number; // 現金 + 股票
+}
+
 export interface Fundamental {
   institutional: InstDay[]; // 近 20 個交易日，舊→新
   revenue: RevenueMonth[]; // 近 12 個月，舊→新
   valuation: Valuation | null;
   eps: EpsQuarter[]; // 近 8 季，舊→新
+  dividend: DividendYear[]; // 近 5 年，舊→新
 }
 
 export interface FundamentalResult extends Fundamental {
@@ -67,6 +75,20 @@ interface FsRow {
   date: string;
   type: string; // 眾多會計科目之一，EPS 是其中一列
   value: number;
+}
+
+// FinMind TaiwanStockDividend 欄位眾多且非每檔股票都有齊，這裡容錯處理：
+// 缺欄位視為 0，只取常見的現金／股票股利相關科目加總。
+// 注意：回傳的 year 欄位是「114年第4季」這類期別字串，不能拿來當年度分組鍵，
+// 一律改用 date（除息／公告日期）的西元年份分組。
+interface DividendRow {
+  date: string;
+  CashEarningsDistribution?: number;
+  CashStatutorySurplus?: number;
+  CashCapitalReserve?: number;
+  StockEarningsDistribution?: number;
+  StockStatutorySurplus?: number;
+  StockCapitalReserve?: number;
 }
 
 function isoDaysAgo(today: string, days: number): string {
@@ -146,6 +168,41 @@ function buildEps(rows: FsRow[]): EpsQuarter[] {
     .slice(-8);
 }
 
+function num(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
+function buildDividend(rows: DividendRow[]): DividendYear[] {
+  const byYear = new Map<string, { cash: number; stock: number }>();
+  for (const r of rows) {
+    // 以 date（除息／公告日期）的西元年份分組，同年多次配息加總
+    const year = (r.date ?? "").slice(0, 4);
+    if (!/^\d{4}$/.test(year)) continue;
+    const cash =
+      num(r.CashEarningsDistribution) +
+      num(r.CashStatutorySurplus) +
+      num(r.CashCapitalReserve);
+    const stock =
+      num(r.StockEarningsDistribution) +
+      num(r.StockStatutorySurplus) +
+      num(r.StockCapitalReserve);
+    const acc = byYear.get(year) ?? { cash: 0, stock: 0 };
+    acc.cash += cash;
+    acc.stock += stock;
+    byYear.set(year, acc);
+  }
+  return [...byYear.entries()]
+    .map(([year, v]) => ({
+      year,
+      cashDividend: Math.round(v.cash * 100) / 100,
+      stockDividend: Math.round(v.stock * 100) / 100,
+      total: Math.round((v.cash + v.stock) * 100) / 100,
+    }))
+    .filter((d) => d.total > 0) // 某些年度整年掛零列（無配息），不佔一列
+    .sort((a, b) => a.year.localeCompare(b.year))
+    .slice(-5);
+}
+
 // 抓失敗回 null（與「成功但回空陣列」區分）：null=失敗、[]=該股真的沒這項資料
 async function safeRows<T>(fn: () => Promise<T[]>): Promise<T[] | null> {
   try {
@@ -185,6 +242,13 @@ export async function fetchFundamental(
       isoDaysAgo(today, 800) // 約 26 個月，足以涵蓋近 8 季 EPS
     )
   );
+  const div = await safeRows<DividendRow>(() =>
+    finmindRows(
+      "TaiwanStockDividend",
+      stockId,
+      isoDaysAgo(today, 1825) // 約 5 年
+    )
+  );
 
   const latestPer = per && per.length > 0 ? per[per.length - 1] : null;
 
@@ -202,7 +266,9 @@ export async function fetchFundamental(
         }
       : null,
     eps: fs ? buildEps(fs) : [],
+    dividend: div ? buildDividend(div) : [],
     // 只要有任一支「抓失敗」就不完整，呼叫端據此縮短快取
-    complete: inst !== null && rev !== null && per !== null && fs !== null,
+    complete:
+      inst !== null && rev !== null && per !== null && fs !== null && div !== null,
   };
 }

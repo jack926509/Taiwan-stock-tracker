@@ -1,8 +1,11 @@
-// 到價提醒檢查器：盤中由常駐排程每分鐘呼叫一次。
-// 只看自選股已武裝（門檻已設、尚未觸發）的提醒，穿越門檻即推 LINE 並標記為已觸發（一次性）。
-import { listWatchlist, markAlertHit } from "@/lib/store";
-import { fetchQuotes } from "@/lib/providers/quoteProvider";
+// 到價／漲跌幅／爆量提醒檢查器：盤中由常駐排程每分鐘呼叫一次。
+// 到價提醒：只看已武裝（門檻已設、尚未觸發）者，穿越門檻即推 LINE 並標記為已觸發——觸發後靜音直到使用者重設門檻。
+// 漲跌幅／爆量提醒：語意不同——每日一次性，只要 hit_at 不是「今天」就視為可再觸發，跨日自動重新武裝，不需使用者手動重設。
+import { listWatchlist, markAlertHit, type WatchItem } from "@/lib/store";
+import { fetchQuotes, type Quote } from "@/lib/providers/quoteProvider";
+import { loadKline } from "@/lib/klineStore";
 import { pushLine, lineConfigured } from "@/lib/notify";
+import { taipeiNow } from "@/lib/market-hours";
 
 function hhmm(now: Date): string {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -51,15 +54,67 @@ function buildMessage(
   ].join("\n");
 }
 
+// 每日一次性提醒（漲跌幅／爆量）：hit_at 的台北日期＝今天才算「今天已觸發」，跨日自動重新武裝
+function hitToday(hitAt: string | null, now: Date): boolean {
+  if (!hitAt) return false;
+  return taipeiNow(new Date(hitAt)).isoDate === taipeiNow(now).isoDate;
+}
+
+// 漲跌幅提醒訊息：📈 紅漲／📉 綠跌（changePct 為小數，顯示需 ×100）
+function buildChangeMessage(q: Quote, thresholdPct: number, time: string): string {
+  const pct = (q.changePct ?? 0) * 100;
+  const dir = pct >= 0 ? "大漲" : "大跌";
+  const dot = pct >= 0 ? "🔴" : "🟢";
+  return [
+    `${dot} ${q.name} ${q.stockId} 今日${dir} ${Math.abs(pct).toFixed(1)}%（門檻 ${thresholdPct}%）`,
+    "━━━━━━━━━━",
+    `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
+    `🕙 ${time}`,
+    `👉 ${BASE_URL}/stock/${q.stockId}`,
+  ].join("\n");
+}
+
+// 爆量提醒訊息：現量 vs 近 5 日均量（張數，四捨五入到百張顯示為「萬張」較易讀）
+function fmtVolume(vol: number): string {
+  if (vol >= 10000) return `${(vol / 10000).toFixed(1)} 萬張`;
+  return `${Math.round(vol).toLocaleString("en-US")} 張`;
+}
+
+function buildVolumeMessage(
+  q: Quote,
+  avgVolume: number,
+  time: string
+): string {
+  const ratio = avgVolume > 0 ? q.volume! / avgVolume : 0;
+  return [
+    `📊 ${q.name} ${q.stockId} 爆量 ${fmtVolume(q.volume ?? 0)}（近 5 日均量 ${fmtVolume(avgVolume)} 的 ${ratio.toFixed(1)} 倍）`,
+    "━━━━━━━━━━",
+    `現價 ${fmtPrice(q.price)}${fmtChange(q.change, q.changePct)}`,
+    `🕙 ${time}`,
+    `👉 ${BASE_URL}/stock/${q.stockId}`,
+  ].join("\n");
+}
+
+// 近 5 日均量（張）；日 K 快取缺料或不足 5 根回 null（不誤報）
+async function avgVolume5d(stockId: string): Promise<number | null> {
+  const candles = await loadKline(stockId);
+  if (candles.length < 5) return null;
+  const last5 = candles.slice(-5);
+  const sum = last5.reduce((s, c) => s + c.volume, 0);
+  return sum / 5;
+}
+
 // 回傳本次推播筆數
 export async function checkAlerts(now: Date = new Date()): Promise<number> {
   if (!lineConfigured()) return 0;
 
   const items = await listWatchlist();
   const armed = items.filter(
-    (i) =>
+    (i: WatchItem) =>
       (i.alert_high !== null && i.alert_high_hit_at === null) ||
-      (i.alert_low !== null && i.alert_low_hit_at === null)
+      (i.alert_low !== null && i.alert_low_hit_at === null) ||
+      (i.alert_change_pct !== null && !hitToday(i.alert_change_hit_at, now)) ||
+      (i.alert_volume_on && !hitToday(i.alert_volume_hit_at, now))
   );
   if (armed.length === 0) return 0;
 
@@ -97,6 +152,34 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
       if (await pushLine(buildMessage(q, "low", row.alert_low, time))) {
         await markAlertHit(row.stock_id, "low", at);
         sent++;
+      }
+    }
+
+    // 漲跌幅（每日一次性）
+    if (
+      row.alert_change_pct !== null &&
+      !hitToday(row.alert_change_hit_at, now) &&
+      q.changePct !== null &&
+      Math.abs(q.changePct * 100) >= row.alert_change_pct
+    ) {
+      if (await pushLine(buildChangeMessage(q, row.alert_change_pct, time))) {
+        await markAlertHit(row.stock_id, "change", at);
+        sent++;
+      }
+    }
+
+    // 爆量（每日一次性）：均量快取缺料或不足 5 根就跳過，不誤報
+    if (
+      row.alert_volume_on &&
+      !hitToday(row.alert_volume_hit_at, now) &&
+      q.volume !== null
+    ) {
+      const avg = await avgVolume5d(row.stock_id);
+      if (avg !== null && avg > 0 && q.volume >= 2 * avg) {
+        if (await pushLine(buildVolumeMessage(q, avg, time))) {
+          await markAlertHit(row.stock_id, "volume", at);
+          sent++;
+        }
       }
     }
   }

@@ -1,11 +1,14 @@
 // 每日收盤總覽：工作日 13:35（收盤後）由常駐排程呼叫一次。
-// 內容：加權指數背景 + 漲跌家數 + 各自選股（收盤價／漲跌點數／當日幅／本週累計／高低）+ 最強最弱。
-// 排序依當日漲跌幅由大到小，紅漲（▲）綠跌（▼）。
-import { listWatchlist } from "@/lib/store";
-import { fetchQuotes } from "@/lib/providers/quoteProvider";
+// 內容：加權＋櫃買指數背景 + 漲跌家數 + 各自選股（收盤價／漲跌點數／當日幅／本週累計／高低）+ 最強最弱
+// + 今日新出現的技術訊號 + 今日觸發提醒則數。排序依當日漲跌幅由大到小，紅漲（▲）綠跌（▼）。
+import { listWatchlist, type WatchItem } from "@/lib/store";
+import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
 import { pushLine, lineConfigured } from "@/lib/notify";
 import { taipeiNow, type TaipeiTime } from "@/lib/market-hours";
+import { newSignalsToday } from "@/lib/summarySignals";
+import type { Signal } from "@/lib/signals";
+import type { Candle } from "@/lib/providers/klineProvider";
 
 const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -51,6 +54,41 @@ async function weekChangePct(
   return price / base - 1;
 }
 
+// 訊號差集邏輯在 lib/summarySignals.ts（獨立小模組，node --test 可直接載入測試）
+
+// 以當日 MIS 報價合成一根收盤 candle；報價無現價時回 null（跳過該檔訊號計算，不誤報）
+function todayCandleFromQuote(
+  q: { price: number | null; open: number | null; high: number | null; low: number | null; volume: number | null },
+  isoDate: string
+): Candle | null {
+  if (q.price === null) return null;
+  return {
+    date: isoDate,
+    open: q.open ?? q.price,
+    high: q.high ?? q.price,
+    low: q.low ?? q.price,
+    close: q.price,
+    volume: q.volume ?? 0,
+  };
+}
+
+// 今日是否曾觸發（供「今日觸發提醒」計數用；台北日期比對，與 alerts.ts 的每日一次性判斷同邏輯）
+function isTodayHit(hitAt: string | null, now: Date): boolean {
+  if (!hitAt) return false;
+  return taipeiNow(new Date(hitAt)).isoDate === taipeiNow(now).isoDate;
+}
+
+function countTodayHits(items: WatchItem[], now: Date): number {
+  let n = 0;
+  for (const i of items) {
+    if (isTodayHit(i.alert_high_hit_at, now)) n++;
+    if (isTodayHit(i.alert_low_hit_at, now)) n++;
+    if (isTodayHit(i.alert_change_hit_at, now)) n++;
+    if (isTodayHit(i.alert_volume_hit_at, now)) n++;
+  }
+  return n;
+}
+
 // 回傳 true 表示有發出總覽（自選股為空或未設 LINE 則回 false）
 export async function dailySummary(now: Date = new Date()): Promise<boolean> {
   if (!lineConfigured()) return false;
@@ -59,13 +97,14 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
   if (items.length === 0) return false;
 
   const ids = new Set(items.map((i) => i.stock_id));
-  // 自選股 + 加權指數併同一個 MIS 請求（零額外請求）
+  // 自選股 + 加權／櫃買指數併同一個 MIS 請求（零額外請求）
   const result = await fetchQuotes([
     ...items.map((i) => ({ stockId: i.stock_id, market: i.market })),
-    { stockId: "t00", market: "tse" as const },
+    ...INDEX_TARGETS,
   ]);
 
-  const index = result.quotes.find((q) => !ids.has(q.stockId)) ?? null;
+  const weightedIndex = result.quotes.find((q) => q.stockId === "t00") ?? null;
+  const otcIndex = result.quotes.find((q) => q.stockId === "o00") ?? null;
   const rows = result.quotes
     .filter((q) => ids.has(q.stockId))
     .sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
@@ -94,10 +133,15 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
 
   const date = `${t.isoDate.slice(5, 7)}/${t.isoDate.slice(8, 10)}（${WEEKDAY[t.dayOfWeek]}）`;
   const head: string[] = [`📊 收盤總覽　${date}`];
-  if (index) {
-    const ip = index.changePct;
+  if (weightedIndex) {
+    const ip = weightedIndex.changePct;
     const ie = ip === null || ip === 0 ? "➡️" : ip > 0 ? "📈" : "📉";
-    head.push(`${ie} 加權指數 ${fmtPrice(index.price)}　${fmtPct(ip)}`);
+    head.push(`${ie} 加權指數 ${fmtPrice(weightedIndex.price)}　${fmtPct(ip)}`);
+  }
+  if (otcIndex) {
+    const op = otcIndex.changePct;
+    const oe = op === null || op === 0 ? "➡️" : op > 0 ? "📈" : "📉";
+    head.push(`${oe} 櫃買指數 ${fmtPrice(otcIndex.price)}　${fmtPct(op)}`);
   }
   head.push(`漲 ${up}　跌 ${down}　平 ${flat}`);
 
@@ -122,6 +166,27 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
     body.push(g.label, ...g.list.map(fmtRow));
   });
 
+  // 今日新出現的技術訊號：各自選股「不含今日」與「含今日」兩次 computeSignals 做差集，無新訊號的檔略過
+  const signalsByStock = new Map<string, Signal[]>(
+    await Promise.all(
+      rows.map(async (q) => {
+        const todayCandle = todayCandleFromQuote(q, t.isoDate);
+        if (!todayCandle) return [q.stockId, [] as Signal[]] as const;
+        const existing = await loadKline(q.stockId);
+        return [q.stockId, newSignalsToday(existing, todayCandle)] as const;
+      })
+    )
+  );
+  const signalSection: string[] = [];
+  const signalRows = rows.filter((q) => (signalsByStock.get(q.stockId) ?? []).length > 0);
+  if (signalRows.length > 0) {
+    signalSection.push("📐 今日技術訊號");
+    for (const q of signalRows) {
+      const labels = (signalsByStock.get(q.stockId) ?? []).map((s) => s.label).join("、");
+      signalSection.push(`▪${q.name}（${q.stockId}）：${labels}`);
+    }
+  }
+
   const foot: string[] = [];
   const ranked = rows.filter((q) => q.changePct !== null);
   if (ranked.length > 0) {
@@ -132,12 +197,14 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
       foot.push(`最弱 ${worst.name} ${fmtPct(worst.changePct)}`);
     }
   }
+  foot.push(`🔔 今日觸發提醒 ${countTodayHits(items, now)} 則`);
   foot.push(`⏰ 共 ${rows.length} 檔・收盤 13:35`);
 
   const text = [
     ...head,
     "━━━━━━━━━━",
     ...body,
+    ...(signalSection.length > 0 ? ["━━━━━━━━━━", ...signalSection] : []),
     "━━━━━━━━━━",
     ...foot,
   ].join("\n");

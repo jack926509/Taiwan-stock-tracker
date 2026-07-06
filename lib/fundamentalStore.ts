@@ -13,8 +13,9 @@ export interface FundamentalCache {
 
 // 快取結構版本：改變 Fundamental 形狀（如新增 eps）時 +1，
 // 讀取到舊版本一律視為未命中自動重抓，免再手動清資料庫。
-// v1=估值/法人/營收；v2=加入 eps。
-export const CACHE_VERSION = 2;
+// v1=估值/法人/營收；v2=加入 eps；v3=加入 dividend（股利政策）；
+// v4=dividend 改以 date 西元年份分組（v3 誤用期別字串當鍵，未真正按年加總）。
+export const CACHE_VERSION = 4;
 
 const DIR = path.join(process.cwd(), ".data", "fundamental");
 export const TTL_MS = 12 * 60 * 60 * 1000; // 完整資料：12 小時
