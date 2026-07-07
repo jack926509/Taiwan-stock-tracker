@@ -505,7 +505,10 @@ export default function KlineChart({
             )}
           </div>
         )}
-        <div ref={containerRef} className="h-[300px] w-full sm:h-[460px]" />
+        <div
+          ref={containerRef}
+          className="h-[clamp(240px,45dvh,460px)] w-full"
+        />
       </div>
 
       {/* 指標切換 pill 列：成交量／KD／MACD／RSI 四選一 */}
