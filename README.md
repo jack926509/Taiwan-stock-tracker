@@ -111,6 +111,21 @@ Web Push 可作為 LINE 通知以外的備援通道，但需要分階段導入�
 
 > 注意：`NEXT_PUBLIC_` 開頭的變數於 build 時嵌入，改動後需 redeploy 才生效。
 
+### Cloudflare 前端（GitHub 自動部署）
+
+Zeabur 保留 Node.js API、排程與資料存取；Cloudflare Pages 僅提供前端靜態檔案，並以 Pages Function 把同網域的 `/api/*` 代理至 Zeabur。因此瀏覽器不需要設定 CORS，既有相對 API 呼叫可維持不變。
+
+在 Cloudflare Pages 建立 GitHub-connected 專案時，選擇此 repository 的 `main` 分支，並設定：
+
+| 設定 | 值 |
+|---|---|
+| Root directory | `frontend` |
+| Build command | `npm run build` |
+| Build output directory | `out` |
+| Node.js version | 22 以上 |
+
+Cloudflare 成功產生預覽網址後，先確認首頁、`/stock/2330` 與 `/api/health`。確認無誤後，於 Pages 的 Custom domains 新增 `twstock.xiehnet.com`；Cloudflare 會在已代管的 `xiehnet.com` zone 自動建立所需 DNS 紀錄與憑證。不要刪除 Zeabur 的 `tw-stock-tracker.zeabur.app`，它是 API 與可回退的既有入口。
+
 ## 指令
 
 ```bash
