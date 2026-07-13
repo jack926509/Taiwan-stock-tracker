@@ -28,6 +28,7 @@ import {
 } from "@/lib/klineRange";
 import { aggregateCandles } from "@/lib/aggregateKline";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+import { stockIdFromPath } from "@/lib/stockPath";
 
 type KlinePeriod = "day" | "week" | "month";
 
@@ -66,7 +67,11 @@ async function fetcher<T>(url: string): Promise<T> {
 
 export default function StockPage() {
   const params = useParams<{ id: string }>();
-  const id = (params.id ?? "").toUpperCase();
+  const [pathStockId, setPathStockId] = useState("");
+  useEffect(() => {
+    setPathStockId(stockIdFromPath(window.location.pathname));
+  }, []);
+  const id = (params.id ?? pathStockId).toUpperCase();
   const [range, setRange] = useState<KlineRangeKey>("6m");
   const [period, setPeriod] = useState<KlinePeriod>("day");
   const [alertOpen, setAlertOpen] = useState(false);
