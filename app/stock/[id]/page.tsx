@@ -28,6 +28,7 @@ import {
 } from "@/lib/klineRange";
 import { aggregateCandles } from "@/lib/aggregateKline";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+import { stockIdForRender } from "@/lib/stockPath";
 
 type KlinePeriod = "day" | "week" | "month";
 
@@ -66,7 +67,13 @@ async function fetcher<T>(url: string): Promise<T> {
 
 export default function StockPage() {
   const params = useParams<{ id: string }>();
-  const id = (params.id ?? "").toUpperCase();
+  const [hydrated, setHydrated] = useState(false);
+  const [pathname, setPathname] = useState("");
+  useEffect(() => {
+    setPathname(window.location.pathname);
+    setHydrated(true);
+  }, []);
+  const id = stockIdForRender(hydrated, params.id, pathname);
   const [range, setRange] = useState<KlineRangeKey>("6m");
   const [period, setPeriod] = useState<KlinePeriod>("day");
   const [alertOpen, setAlertOpen] = useState(false);
@@ -437,7 +444,7 @@ export default function StockPage() {
         {(prevWatch || nextWatch) && (
           <div className="grid grid-cols-2 gap-2 border-t border-line pt-4 text-xs">
             {prevWatch ? (
-              <Link
+              <a
                 href={`/stock/${prevWatch.stock_id}`}
                 className="rounded-card bg-surface px-3 py-2 text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
               >
@@ -448,12 +455,12 @@ export default function StockPage() {
                     {prevWatch.stock_id}
                   </span>
                 </span>
-              </Link>
+              </a>
             ) : (
               <span />
             )}
             {nextWatch ? (
-              <Link
+              <a
                 href={`/stock/${nextWatch.stock_id}`}
                 className="rounded-card bg-surface px-3 py-2 text-right text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
               >
@@ -464,7 +471,7 @@ export default function StockPage() {
                   </span>
                   {nextWatch.name} →
                 </span>
-              </Link>
+              </a>
             ) : (
               <span />
             )}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import type { Quote } from "@/lib/types";
 import type { Signal } from "@/lib/signals";
 import Sparkline from "@/components/Sparkline";
@@ -121,7 +120,7 @@ export default function QuoteCard({
 
   return (
     <div className="group relative">
-      <Link
+      <a
         href={`/stock/${quote.stockId}`}
         className={`block rounded-card bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           limit === "up"
@@ -203,7 +202,7 @@ export default function QuoteCard({
               <span>昨收 {fmt(quote.prevClose)}</span>
               <span>量 {fmtVol(quote.volume)}</span>
             </div>
-      </Link>
+      </a>
 
       {onDelete && (
         <button

@@ -256,10 +256,11 @@ export default function AlertsPage() {
   const [autoPaused, setAutoPaused] = useState(false);
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   // 頂部時段文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(id);
   }, []);
@@ -341,7 +342,7 @@ export default function AlertsPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden text-right font-mono text-xs leading-tight text-muted tabular sm:block">
-              {getMarketSessionLabel(now)}
+              {now ? getMarketSessionLabel(now) : "載入中"}
             </div>
             <Link
               href="/"
@@ -407,12 +408,12 @@ export default function AlertsPage() {
               name={editingRow.name}
               currentPrice={priceOf.get(editingRow.stock_id)?.price ?? null}
             />
-            <Link
+            <a
               href={`/stock/${editingRow.stock_id}`}
               className="mt-3 inline-block text-xs text-primary hover:underline"
             >
               查看走勢與基本面 →
-            </Link>
+            </a>
           </>
         )}
       </BottomSheet>
