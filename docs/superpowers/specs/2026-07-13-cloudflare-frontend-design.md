@@ -20,7 +20,7 @@
                                       └─ tw-stock-tracker.zeabur.app/api/*
 ```
 
-代理會保留 HTTP 方法、查詢字串、請求本文與必要標頭；同時改寫上游回應中的 `Set-Cookie` 網域，讓登入 cookie 屬於 `twstock.xiehnet.com`。前端繼續使用相對 `/api/*`，因此不需瀏覽器 CORS 設定，也不會把後端金鑰帶到 Cloudflare 前端。
+代理會保留 HTTP 方法、查詢字串、請求本文與必要標頭；目前後端登入 cookie 未指定 `Domain`，瀏覽器會自然將 cookie 綁定於 `twstock.xiehnet.com`。前端繼續使用相對 `/api/*`，因此不需瀏覽器 CORS 設定，也不會把後端金鑰帶到 Cloudflare 前端。
 
 ## 範圍
 

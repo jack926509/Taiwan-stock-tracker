@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 const ID_RE = /^[0-9A-Z]{4,6}$/;
 
@@ -13,7 +12,6 @@ type Preview =
 // 全市場個股搜尋：輸入代號即時查名，按 Enter 或點結果直接看 K 線/基本面，
 // 不必先加入自選股。複用 /api/resolve（防抖 400ms）。
 export default function StockSearch() {
-  const router = useRouter();
   const [code, setCode] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
 
@@ -49,7 +47,7 @@ export default function StockSearch() {
   function go(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = code.trim().toUpperCase();
-    if (ID_RE.test(trimmed)) router.push(`/stock/${trimmed}`);
+    if (ID_RE.test(trimmed)) window.location.assign(`/stock/${trimmed}`);
   }
 
   return (

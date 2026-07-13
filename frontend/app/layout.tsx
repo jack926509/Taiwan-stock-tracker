@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: "台股追蹤",
   description: "個人台股即時追蹤儀表板",
   applicationName: "台股追蹤",
+  icons: { icon: "/favicon.svg" },
 };
 
 export const viewport: Viewport = {

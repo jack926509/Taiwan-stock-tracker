@@ -88,10 +88,11 @@ export default function Dashboard() {
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   // masthead 的日期／盤別文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(id);
   }, []);
@@ -256,11 +257,11 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden text-right font-mono text-xs leading-tight text-muted tabular sm:block">
-              <div>{formatMastheadDate(now)}</div>
+              <div>{now ? formatMastheadDate(now) : "---- / -- / --　--:-- TPE"}</div>
               <div className="mt-0.5 flex items-center justify-end gap-1">
                 {data?.marketOpen && <span className="pulse-dot text-primary">●</span>}
                 <span className={data?.marketOpen ? "font-semibold text-primary" : ""}>
-                  {getMarketSessionDetail(now)}
+                  {now ? getMarketSessionDetail(now) : "載入中"}
                 </span>
               </div>
             </div>
@@ -270,9 +271,9 @@ export default function Dashboard() {
                   data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
                 }`}
               >
-                {formatMastheadDateShort(now)}
+                {now ? formatMastheadDateShort(now) : "--/-- --:--"}
                 <span className="text-primary/50">·</span>
-                {getMarketSessionDetail(now)}
+                {now ? getMarketSessionDetail(now) : "載入中"}
               </span>
             )}
             <Link
