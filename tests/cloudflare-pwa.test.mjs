@@ -36,6 +36,27 @@ test("Cloudflare layout 註冊 Service Worker 並提供 Apple 安裝資訊", asy
   assert.match(prompt, /分享/);
 });
 
+test("PWA 使用精品牛市 icon 與 iPhone 啟動畫面", async () => {
+  const [icon, layout, manifest, worker] = await Promise.all([
+    read("lib/iconImage.tsx"),
+    read("frontend/app/layout.tsx"),
+    read("frontend/app/manifest.ts"),
+    read("frontend/public/sw.js"),
+  ]);
+
+  for (const color of ["#F7F2E7", "#17385F", "#F05449", "#E4B84F"]) {
+    assert.match(icon, new RegExp(color, "i"));
+  }
+  assert.match(icon, /BULLISH_CANDLES = \[/);
+  assert.match(icon, /renderLaunchImage/);
+  assert.match(manifest, /purpose:\s*"maskable"/);
+  for (const size of ["750x1334", "828x1792", "1125x2436", "1170x2532", "1179x2556", "1206x2622", "1242x2688", "1290x2796", "1320x2868"]) {
+    assert.match(layout, new RegExp(`/splash/${size}`));
+    assert.match(worker, new RegExp(`/splash/${size}`));
+  }
+  assert.match(worker, /CACHE_VERSION = "twstock-pwa-v2"/);
+});
+
 test("離線提示不把快取資料當成即時報價", async () => {
   const [banner, stockPage] = await Promise.all([
     read("components/MobileNetworkBanner.tsx"),
