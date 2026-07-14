@@ -10,3 +10,4 @@ scripts/smoke-result.json
 .data/
 supabase/.temp/
 .DS_Store
+.worktrees/
