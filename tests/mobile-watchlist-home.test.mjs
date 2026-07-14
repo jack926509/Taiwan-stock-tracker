@@ -28,3 +28,10 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /hidden sm:block/);
   assert.match(sortable, /h-11 w-11/);
 });
+
+test("手機大盤指數卡片可以縮入各半寬且將漲跌資訊分行", async () => {
+  const indexCard = await read("components/IndexCard.tsx");
+
+  assert.match(indexCard, /min-w-0/);
+  assert.match(indexCard, /flex-col[^"]*sm:flex-row/);
+});

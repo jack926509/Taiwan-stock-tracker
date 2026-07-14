@@ -12,9 +12,9 @@ function IndexBlock({ q }: { q: Quote }) {
     q.stockId === "t00" ? "加權指數" : q.stockId === "o00" ? "櫃買指數" : q.name;
 
   return (
-    <div className="flex w-full flex-col gap-1 rounded-card border border-line bg-surface px-3 py-2.5 shadow-card sm:flex-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-none sm:border-0 sm:border-r sm:border-line sm:bg-transparent sm:px-6 sm:py-3 sm:shadow-none sm:last:border-r-0">
+    <div className="flex min-w-0 w-full flex-col gap-1 rounded-card border border-line bg-surface px-3 py-2.5 shadow-card sm:flex-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-none sm:border-0 sm:border-r sm:border-line sm:bg-transparent sm:px-6 sm:py-3 sm:shadow-none sm:last:border-r-0">
       <span className="text-xs font-medium text-muted sm:text-sm">{label}</span>
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-center sm:gap-3">
         <span className={`font-mono text-base font-bold tabular sm:text-xl ${color}`}>
           {fmt(q.price)}
         </span>
@@ -44,7 +44,7 @@ export default function IndexCards({ indices }: { indices: Quote[] }) {
       className="flex gap-2 sm:gap-0 sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-card"
     >
       {indices.map((q) => (
-        <div key={q.stockId} role="listitem" className="flex flex-1">
+        <div key={q.stockId} role="listitem" className="flex min-w-0 flex-1 basis-0">
           <IndexBlock q={q} />
         </div>
       ))}
