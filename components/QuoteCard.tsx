@@ -130,78 +130,70 @@ export default function QuoteCard({
               : "ring-1 ring-line"
         } ${flash}`}
       >
-        {/* 第一行 kicker：漲跌方向 · 代號，等寬字＋靛藍點綴，掃讀動線起點 */}
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
-                {t === "up" ? "上漲" : t === "down" ? "下跌" : "持平"}
-                <span className="mx-1 text-primary/40">·</span>
-                {quote.stockId}
-              </span>
-              <div className="flex shrink-0 items-center gap-1.5">
-                {limit && (
-                  <span
-                    className={`rounded-pill px-1.5 py-1 text-[11px] font-bold text-white ${
-                      limit === "up" ? "bg-up" : "bg-down"
-                    }`}
-                  >
-                    {limit === "up" ? "漲停" : "跌停"}
-                  </span>
-                )}
-                {!quote.traded && <span className="text-[11px] text-warn">未成交</span>}
-              </div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate font-serif text-base font-semibold leading-tight text-ink">
+              {quote.name}
             </div>
-
-            {/* 第二行：左 sparkline、右現價（卡片內最大字級） */}
-            <div className="mt-2 flex items-center justify-between gap-2">
-              {spark ? <Sparkline points={spark} /> : <span />}
-              <span
-                className={`text-3xl tracking-tight tabular ${
-                  strongMove ? "font-extrabold" : "font-bold"
-                } ${strongMove ? strongTextColor[t] : textColor[t]}`}
-              >
-                {fmt(quote.price)}
-              </span>
+            <div className="mt-1 font-mono text-[11px] text-muted tabular">
+              {quote.stockId}・{quote.market === "tse" ? "上市" : "上櫃"}
             </div>
-
-            {/* 第三行：左股票名稱（襯線字）、右漲跌幅＋漲跌值 */}
-            <div className="mt-1.5 flex items-baseline justify-between gap-2">
-              <div className="min-w-0">
-                <div className="truncate font-serif text-base font-medium leading-tight text-ink">
-                  {quote.name}
-                </div>
-                <div className="mt-0.5 text-[11px] text-muted">
-                  {quote.market === "tse" ? "上市" : "上櫃"}
-                </div>
-              </div>
-              <span
-                className={`shrink-0 rounded-pill px-2 py-1 text-right font-mono text-xs tabular ${
-                  strongMove ? "font-extrabold" : "font-semibold"
-                } ${chipColor[t]}`}
-              >
-                {arrowOf(t)} {fmtPct(quote.changePct)}
-                {quote.change !== null && (
-                  <span className="ml-1 opacity-80">
-                    {quote.change > 0 ? "+" : ""}
-                    {fmt(quote.change)}
-                  </span>
-                )}
-              </span>
+          </div>
+          <div className="shrink-0 text-right">
+            <div
+              className={`font-mono text-3xl tracking-tight tabular ${
+                strongMove ? "font-extrabold" : "font-bold"
+              } ${strongMove ? strongTextColor[t] : textColor[t]}`}
+            >
+              {fmt(quote.price)}
             </div>
+            <div
+              className={`mt-1 font-mono text-xs tabular ${
+                strongMove ? "font-extrabold" : "font-semibold"
+              } ${textColor[t]}`}
+            >
+              {arrowOf(t)} {fmtPct(quote.changePct)}
+              {quote.change !== null && (
+                <span className="ml-1 opacity-80">
+                  {quote.change > 0 ? "+" : ""}
+                  {fmt(quote.change)}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
-            {/* dotted 分隔線後放技術訊號徽章 */}
-            {signals && signals.length > 0 && (
-              <div className="mt-3 border-t border-dotted border-line pt-2.5">
-                <SignalBadges signals={signals} />
-              </div>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={`shrink-0 rounded-pill px-2 py-1 font-mono text-[11px] font-semibold ${chipColor[t]}`}>
+              {t === "up" ? "上漲" : t === "down" ? "下跌" : "持平"}
+            </span>
+            {limit && (
+              <span className={`rounded-pill px-1.5 py-1 text-[11px] font-bold text-white ${limit === "up" ? "bg-up" : "bg-down"}`}>
+                {limit === "up" ? "漲停" : "跌停"}
+              </span>
             )}
+            {!quote.traded && <span className="text-[11px] text-warn">未成交</span>}
+          </div>
+          {spark ? <Sparkline points={spark} /> : null}
+        </div>
 
-            <DayRangeBar q={quote} />
-
-            <div className="mt-3 flex justify-between border-t border-line pt-3 text-xs text-muted tabular">
-              <span>開 {fmt(quote.open)}</span>
-              <span>昨收 {fmt(quote.prevClose)}</span>
-              <span>量 {fmtVol(quote.volume)}</span>
+        <div className="hidden sm:block">
+          {/* 桌面版保留技術訊號與日內區間；手機優先顯示核心行情。 */}
+          {signals && signals.length > 0 && (
+            <div className="mt-3 border-t border-dotted border-line pt-2.5">
+              <SignalBadges signals={signals} />
             </div>
+          )}
+
+          <DayRangeBar q={quote} />
+        </div>
+
+        <div className="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-1 border-t border-line pt-3 text-[11px] text-muted tabular">
+          <span>報價 {quote.time || "—"}</span>
+          <span>成交量 {fmtVol(quote.volume)}</span>
+          <span className="hidden sm:inline">開 {fmt(quote.open)}・昨收 {fmt(quote.prevClose)}</span>
+        </div>
       </a>
 
       {onDelete && (

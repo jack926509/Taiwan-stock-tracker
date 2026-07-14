@@ -100,13 +100,14 @@ export default function Dashboard() {
   const watchlist = useSWR<{ items: WatchlistItem[]; storage: string }>(
     "/api/watchlist",
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, revalidateOnReconnect: true }
   );
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
     refreshInterval: (latest) =>
       autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
     revalidateOnFocus: true,
+    revalidateOnReconnect: true,
     refreshWhenHidden: false,
     onSuccess: (data) => {
       // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
@@ -197,6 +198,7 @@ export default function Dashboard() {
     data: Record<string, { spark: number[]; signals: Signal[] }>;
   }>(sparkIds ? `/api/sparklines?ids=${sparkIds}` : null, fetcher, {
     revalidateOnFocus: false,
+    revalidateOnReconnect: true,
   });
 
   // UI-1：依今日漲跌幅排序（null 一律排最後），預設依自訂拖曳順序
@@ -265,17 +267,18 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-            {data && (
-              <span
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-[11px] font-medium tabular sm:hidden ${
-                  data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
-                }`}
-              >
+            <div className="text-right font-mono text-[11px] leading-tight tabular sm:hidden">
+              <div className="text-muted">
                 {now ? formatMastheadDateShort(now) : "--/-- --:--"}
-                <span className="text-primary/50">·</span>
+              </div>
+              <div
+                className={
+                  data?.marketOpen ? "mt-0.5 font-semibold text-primary" : "mt-0.5 text-muted"
+                }
+              >
                 {now ? getMarketSessionDetail(now) : "載入中"}
-              </span>
-            )}
+              </div>
+            </div>
             <Link
               href="/alerts"
               aria-label="到價提醒總覽"
@@ -324,13 +327,19 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-6 px-6 py-6">
+      <main className="mx-auto max-w-7xl space-y-5 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
         <MobileNetworkBanner
           stale={data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
+          asOf={data?.asOf}
         />
 
-        {/* 全市場個股搜尋（不必先加自選即可看 K 線/基本面）；手機改用底部「搜尋」分頁 */}
+        {/* 手機首頁提供快速個股入口；桌面版沿用原有搜尋區塊。 */}
+        <div className="md:hidden">
+          <StockSearch />
+        </div>
+
+        {/* 全市場個股搜尋（不必先加自選即可看 K 線/基本面） */}
         <div className="hidden md:block">
           <StockSearch />
         </div>
@@ -358,7 +367,7 @@ export default function Dashboard() {
 
         {/* 自選股 */}
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold">自選股</h2>
               <p className="text-xs text-muted">
@@ -371,17 +380,20 @@ export default function Dashboard() {
                   "載入中…"
                 )}
               </p>
+              {sortKey === "default" && filterKey === "all" && data?.quotes.length && data.quotes.length > 1 ? (
+                <p className="mt-1 text-[11px] text-muted md:hidden">長按拖曳把手可調整排序</p>
+              ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:overflow-visible">
               {data && data.quotes.length > 1 && (
-                <div className="flex rounded-pill bg-app p-0.5 text-xs">
+                <div className="flex shrink-0 rounded-pill bg-app p-0.5 text-xs">
                   {SORTS.map((s) => (
                     <button
                       key={s.key}
                       onClick={() => setSortKey(s.key)}
                       aria-label={`依${s.label}排序`}
                       aria-pressed={sortKey === s.key}
-                      className={`rounded-pill px-2.5 py-1 font-medium transition-colors active:scale-[0.97] ${
+                      className={`min-h-11 rounded-pill px-3 py-1 font-medium transition-colors active:scale-[0.97] ${
                         sortKey === s.key
                           ? "bg-surface text-ink shadow-card"
                           : "text-muted hover:text-ink"
@@ -399,14 +411,14 @@ export default function Dashboard() {
           </div>
 
           {data && data.quotes.length > 1 && (
-            <div className="flex flex-wrap gap-1.5 text-xs">
+            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 text-xs [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
               {FILTERS.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setFilterKey(f.key)}
                   aria-label={`篩選：${f.label}`}
                   aria-pressed={filterKey === f.key}
-                  className={`rounded-pill px-2.5 py-1 font-medium ring-1 transition-colors active:scale-[0.97] ${
+                  className={`min-h-11 shrink-0 rounded-pill px-3 py-1 font-medium ring-1 transition-colors active:scale-[0.97] ${
                     filterKey === f.key
                       ? "bg-primary-tint text-primary ring-primary/30"
                       : "bg-surface text-muted ring-line hover:text-ink"

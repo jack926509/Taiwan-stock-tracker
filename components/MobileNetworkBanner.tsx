@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 interface MobileNetworkBannerProps {
   stale?: boolean;
   error?: unknown;
+  asOf?: string;
 }
 
 export default function MobileNetworkBanner({
   stale = false,
   error,
+  asOf,
 }: MobileNetworkBannerProps) {
   const [online, setOnline] = useState(true);
 
@@ -27,10 +29,19 @@ export default function MobileNetworkBanner({
   const hasError = Boolean(error);
   if (online && !stale && !hasError) return null;
 
+  const cachedAt = asOf
+    ? new Intl.DateTimeFormat("zh-TW", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Taipei",
+      }).format(new Date(asOf))
+    : null;
+
   const message = !online
-    ? "目前離線，正在顯示最後一次快取資料；恢復連線後將自動更新。"
+    ? `目前離線，正在顯示最後一次快取資料${cachedAt ? `（${cachedAt}）` : ""}；恢復連線後將自動更新。`
     : stale
-      ? "報價來源暫時異常，正在顯示快取資料"
+      ? `報價來源暫時異常，正在顯示${cachedAt ? `${cachedAt} 的` : ""}快取資料`
       : "更新失敗，稍後會自動重試";
 
   return (
