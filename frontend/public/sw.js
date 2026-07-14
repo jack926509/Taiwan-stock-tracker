@@ -1,9 +1,25 @@
-const CACHE_VERSION = "twstock-pwa-v1";
+const CACHE_VERSION = "twstock-pwa-v2";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 const API_MAX_AGE_MS = 15 * 60 * 1000;
 const CACHED_AT_HEADER = "x-twstock-pwa-cached-at";
-const APP_SHELL_PATHS = ["/", "/offline.html", "/manifest.webmanifest", "/favicon.svg"];
+const APP_SHELL_PATHS = [
+  "/",
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/favicon.svg",
+  "/icons/192",
+  "/icons/512",
+  "/splash/750x1334",
+  "/splash/828x1792",
+  "/splash/1125x2436",
+  "/splash/1170x2532",
+  "/splash/1179x2556",
+  "/splash/1206x2622",
+  "/splash/1242x2688",
+  "/splash/1290x2796",
+  "/splash/1320x2868",
+];
 
 function isApiRequest(request) {
   return new URL(request.url).pathname.startsWith("/api/");

@@ -14,7 +14,7 @@ test("Cloudflare PWA 提供 manifest、離線頁與版本化 Service Worker", as
 
   assert.match(manifest, /display:\s*"standalone"/);
   assert.match(manifest, /\/icons\/192/);
-  assert.match(worker, /const CACHE_VERSION = "twstock-pwa-v1"/);
+  assert.match(worker, /const CACHE_VERSION = "twstock-pwa-v2"/);
   assert.match(worker, /request\.url.*\/api\//s);
   assert.match(worker, /cache-control/i);
   assert.match(worker, /API_MAX_AGE_MS = 15 \* 60 \* 1000/);
