@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 
 const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
@@ -55,6 +56,33 @@ test("PWA 使用精品牛市 icon 與 iPhone 啟動畫面", async () => {
     assert.match(worker, new RegExp(`/splash/${size}`));
   }
   assert.match(worker, /CACHE_VERSION = "twstock-pwa-v2"/);
+});
+
+test("單張啟動畫面快取失敗不阻斷 Service Worker 安裝", async () => {
+  const worker = await read("frontend/public/sw.js");
+  const listeners = new Map();
+  let installPromise;
+  const cache = {
+    async addAll(paths) {
+      if (paths.includes("/splash/1290x2796")) throw new Error("temporary 503");
+    },
+    async add(path) {
+      if (path === "/splash/1290x2796") throw new Error("temporary 503");
+    },
+  };
+
+  runInNewContext(worker, {
+    caches: { open: async () => cache },
+    self: {
+      addEventListener(type, listener) { listeners.set(type, listener); },
+      skipWaiting() {},
+      clients: { claim() {} },
+      location: { origin: "https://twstock.example" },
+    },
+  });
+
+  listeners.get("install")({ waitUntil(promise) { installPromise = promise; } });
+  await assert.doesNotReject(installPromise);
 });
 
 test("離線提示不把快取資料當成即時報價", async () => {

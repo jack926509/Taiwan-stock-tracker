@@ -3,13 +3,15 @@ const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const API_CACHE = `${CACHE_VERSION}-api`;
 const API_MAX_AGE_MS = 15 * 60 * 1000;
 const CACHED_AT_HEADER = "x-twstock-pwa-cached-at";
-const APP_SHELL_PATHS = [
+const REQUIRED_APP_SHELL_PATHS = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icons/192",
   "/icons/512",
+];
+const OPTIONAL_APP_SHELL_PATHS = [
   "/splash/750x1334",
   "/splash/828x1792",
   "/splash/1125x2436",
@@ -85,7 +87,12 @@ async function cacheFirstAsset(request) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(APP_SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL_PATHS)).then(() => self.skipWaiting())
+    caches.open(APP_SHELL_CACHE)
+      .then(async (cache) => {
+        await cache.addAll(REQUIRED_APP_SHELL_PATHS);
+        await Promise.allSettled(OPTIONAL_APP_SHELL_PATHS.map((path) => cache.add(path)));
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
