@@ -95,11 +95,13 @@ export default function QuoteCard({
   onDelete,
   spark,
   signals,
+  reorderable = false,
 }: {
   quote: Quote;
   onDelete?: (stockId: string) => void;
   spark?: number[];
   signals?: Signal[];
+  reorderable?: boolean;
 }) {
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
@@ -122,7 +124,9 @@ export default function QuoteCard({
     <div className="group relative">
       <a
         href={`/stock/${quote.stockId}`}
-        className={`block rounded-card bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`block rounded-card bg-surface py-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          reorderable ? "pl-14" : "pl-4"
+        } ${onDelete ? "pr-4 md:pr-12" : "pr-4"} ${
           limit === "up"
             ? "ring-2 ring-up"
             : limit === "down"
@@ -198,9 +202,10 @@ export default function QuoteCard({
 
       {onDelete && (
         <button
+          type="button"
           onClick={() => onDelete(quote.stockId)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
+          className="absolute right-2 top-2 z-10 hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-sm text-muted opacity-0 transition-all hover:bg-up-tint hover:text-up focus-visible:bg-surface focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
         >
           ✕
         </button>
