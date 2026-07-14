@@ -9,6 +9,7 @@ import type { QuoteResponse } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
 import type { Fundamental } from "@/lib/providers/fundamentalProvider";
 import FundamentalSection from "@/components/FundamentalSection";
+import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PriceAlertCard from "@/components/PriceAlertCard";
 import {
   fmt,
@@ -257,6 +258,11 @@ export default function StockPage() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
+        <MobileNetworkBanner
+          stale={Boolean(kline.data?.stale)}
+          error={quote.error ?? kline.error ?? fundamental.error}
+        />
+
         {/* 即時報價列 */}
         {q ? (
           <div className="rise-in relative z-20 rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5">

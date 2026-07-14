@@ -37,7 +37,7 @@ export default function SortableCard({
         {...attributes}
         {...listeners}
         aria-label="拖曳排序"
-        className="absolute -left-2 -top-2 z-10 flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded-full border border-line bg-surface text-muted shadow-card transition-all hover:text-ink active:cursor-grabbing focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/sort:opacity-100"
+        className="absolute -left-1 -top-1 z-10 flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-full border border-line bg-surface text-muted shadow-card transition-all hover:text-ink active:cursor-grabbing focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:-left-2 md:-top-2 md:h-8 md:w-8 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/sort:opacity-100"
       >
         <svg
           viewBox="0 0 24 24"
