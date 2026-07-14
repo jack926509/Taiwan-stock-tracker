@@ -34,6 +34,8 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(sortable, /h-11 w-11/);
   assert.match(sortable, /absolute left-2 top-2/);
   assert.doesNotMatch(sortable, /-(?:left|top)-\d/);
+  assert.doesNotMatch(sortable, /\s\[@media\(hover:hover\)\]:opacity-0/);
+  assert.match(sortable, /md:\[@media\(hover:hover\)\]:opacity-0/);
   assert.match(page, /reorderable=\{canSort\}/);
 });
 
