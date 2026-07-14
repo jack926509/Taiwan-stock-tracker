@@ -1,6 +1,8 @@
 const CACHE_VERSION = "twstock-pwa-v1";
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const API_CACHE = `${CACHE_VERSION}-api`;
+const API_MAX_AGE_MS = 15 * 60 * 1000;
+const CACHED_AT_HEADER = "x-twstock-pwa-cached-at";
 const APP_SHELL_PATHS = ["/", "/offline.html", "/manifest.webmanifest", "/favicon.svg"];
 
 function isApiRequest(request) {
@@ -13,8 +15,23 @@ function isCacheableApiResponse(response) {
 }
 
 async function cacheResponse(cache, request, response) {
-  await cache.put(request, response.clone());
+  const body = await response.clone().arrayBuffer();
+  const headers = new Headers(response.headers);
+  headers.set(CACHED_AT_HEADER, String(Date.now()));
+  await cache.put(
+    request,
+    new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    })
+  );
   return response;
+}
+
+function isFreshCachedApiResponse(response) {
+  const cachedAt = Number(response.headers.get(CACHED_AT_HEADER));
+  return Number.isFinite(cachedAt) && Date.now() - cachedAt <= API_MAX_AGE_MS;
 }
 
 async function networkFirstApi(request) {
@@ -24,7 +41,7 @@ async function networkFirstApi(request) {
     return isCacheableApiResponse(response) ? cacheResponse(cache, request, response) : response;
   } catch {
     const cached = await cache.match(request);
-    if (cached) return cached;
+    if (cached && isFreshCachedApiResponse(cached)) return cached;
     return new Response(JSON.stringify({ error: "目前離線，尚無快取資料" }), {
       status: 503,
       headers: { "content-type": "application/json; charset=utf-8" },

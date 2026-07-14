@@ -28,7 +28,7 @@ export default function MobileNetworkBanner({
   if (online && !stale && !hasError) return null;
 
   const message = !online
-    ? "目前離線，畫面會保留最後一次資料"
+    ? "目前離線，正在顯示最後一次快取資料；恢復連線後將自動更新。"
     : stale
       ? "報價來源暫時異常，正在顯示快取資料"
       : "更新失敗，稍後會自動重試";

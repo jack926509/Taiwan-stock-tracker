@@ -17,6 +17,8 @@ test("Cloudflare PWA 提供 manifest、離線頁與版本化 Service Worker", as
   assert.match(worker, /const CACHE_VERSION = "twstock-pwa-v1"/);
   assert.match(worker, /request\.url.*\/api\//s);
   assert.match(worker, /cache-control/i);
+  assert.match(worker, /API_MAX_AGE_MS = 15 \* 60 \* 1000/);
+  assert.match(worker, /x-twstock-pwa-cached-at/);
   assert.match(offline, /目前沒有網路連線/);
 });
 
@@ -32,4 +34,15 @@ test("Cloudflare layout 註冊 Service Worker 並提供 Apple 安裝資訊", asy
   assert.match(registration, /serviceWorker\s*\.\s*register\("\/sw\.js"\)/);
   assert.match(prompt, /加入主畫面/);
   assert.match(prompt, /分享/);
+});
+
+test("離線提示不把快取資料當成即時報價", async () => {
+  const [banner, stockPage] = await Promise.all([
+    read("components/MobileNetworkBanner.tsx"),
+    read("app/stock/[id]/page.tsx"),
+  ]);
+
+  assert.match(banner, /最後一次快取資料/);
+  assert.match(banner, /恢復連線後將自動更新/);
+  assert.match(stockPage, /MobileNetworkBanner/);
 });
