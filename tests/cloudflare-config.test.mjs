@@ -25,3 +25,10 @@ test("Cloudflare 前端輸出網站圖示", () => {
   const redirects = readFileSync("frontend/public/_redirects", "utf8");
   assert.match(redirects, /^\/favicon\.ico \/favicon\.svg 302$/m);
 });
+
+test("PWA PNG route 在 Cloudflare 使用正確 MIME type", () => {
+  const headers = readFileSync("frontend/public/_headers", "utf8");
+
+  assert.match(headers, /\/icons\/\*\n\s+Content-Type: image\/png/);
+  assert.match(headers, /\/splash\/\*\n\s+Content-Type: image\/png/);
+});
