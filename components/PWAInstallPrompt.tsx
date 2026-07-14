@@ -17,6 +17,13 @@ function isStandalone() {
   );
 }
 
+function isIosSafari() {
+  if (typeof window === "undefined") return false;
+  const { userAgent, platform, maxTouchPoints } = window.navigator;
+  const isIos = /iPad|iPhone|iPod/.test(userAgent) || (platform === "MacIntel" && maxTouchPoints > 1);
+  return isIos && /Safari/.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(userAgent);
+}
+
 declare global {
   interface Navigator {
     standalone?: boolean;
@@ -26,10 +33,17 @@ declare global {
 export default function PWAInstallPrompt() {
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
     if (isStandalone()) return;
     if (window.localStorage.getItem(DISMISSED_KEY) === "1") return;
+
+    if (isIosSafari()) {
+      setShowIosGuide(true);
+      setVisible(true);
+      return;
+    }
 
     const onBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -57,7 +71,7 @@ export default function PWAInstallPrompt() {
     setVisible(false);
   }
 
-  if (!visible || !event) return null;
+  if (!visible || (!event && !showIosGuide)) return null;
 
   return (
     <div className="fixed inset-x-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 md:hidden">
@@ -66,7 +80,7 @@ export default function PWAInstallPrompt() {
           <div className="min-w-0">
             <div className="text-sm font-semibold">加入主畫面</div>
             <div className="mt-0.5 text-xs text-white/70">
-              用 App 模式開啟，自選與提醒更快進入。
+              {showIosGuide ? "點分享按鈕，再選加入主畫面。" : "用 App 模式開啟，自選與提醒更快進入。"}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -77,13 +91,13 @@ export default function PWAInstallPrompt() {
             >
               稍後
             </button>
-            <button
+            {!showIosGuide && <button
               type="button"
               onClick={install}
               className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink"
             >
               安裝
-            </button>
+            </button>}
           </div>
         </div>
       </div>

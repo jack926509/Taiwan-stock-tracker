@@ -19,3 +19,17 @@ test("Cloudflare PWA 提供 manifest、離線頁與版本化 Service Worker", as
   assert.match(worker, /cache-control/i);
   assert.match(offline, /目前沒有網路連線/);
 });
+
+test("Cloudflare layout 註冊 Service Worker 並提供 Apple 安裝資訊", async () => {
+  const [layout, registration, prompt] = await Promise.all([
+    read("frontend/app/layout.tsx"),
+    read("components/PWAServiceWorker.tsx"),
+    read("components/PWAInstallPrompt.tsx"),
+  ]);
+
+  assert.match(layout, /appleWebApp/);
+  assert.match(layout, /PWAServiceWorker/);
+  assert.match(registration, /serviceWorker\s*\.\s*register\("\/sw\.js"\)/);
+  assert.match(prompt, /加入主畫面/);
+  assert.match(prompt, /分享/);
+});
