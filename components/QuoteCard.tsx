@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Quote } from "@/lib/types";
 import type { Signal } from "@/lib/signals";
 import Sparkline from "@/components/Sparkline";
+import { IconX } from "@/components/icons";
 import {
   fmt,
   fmtVol,
@@ -40,7 +41,9 @@ const signalToneClass: Record<Signal["tone"], string> = {
 
 function SignalBadges({ signals }: { signals?: Signal[] }) {
   if (!signals || signals.length === 0) return null;
-  const shown = signals.slice(0, 1);
+  // 最多顯示 2 個，其餘以「+N」聚合（完整訊號見個股頁 K 線；後端最多產生 6 個）
+  const shown = signals.slice(0, 2);
+  const extra = signals.length - shown.length;
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       {shown.map((s) => (
@@ -51,6 +54,14 @@ function SignalBadges({ signals }: { signals?: Signal[] }) {
           {s.label}
         </span>
       ))}
+      {extra > 0 && (
+        <span
+          className="shrink-0 rounded bg-line/35 px-1.5 py-1 text-xs font-medium text-muted"
+          aria-label={`還有 ${extra} 個技術訊號`}
+        >
+          +{extra}
+        </span>
+      )}
     </div>
   );
 }
@@ -173,9 +184,9 @@ export default function QuoteCard({
           type="button"
           onClick={() => onDelete(quote.stockId)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute right-2 top-2 z-10 hidden md:flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-up-tint hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
+          className="absolute right-2 top-2 z-10 hidden md:flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-danger-tint hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
         >
-          ✕
+          <IconX className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

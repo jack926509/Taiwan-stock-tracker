@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import type { QuoteResponse, WatchlistItem } from "@/lib/types";
@@ -16,10 +16,12 @@ import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import EmptyState from "@/components/EmptyState";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
-import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionDetail } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { useToast } from "@/components/Toast";
+import { usePollGuard } from "@/hooks/usePollGuard";
+import { IconRefresh } from "@/components/icons";
+import ClosingSummary from "@/components/ClosingSummary";
 
 // @dnd-kit 屬重量套件，動態載入避免拖慢首頁首次 JS；載入完成前退回不可拖曳的靜態格線
 const DraggableGrid = dynamic(() => import("@/components/DraggableGrid"), {
@@ -86,12 +88,10 @@ async function fetcher<T>(url: string): Promise<T> {
 }
 
 export default function Dashboard() {
-  const [autoPaused, setAutoPaused] = useState(false);
+  const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
-  const staleCount = useRef(0);
-  const lastTimeKey = useRef("");
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -111,35 +111,12 @@ export default function Dashboard() {
   );
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
-    refreshInterval: (latest) =>
-      autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+    refreshInterval,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
     refreshWhenHidden: false,
-    onSuccess: (data) => {
-      // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
-      const key = [...data.indices, ...data.quotes].map((q) => q.time).join("|");
-      if (data.marketOpen && key && key === lastTimeKey.current) {
-        staleCount.current += 1;
-        if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
-      } else {
-        staleCount.current = 0;
-      }
-      lastTimeKey.current = key;
-    },
+    onSuccess: onQuoteSuccess,
   });
-
-  // 使用者切回分頁時解除自動暫停、重新輪詢
-  useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "visible") {
-        staleCount.current = 0;
-        setAutoPaused(false);
-      }
-    };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
 
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
   // 同時保留本次拖曳結果、自動納入新增/移除的代號
@@ -354,7 +331,7 @@ export default function Dashboard() {
               className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:bg-primary-tint hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] disabled:opacity-50"
             >
               <span className={quote.isValidating ? "inline-block animate-spin" : ""}>
-                ↻
+                <IconRefresh className="h-4 w-4" strokeWidth={1.8} />
               </span>
             </button>
           </div>
@@ -547,6 +524,9 @@ export default function Dashboard() {
             </div>
           )}
         </section>
+
+        {/* 收盤總覽：休市時段顯示（複用每日 LINE 總結的彙整邏輯，盤中隱藏避免半場數據誤導） */}
+        {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
 
         {quote.error && !data && (
           <div className="rounded-card bg-surface p-4 text-sm text-warn shadow-card ring-1 ring-line">

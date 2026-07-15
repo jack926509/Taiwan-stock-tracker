@@ -66,12 +66,12 @@
 
 ### 🟢 可及性細節
 
-| # | 問題 | 第一波處理 |
+| # | 問題 | 處理 |
 |---|---|---|
 | 13 | Login 無 label、無 `aria-invalid`/`aria-describedby`、標題非襯線、無品牌徽章 | ✅ 全部補上 |
-| 14 | `muted` 色大量用於 10–11px 小字,對比在 WCAG AA 邊緣 | roadmap(對比稽核) |
-| 15 | K 線 MA 切換 chip 僅 28px、缺 focus-visible | roadmap |
-| 16 | 卡片只顯示 1 個技術訊號(後端算出最多 6 個) | roadmap |
+| 14 | `muted` 色大量用於 10–11px 小字,對比在 WCAG AA 邊緣 | ✅ 第二波:`muted` 加深為 `#6F6553`(5.6/5.1:1)、`warn` 加深為 `#9A5B0E`(tint 底 4.6:1) |
+| 15 | K 線 MA 切換 chip 僅 28px、缺 focus-visible | ✅ 第二波:行動版 44px、補 focus-visible 與 aria-pressed |
+| 16 | 卡片只顯示 1 個技術訊號(後端算出最多 6 個) | ✅ 第二波:顯示 2 個 + 「+N」聚合 |
 
 ## 3. 第一波實作摘要(本次)
 
@@ -90,20 +90,25 @@
 9. **彈窗統一**:`hooks/useDialogFocus.ts`(記焦點、聚焦容器、Tab 循環、還焦)套用於提醒 BottomSheet 與個股頁鈴鐺 popover(補 `role="dialog"`)
 10. **danger 色票**:`#8B1E12` 深磚紅,左滑刪除底層與確認刪除鍵改用
 
-## 4. Roadmap(第二波以後)
+## 4. 第二波實作摘要(本次)
 
-依價值/成本排序:
+原 roadmap 除深色模式(使用者決定不做)外全數完成:
 
-1. **真深色模式**:把 token 改為 CSS 變數(`--paper`、`--ink`⋯),`darkMode: "class"` + 手動切換鈕;現存 7 檔散落的 `dark:` class 屬半成品,應一併收斂。`themeColor` 也需隨主題切換。
-2. **站內收盤總覽面板**:`lib/daily-summary.ts` 的每日 LINE 總結含大量 app 內看不到的資料——各股週漲跌、今日新增技術訊號、最強/最弱、觸發提醒數、漲跌家數。建議首頁收盤後顯示「今日收盤總覽」卡(複用 `summarySignals.ts` 邏輯)。
-3. **卡片多訊號**:`signals.slice(0, 1)` 放寬至 2–3 個,或以「+2」聚合 chip 展開。
-4. **離線 shell**:SW 加入 App Shell 快取(僅靜態資源,絕不快取 `/api/*`),`offline.html` 後備頁。
-5. **對比稽核**:`muted #7D7361` 於 11px 以下改用 `flat #5F5745` 或放大字級;`warn` 於 tint 底的組合重驗 AA。
-6. **共用輪詢 hook**:三頁重複的 stale-guard/visibility 邏輯抽 `usePollGuard()`(維護性,非直接 UX)。
-7. **圖示統一**:`←`、`↻`、`⌄`、剩餘 emoji 換成既有 SVG 線條圖示語彙。
-8. **K 線 chip 觸控目標**:MA/布林切換提高到 44px 並補 focus-visible。
+1. **站內收盤總覽**:`lib/summaryData.ts` 復用 `daily-summary.ts` 匯出的彙整函式(週累計、今日新訊號、觸發計數),`/api/summary` 帶 10 分鐘記憶體快取,首頁休市時段顯示 `ClosingSummary` 面板(漲跌家數、指數、各股當日/週幅、新技術訊號、最強最弱、提醒觸發數)
+2. **卡片多訊號**:`QuoteCard` 顯示 2 個訊號 + 「+N」聚合 chip
+3. **離線後備**:`public/offline.html`(品牌風格獨立頁)+ SW 只攔頁面導覽、網路失敗才回離線頁;**仍然零快取 API 與頁面**
+4. **對比稽核**:`muted` `#7D7361`→`#6F6553`、`warn` `#C97A1B`→`#9A5B0E`,以 WCAG 相對亮度公式驗算,雙底色皆過 AA(4.5:1+)
+5. **共用輪詢 hook**:`hooks/usePollGuard.ts` 取代三頁各自複製的停盤守衛(~25 行 ×3)
+6. **圖示統一**:`components/icons.tsx` 統一 SVG 線條圖示,取代 `←`/`↻`/`⌄`/`✕`/`✓` 文字符號與功能性 emoji(📊、⚠️、🔍);空狀態的裝飾性 emoji 保留
+7. **K 線 chip**:MA/布林切換行動版 44px、補 focus-visible 與 `aria-pressed`;日/週/月與區間切換同步補齊
+8. **BottomSheet 關閉鍵**:28px → 44px
 
-## 5. 驗收
+## 5. Roadmap(後續)
+
+- **深色模式**:使用者已決定不做。現存 `dark:text-app` class 在 OS 深色下僅微調按鈕前景,無害,保留不動。
+- **離線 App Shell**:目前僅離線後備頁;若日後需要完整離線瀏覽,再評估靜態資源快取(仍不得快取 `/api/*`)。
+
+## 6. 驗收
 
 - `npm run build` 綠燈
 - `npm test` 96 項全數通過(含新增 `tests/stock-search.test.mjs` 與更新後的原始碼斷言)
