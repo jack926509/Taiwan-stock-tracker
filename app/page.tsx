@@ -282,7 +282,7 @@ export default function Dashboard() {
             <Link
               href="/alerts"
               aria-label="到價提醒總覽"
-              className="hidden h-7 w-7 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] md:flex"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:bg-primary-tint hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:flex"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -301,7 +301,7 @@ export default function Dashboard() {
               onClick={refreshAll}
               disabled={quote.isValidating}
               aria-label="立即更新"
-              className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] disabled:opacity-50"
+              className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:bg-primary-tint hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] disabled:opacity-50"
             >
               <span className={quote.isValidating ? "inline-block animate-spin" : ""}>
                 ↻
@@ -386,22 +386,25 @@ export default function Dashboard() {
             </div>
             <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:overflow-visible">
               {data && data.quotes.length > 1 && (
-                <div className="flex shrink-0 rounded-pill bg-app p-0.5 text-xs">
-                  {SORTS.map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => setSortKey(s.key)}
-                      aria-label={`依${s.label}排序`}
-                      aria-pressed={sortKey === s.key}
-                      className={`min-h-11 rounded-pill px-3 py-1 font-medium transition-colors active:scale-[0.97] ${
-                        sortKey === s.key
-                          ? "bg-surface text-ink shadow-card"
-                          : "text-muted hover:text-ink"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs font-semibold text-ink">排序</span>
+                  <div className="flex rounded-pill bg-app p-0.5 text-xs ring-1 ring-line/70">
+                    {SORTS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setSortKey(s.key)}
+                        aria-label={`依${s.label}排序`}
+                        aria-pressed={sortKey === s.key}
+                        className={`min-h-11 rounded-pill px-3 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
+                          sortKey === s.key
+                            ? "bg-primary text-white shadow-card"
+                            : "text-muted hover:bg-surface hover:text-ink"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="hidden md:block">
@@ -411,22 +414,25 @@ export default function Dashboard() {
           </div>
 
           {data && data.quotes.length > 1 && (
-            <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 text-xs [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => setFilterKey(f.key)}
-                  aria-label={`篩選：${f.label}`}
-                  aria-pressed={filterKey === f.key}
-                  className={`min-h-11 shrink-0 rounded-pill px-3 py-1 font-medium ring-1 transition-colors active:scale-[0.97] ${
-                    filterKey === f.key
-                      ? "bg-primary-tint text-primary ring-primary/30"
-                      : "bg-surface text-muted ring-line hover:text-ink"
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+            <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 text-xs [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+              <span className="shrink-0 font-semibold text-ink">篩選</span>
+              <div className="flex gap-1.5">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    onClick={() => setFilterKey(f.key)}
+                    aria-label={`篩選：${f.label}`}
+                    aria-pressed={filterKey === f.key}
+                    className={`min-h-11 shrink-0 whitespace-nowrap rounded-pill px-3 py-1 font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
+                      filterKey === f.key
+                        ? "bg-primary text-white ring-primary"
+                        : "bg-surface text-muted ring-line hover:bg-primary-tint hover:text-primary"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

@@ -59,3 +59,23 @@ test("首頁迷你走勢明確標示二十日且不使用漲跌色混淆今日�
   assert.match(sparkline, /stroke-primary/);
   assert.doesNotMatch(sparkline, /stroke-up|stroke-down/);
 });
+
+test("首頁工具列清楚區分排序與篩選且頂部操作尺寸一致", async () => {
+  const page = await read("app/page.tsx");
+
+  assert.match(page, />排序</);
+  assert.match(page, />篩選</);
+  assert.match(page, /href="\/alerts"[\s\S]*hidden h-11 w-11/);
+  assert.match(page, /aria-label="立即更新"[\s\S]*focus-visible:ring-primary/);
+});
+
+test("大盤資訊集中排列且小字警告色符合高對比設計", async () => {
+  const [indexCard, globals] = await Promise.all([
+    read("components/IndexCard.tsx"),
+    read("app/globals.css"),
+  ]);
+
+  assert.match(indexCard, /sm:justify-center/);
+  assert.match(globals, /--c-warn:\s*151 82 0/);
+  assert.match(globals, /--c-muted:\s*103 96 84/);
+});
