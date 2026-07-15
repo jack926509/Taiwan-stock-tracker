@@ -37,6 +37,13 @@ test("Cloudflare layout 註冊 Service Worker 並提供 Apple 安裝資訊", asy
   assert.match(prompt, /分享/);
 });
 
+test("Cloudflare layout 為共用互動元件提供 Toast context", async () => {
+  const layout = await read("frontend/app/layout.tsx");
+
+  assert.match(layout, /import ToastProvider from "@\/components\/Toast"/);
+  assert.match(layout, /<ToastProvider>[\s\S]*\{children\}[\s\S]*<\/ToastProvider>/);
+});
+
 test("PWA 使用精品牛市 icon 與 iPhone 啟動畫面", async () => {
   const [icon, layout, manifest, worker] = await Promise.all([
     read("lib/iconImage.tsx"),

@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import PWAServiceWorker from "@/components/PWAServiceWorker";
+import ToastProvider from "@/components/Toast";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
@@ -49,10 +50,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         ))}
       </head>
       <body className="min-h-screen text-ink antialiased">
-        <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+        <ToastProvider>
+          <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+          <PWAInstallPrompt />
+          <BottomNav />
+        </ToastProvider>
         <PWAServiceWorker />
-        <PWAInstallPrompt />
-        <BottomNav />
       </body>
     </html>
   );
