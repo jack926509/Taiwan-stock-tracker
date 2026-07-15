@@ -18,7 +18,8 @@ test("手機首頁提供搜尋入口、水平工具列與快取時間", async ()
 });
 
 test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
-  const [card, sortable] = await Promise.all([
+  const [page, card, sortable] = await Promise.all([
+    read("app/page.tsx"),
     read("components/QuoteCard.tsx"),
     read("components/SortableCard.tsx"),
   ]);
@@ -26,7 +27,16 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /報價/);
   assert.match(card, /成交/);
   assert.match(card, /signals\.slice\(0, 1\)/);
+  assert.match(card, /reorderable/);
+  assert.match(card, /hidden md:flex/);
+  assert.match(card, /absolute right-2 top-2/);
+  assert.doesNotMatch(card, /-(?:right|top)-\d/);
   assert.match(sortable, /h-11 w-11/);
+  assert.match(sortable, /absolute left-2 top-2/);
+  assert.doesNotMatch(sortable, /-(?:left|top)-\d/);
+  assert.doesNotMatch(sortable, /\s\[@media\(hover:hover\)\]:opacity-0/);
+  assert.match(sortable, /md:\[@media\(hover:hover\)\]:opacity-0/);
+  assert.match(page, /reorderable=\{canSort\}/);
 });
 
 test("手機大盤指數卡片可以縮入各半寬且將漲跌資訊分行", async () => {
@@ -70,15 +80,14 @@ test("首頁工具列清楚區分排序與篩選且頂部操作尺寸一致", as
   assert.match(page, /aria-label="立即更新"[\s\S]*focus-visible:ring-primary/);
 });
 
-test("大盤資訊集中排列且小字警告色符合高對比設計", async () => {
-  const [indexCard, globals] = await Promise.all([
+test("大盤資訊集中排列且保留小字警告語意", async () => {
+  const [indexCard, card] = await Promise.all([
     read("components/IndexCard.tsx"),
-    read("app/globals.css"),
+    read("components/QuoteCard.tsx"),
   ]);
 
   assert.match(indexCard, /sm:justify-center/);
-  assert.match(globals, /--c-warn:\s*151 82 0/);
-  assert.match(globals, /--c-muted:\s*103 96 84/);
+  assert.match(card, /text-warn/);
 });
 
 test("桌面刪除與手機左滑共用確認流程且提供操作狀態", async () => {

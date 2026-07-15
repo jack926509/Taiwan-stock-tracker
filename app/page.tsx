@@ -493,6 +493,7 @@ export default function Dashboard() {
                         <QuoteCard
                           quote={q}
                           onDelete={(stockId) => requestDelete(stockId, q.name)}
+                          reorderable={canSort}
                           spark={sparks.data?.data[q.stockId]?.spark}
                           signals={sparks.data?.data[q.stockId]?.signals}
                         />
