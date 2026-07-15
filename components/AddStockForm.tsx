@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
+import { IconCheck } from "@/components/icons";
 import {
   useStockSuggestions,
   type StockSuggestion,
@@ -160,8 +161,8 @@ export default function AddStockForm({ onAdded }: { onAdded: () => void }) {
 
       {/* 狀態列：已選建議 / 查詢中 / 查無 / 錯誤 */}
       {picked ? (
-        <span className="text-xs text-ink">
-          <span className="text-primary">✓</span> {picked.name}
+        <span className="flex items-center gap-1 text-xs text-ink">
+          <IconCheck className="h-3 w-3 text-primary" /> {picked.name}
           <span className="ml-1 text-muted">
             {picked.market === "tse" ? "上市" : "上櫃"}
           </span>

@@ -45,7 +45,7 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
 
   assert.match(card, /報價/);
   assert.match(card, /成交/);
-  assert.match(card, /signals\.slice\(0, 1\)/);
+  assert.match(card, /signals\.slice\(0, 2\)/);
   assert.match(card, /reorderable/);
   assert.match(card, /hidden md:flex/);
   assert.match(card, /absolute right-2 top-2/);
@@ -79,7 +79,7 @@ test("桌面自選股採三欄平衡卡片且不再壓縮名稱與狀態", async
   assert.doesNotMatch(card, /line-clamp-2/);
   assert.match(card, /break-words/);
   assert.match(card, /whitespace-nowrap/);
-  assert.match(card, /signals\.slice\(0, 1\)/);
+  assert.match(card, /signals\.slice\(0, 2\)/);
 });
 
 test("首頁迷你走勢明確標示二十日且不使用漲跌色混淆今日行情", async () => {

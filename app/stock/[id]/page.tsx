@@ -28,10 +28,11 @@ import {
   type KlineRangeKey,
 } from "@/lib/klineRange";
 import { aggregateCandles } from "@/lib/aggregateKline";
-import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { stockIdForRender } from "@/lib/stockPath";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import useDialogFocus from "@/hooks/useDialogFocus";
+import { usePollGuard } from "@/hooks/usePollGuard";
+import { IconArrowLeft } from "@/components/icons";
 
 type KlinePeriod = "day" | "week" | "month";
 
@@ -82,11 +83,9 @@ export default function StockPage() {
   const [range, setRange] = useState<KlineRangeKey>("6m");
   const [period, setPeriod] = useState<KlinePeriod>("day");
   const [alertOpen, setAlertOpen] = useState(false);
-  const [autoPaused, setAutoPaused] = useState(false);
+  const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
   const alertRef = useRef<HTMLDivElement>(null);
   const alertPanelRef = useRef<HTMLDivElement>(null);
-  const staleCount = useRef(0);
-  const lastTimeKey = useRef("");
 
   // 鈴鐺浮層以對話框語意呈現：聚焦、Tab 循環、關閉還焦（Esc/點外關閉見下方 effect）
   useDialogFocus(alertOpen, alertPanelRef);
@@ -116,34 +115,12 @@ export default function StockPage() {
     id ? `/api/quote?ids=${encodeURIComponent(id)}` : null,
     fetcher,
     {
-      refreshInterval: (latest) =>
-        autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+      refreshInterval,
       refreshWhenHidden: false,
-      onSuccess: (data) => {
-        // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
-        const key = data.quotes.map((q) => q.time).join("|");
-        if (data.marketOpen && key && key === lastTimeKey.current) {
-          staleCount.current += 1;
-          if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
-        } else {
-          staleCount.current = 0;
-        }
-        lastTimeKey.current = key;
-      },
+      onSuccess: onQuoteSuccess,
     }
   );
 
-  // 使用者切回分頁時解除自動暫停、重新輪詢
-  useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "visible") {
-        staleCount.current = 0;
-        setAutoPaused(false);
-      }
-    };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
   const kline = useSWR<KlineResponse>(
     id ? `/api/kline?id=${encodeURIComponent(id)}` : null,
     fetcher,
@@ -212,7 +189,7 @@ export default function StockPage() {
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
                 aria-label="返回首頁"
               >
-                ←
+                <IconArrowLeft className="h-4 w-4" />
               </Link>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -377,7 +354,8 @@ export default function StockPage() {
                   <button
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
-                    className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
+                    aria-pressed={period === p.key}
+                    className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                       period === p.key
                         ? "bg-surface text-ink shadow-card"
                         : "text-muted hover:text-ink"
@@ -393,7 +371,8 @@ export default function StockPage() {
                     <button
                       key={r.key}
                       onClick={() => setRange(r.key)}
-                      className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 ${
+                      aria-pressed={range === r.key}
+                      className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                         range === r.key
                           ? "bg-surface text-ink shadow-card"
                           : "text-muted hover:text-ink"
