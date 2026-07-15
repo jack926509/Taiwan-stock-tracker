@@ -5,16 +5,35 @@ import { test } from "node:test";
 const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("手機首頁提供搜尋入口、水平工具列與快取時間", async () => {
+test("手機首頁提供搜尋入口、加自選入口、水平工具列與快取時間", async () => {
   const [page, banner] = await Promise.all([
     read("app/page.tsx"),
     read("components/MobileNetworkBanner.tsx"),
   ]);
 
-  assert.match(page, /md:hidden[\s\S]*<StockSearch/);
+  assert.match(page, /<StockSearch \/>/);
+  // 行動版首頁必須有加自選入口（不能只有桌機 hidden md:block 那一份）
+  assert.match(page, /md:hidden">\s*<AddStockForm/);
   assert.match(page, /overflow-x-auto/);
   assert.match(page, /revalidateOnReconnect:\s*true/);
   assert.match(banner, /asOf/);
+});
+
+test("搜尋支援名稱與代號並以無障礙下拉呈現建議", async () => {
+  const [search, addForm, hook] = await Promise.all([
+    read("components/StockSearch.tsx"),
+    read("components/AddStockForm.tsx"),
+    read("hooks/useStockSuggestions.ts"),
+  ]);
+
+  for (const source of [search, addForm]) {
+    assert.match(source, /useStockSuggestions/);
+    assert.match(source, /role="listbox"/);
+    assert.doesNotMatch(source, /inputMode="numeric"/);
+  }
+  assert.match(search, /role="combobox"/);
+  assert.match(search, /aria-activedescendant/);
+  assert.match(hook, /\/api\/search\?q=/);
 });
 
 test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
@@ -91,18 +110,36 @@ test("大盤資訊集中排列且保留小字警告語意", async () => {
 });
 
 test("桌面刪除與手機左滑共用確認流程且提供操作狀態", async () => {
-  const [page, swipe, dialog] = await Promise.all([
+  const [page, swipe, dialog, toast] = await Promise.all([
     read("app/page.tsx"),
     read("components/SwipeToDelete.tsx"),
     read("components/DeleteStockDialog.tsx"),
+    read("components/Toast.tsx"),
   ]);
 
   assert.match(page, /<DeleteStockDialog/);
-  assert.match(page, /aria-live="polite"/);
+  // 視覺回饋改由 Toast 承擔；Toast 容器本身是 aria-live 區域（讀屏＋明眼共用同一份訊息）
+  assert.match(page, /toast\.show/);
+  assert.match(toast, /aria-live="polite"/);
+  assert.match(toast, /role="status"/);
   assert.match(dialog, /role="dialog"/);
   assert.match(dialog, /aria-modal="true"/);
   assert.match(dialog, /確定刪除/);
   assert.doesNotMatch(swipe, /setDx\(-window\.innerWidth\)/);
+});
+
+test("破壞性操作使用 danger 色而非漲色紅", async () => {
+  const [swipe, dialog, config] = await Promise.all([
+    read("components/SwipeToDelete.tsx"),
+    read("components/DeleteStockDialog.tsx"),
+    read("tailwind.config.ts"),
+  ]);
+
+  assert.match(config, /danger:/);
+  assert.match(swipe, /bg-danger/);
+  assert.doesNotMatch(swipe, /bg-up/);
+  assert.match(dialog, /bg-danger/);
+  assert.doesNotMatch(dialog, /bg-up/);
 });
 
 test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點留在對話框", async () => {
@@ -111,7 +148,7 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
     read("components/DeleteStockDialog.tsx"),
   ]);
 
-  assert.match(page, /setPendingDelete\(null\);[\s\S]*setLiveMessage\(`已刪除/);
+  assert.match(page, /setPendingDelete\(null\);[\s\S]*toast\.show\(`已刪除/);
   assert.match(page, /void refreshAll\(\)\.catch/);
   assert.match(dialog, /tabIndex=\{-1\}/);
   assert.match(dialog, /if \(open && busy\)[\s\S]*dialogRef\.current\?\.focus/);
@@ -120,12 +157,12 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
 });
 
 test("首頁深色模式的彩色底互動元件使用深色前景", async () => {
+  // StockSearch 改版後不再有彩色底按鈕，故不在此清單
   const files = await Promise.all([
     read("app/page.tsx"),
     read("components/QuoteCard.tsx"),
     read("components/DeleteStockDialog.tsx"),
     read("components/AddStockForm.tsx"),
-    read("components/StockSearch.tsx"),
     read("components/SwipeToDelete.tsx"),
   ]);
 

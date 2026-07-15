@@ -110,7 +110,7 @@ export default function DeleteStockDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="min-h-11 rounded-lg bg-up px-4 text-sm font-semibold text-white transition-colors hover:bg-up-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-up focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 dark:text-app"
+            className="min-h-11 rounded-lg bg-danger px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 dark:text-app"
           >
             {busy ? "刪除中…" : "確認刪除"}
           </button>

@@ -13,7 +13,7 @@ export default function SearchPage() {
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] md:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97]"
             aria-label="返回自選"
           >
             ←
@@ -26,7 +26,7 @@ export default function SearchPage() {
         <section className="space-y-2">
           <StockSearch />
           <p className="px-1 text-xs text-muted">
-            輸入代號（例如 2330）即可查看 K 線與基本面，不必先加入自選。
+            輸入代號或公司名稱（例如 2330 或 台積電）即可查看 K 線與基本面，不必先加入自選。
           </p>
         </section>
 
