@@ -30,6 +30,8 @@ import {
 import { aggregateCandles } from "@/lib/aggregateKline";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { stockIdForRender } from "@/lib/stockPath";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import useDialogFocus from "@/hooks/useDialogFocus";
 
 type KlinePeriod = "day" | "week" | "month";
 
@@ -57,6 +59,8 @@ interface StockWatchRow {
   name: string;
   alert_high: number | null;
   alert_low: number | null;
+  alert_change_pct: number | null;
+  alert_volume_on: boolean;
 }
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -80,8 +84,12 @@ export default function StockPage() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [autoPaused, setAutoPaused] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
+  const alertPanelRef = useRef<HTMLDivElement>(null);
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
+
+  // 鈴鐺浮層以對話框語意呈現：聚焦、Tab 循環、關閉還焦（Esc/點外關閉見下方 effect）
+  useDialogFocus(alertOpen, alertPanelRef);
 
   // 點擊浮層外（或按 Esc）關閉到價提醒
   useEffect(() => {
@@ -153,9 +161,7 @@ export default function StockPage() {
   const watchItems = watch.data?.items ?? [];
   const watchIndex = watchItems.findIndex((i) => i.stock_id === id);
   const currentWatch = watchItems[watchIndex] ?? null;
-  const hasAlert =
-    !!currentWatch &&
-    (currentWatch.alert_high != null || currentWatch.alert_low != null);
+  const hasAlert = !!currentWatch && hasAnyAlert(currentWatch);
   const prevWatch = watchIndex > 0 ? watchItems[watchIndex - 1] : null;
   const nextWatch =
     watchIndex >= 0 && watchIndex < watchItems.length - 1
@@ -335,7 +341,13 @@ export default function StockPage() {
                 </button>
 
                 {alertOpen && (
-                  <div className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lg ring-1 ring-line">
+                  <div
+                    ref={alertPanelRef}
+                    role="dialog"
+                    tabIndex={-1}
+                    aria-label="到價提醒設定"
+                    className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lg ring-1 ring-line"
+                  >
                     <PriceAlertCard
                       stockId={id}
                       name={q.name ?? id}

@@ -74,6 +74,15 @@ body {
   animation: sheet-up 0.2s ease-out;
 }
 
+/* 吐司通知：自畫面底部淡入上浮 */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flash-up, .flash-down, .rise-in, .pulse-dot, .sheet-pop { animation: none; }
+  .flash-up, .flash-down, .rise-in, .pulse-dot, .sheet-pop, .toast-in { animation: none; }
 }

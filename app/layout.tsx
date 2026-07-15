@@ -3,6 +3,8 @@ import { Manrope } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import PWAServiceWorker from "@/components/PWAServiceWorker";
+import ToastProvider from "@/components/Toast";
 
 // Manrope：數字表格等寬效果佳、比 Inter 更有個性的現代無襯線（中文仍走系統 PingFang TC）
 const manrope = Manrope({
@@ -38,12 +40,15 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant" className={manrope.variable}>
       <body className="min-h-screen text-ink antialiased">
-        {/* 手機底部導覽高度的緩衝，避免內容被導覽列遮住（桌機無導覽列） */}
-        <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
-          {children}
-        </div>
-        <PWAInstallPrompt />
-        <BottomNav />
+        <ToastProvider>
+          {/* 手機底部導覽高度的緩衝，避免內容被導覽列遮住（桌機無導覽列） */}
+          <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+            {children}
+          </div>
+          <PWAInstallPrompt />
+          <BottomNav />
+        </ToastProvider>
+        <PWAServiceWorker />
       </body>
     </html>
   );

@@ -18,6 +18,8 @@ import EmptyState from "@/components/EmptyState";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionDetail } from "@/lib/marketSession";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import { useToast } from "@/components/Toast";
 
 // @dnd-kit 屬重量套件，動態載入避免拖慢首頁首次 JS；載入完成前退回不可拖曳的靜態格線
 const DraggableGrid = dynamic(() => import("@/components/DraggableGrid"), {
@@ -93,7 +95,7 @@ export default function Dashboard() {
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [liveMessage, setLiveMessage] = useState("");
+  const toast = useToast();
 
   // masthead 的日期／盤別文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
   useEffect(() => {
@@ -161,9 +163,9 @@ export default function Dashboard() {
   async function handleManualRefresh() {
     try {
       await refreshAll();
-      setLiveMessage("報價已更新");
+      toast.show("報價已更新", { tone: "success" });
     } catch {
-      setLiveMessage("更新失敗，請檢查網路後再試一次");
+      toast.show("更新失敗，請檢查網路後再試一次", { tone: "error" });
     }
   }
 
@@ -182,12 +184,14 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const deletedName = pendingDelete.name;
       setPendingDelete(null);
-      setLiveMessage(`已刪除 ${deletedName}`);
+      toast.show(`已刪除 ${deletedName}`, { tone: "success" });
       void refreshAll().catch(() => {
-        setLiveMessage(`已刪除 ${deletedName}，但畫面重新整理失敗，請稍後更新`);
+        toast.show(`已刪除 ${deletedName}，但畫面重新整理失敗，請稍後更新`, {
+          tone: "error",
+        });
       });
     } catch {
-      setLiveMessage("刪除失敗，清單未變更，請稍後再試");
+      toast.show("刪除失敗，清單未變更，請稍後再試", { tone: "error" });
     } finally {
       setDeleteBusy(false);
     }
@@ -252,14 +256,9 @@ export default function Dashboard() {
     });
   }, [data?.quotes, sortKey, order]);
 
-  // 已設提醒的代號集合（供「僅看已設提醒」篩選使用）
+  // 已設提醒的代號集合（供「僅看已設提醒」篩選使用；四種提醒任一有設定即算）
   const alertedIds = useMemo(
-    () =>
-      new Set(
-        (items ?? [])
-          .filter((i) => i.alert_high != null || i.alert_low != null)
-          .map((i) => i.stock_id)
-      ),
+    () => new Set((items ?? []).filter(hasAnyAlert).map((i) => i.stock_id)),
     [items]
   );
 
@@ -279,9 +278,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
-      <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {liveMessage}
-      </p>
       {/* masthead（sticky）：左＝站名（襯線），右＝日期＋盤別；下接 2px 實色深墨分隔線 */}
       <header className="sticky top-0 z-10 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-b-2 border-ink px-4 py-3 sm:px-6">
@@ -315,6 +311,24 @@ export default function Dashboard() {
                 {now ? getMarketSessionDetail(now) : "載入中"}
               </div>
             </div>
+            <Link
+              href="/search"
+              aria-label="搜尋個股"
+              className="hidden h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:bg-primary-tint hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:flex"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </Link>
             <Link
               href="/alerts"
               aria-label="到價提醒總覽"
@@ -370,15 +384,8 @@ export default function Dashboard() {
           asOf={data?.asOf}
         />
 
-        {/* 手機首頁提供快速個股入口；桌面版沿用原有搜尋區塊。 */}
-        <div className="md:hidden">
-          <StockSearch />
-        </div>
-
-        {/* 全市場個股搜尋（不必先加自選即可看 K 線/基本面） */}
-        <div className="hidden md:block">
-          <StockSearch />
-        </div>
+        {/* 全市場個股搜尋（代號或名稱皆可；不必先加自選即可看 K 線/基本面） */}
+        <StockSearch />
 
         {/* 提示列 */}
         {(data?.source === "stale" || autoPaused || storage === "local") && (
@@ -416,8 +423,16 @@ export default function Dashboard() {
                   "載入中…"
                 )}
               </p>
-              {sortKey === "default" && filterKey === "all" && data?.quotes.length && data.quotes.length > 1 ? (
-                <p className="mt-1 text-[11px] text-muted md:hidden">長按拖曳把手可調整排序</p>
+              {data?.quotes.length && data.quotes.length > 1 ? (
+                sortKey === "default" && filterKey === "all" ? (
+                  <p className="mt-1 text-[11px] text-muted md:hidden">
+                    長按拖曳把手可調整排序・向左滑卡片可刪除
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted">
+                    排序／篩選檢視中，拖曳排序暫停；切回「預設＋全部」即可拖曳
+                  </p>
+                )
               ) : null}
             </div>
             <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:w-auto sm:flex-wrap sm:overflow-visible">
@@ -447,6 +462,11 @@ export default function Dashboard() {
                 <AddStockForm onAdded={refreshAll} />
               </div>
             </div>
+          </div>
+
+          {/* 行動版快速加自選（桌機版在右上工具列內） */}
+          <div className="md:hidden">
+            <AddStockForm onAdded={refreshAll} />
           </div>
 
           {data && data.quotes.length > 1 && (

@@ -16,6 +16,7 @@ const config: Config = {
         down: { DEFAULT: "#0A7A45", tint: "#DCEFE3", strong: "#075C34" }, // 跌・綠（strong：|漲跌幅|≥3% 加深一階）
         flat: "#5F5745", // 介於 muted 與 ink 之間的暖灰
         warn: { DEFAULT: "#C97A1B", tint: "#F7ECD9" }, // 橘色系暖化以貼近整體暖色調
+        danger: { DEFAULT: "#8B1E12", tint: "#F3E3DF" }, // 破壞性操作專用深磚紅：與漲色（#C01926）區隔，避免「刪除＝上漲」語意衝突
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],

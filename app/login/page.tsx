@@ -40,16 +40,36 @@ export default function LoginPage() {
         onSubmit={submit}
         className="w-full max-w-xs space-y-4 rounded-card border border-line bg-surface p-6 shadow-card"
       >
-        <h1 className="text-center text-lg font-semibold">台股追蹤</h1>
+        <div className="flex items-center justify-center gap-2">
+          <span
+            className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-card dark:text-app"
+            aria-hidden="true"
+          >
+            台
+          </span>
+          <h1 className="font-serif text-lg font-bold tracking-tight text-ink">
+            台股追蹤
+          </h1>
+        </div>
+        <label htmlFor="login-password" className="sr-only">
+          存取密碼
+        </label>
         <input
+          id="login-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="輸入存取密碼"
           autoFocus
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "login-error" : undefined}
           className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary"
         />
-        {error && <p className="text-xs text-up">{error}</p>}
+        {error && (
+          <p id="login-error" role="alert" className="text-xs text-warn">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
           disabled={busy || !password}

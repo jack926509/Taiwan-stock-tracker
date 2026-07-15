@@ -3,11 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
+import { hasAnyAlert, type AlertFields } from "@/lib/alertBadge";
 
-interface AlertRow {
-  alert_high: number | null;
-  alert_low: number | null;
-}
+type AlertRow = AlertFields;
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -53,10 +51,7 @@ export default function BottomNav() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
-  const activeAlerts =
-    watchlist.data?.items.filter(
-      (item) => item.alert_high != null || item.alert_low != null
-    ).length ?? 0;
+  const activeAlerts = watchlist.data?.items.filter(hasAnyAlert).length ?? 0;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/95 pb-[env(safe-area-inset-bottom)] md:hidden">

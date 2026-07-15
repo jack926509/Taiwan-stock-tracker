@@ -12,6 +12,8 @@ import EmptyState from "@/components/EmptyState";
 import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionLabel } from "@/lib/marketSession";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import useDialogFocus from "@/hooks/useDialogFocus";
 
 interface AlertRow {
   stock_id: string;
@@ -192,6 +194,9 @@ function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, sheetRef);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -215,7 +220,9 @@ function BottomSheet({
         aria-hidden="true"
       />
       <div
+        ref={sheetRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label={title}
         className="sheet-pop relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-lift ring-1 ring-line sm:max-w-md sm:rounded-card"
@@ -299,12 +306,10 @@ export default function AlertsPage() {
   const priceOf = new Map(
     (quote.data?.quotes ?? []).map((q) => [q.stockId, q])
   );
-  // 已設提醒者排前面，其餘維持自選清單原順序
-  const items = [...(watchlist.data?.items ?? [])].sort((a, b) => {
-    const sa = a.alert_high != null || a.alert_low != null ? 0 : 1;
-    const sb = b.alert_high != null || b.alert_low != null ? 0 : 1;
-    return sa - sb;
-  });
+  // 已設提醒者排前面（四種提醒任一有設定即算），其餘維持自選清單原順序
+  const items = [...(watchlist.data?.items ?? [])].sort(
+    (a, b) => (hasAnyAlert(a) ? 0 : 1) - (hasAnyAlert(b) ? 0 : 1)
+  );
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) {
