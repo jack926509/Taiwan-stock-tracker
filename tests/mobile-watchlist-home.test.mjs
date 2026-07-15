@@ -106,6 +106,7 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
   assert.match(page, /void refreshAll\(\)\.catch/);
   assert.match(dialog, /tabIndex=\{-1\}/);
   assert.match(dialog, /if \(open && busy\)[\s\S]*dialogRef\.current\?\.focus/);
+  assert.match(dialog, /if \(!buttons \|\| buttons\.length === 0\) \{[\s\S]*event\.preventDefault\(\);[\s\S]*dialogRef\.current\?\.focus\(\)/);
   assert.match(dialog, /\}, \[open\]\);/);
 });
 

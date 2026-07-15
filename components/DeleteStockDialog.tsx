@@ -43,7 +43,11 @@ export default function DeleteStockDialog({
       const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>(
         "button:not(:disabled)"
       );
-      if (!buttons || buttons.length === 0) return;
+      if (!buttons || buttons.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
       const first = buttons[0];
       const last = buttons[buttons.length - 1];
       if (event.shiftKey && document.activeElement === first) {
