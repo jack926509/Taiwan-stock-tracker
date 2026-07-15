@@ -181,9 +181,11 @@ export default function Dashboard() {
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const deletedName = pendingDelete.name;
-      await refreshAll();
       setPendingDelete(null);
       setLiveMessage(`已刪除 ${deletedName}`);
+      void refreshAll().catch(() => {
+        setLiveMessage(`已刪除 ${deletedName}，但畫面重新整理失敗，請稍後更新`);
+      });
     } catch {
       setLiveMessage("刪除失敗，清單未變更，請稍後再試");
     } finally {
@@ -284,7 +286,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-b-2 border-ink px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-card">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-sm font-bold text-white shadow-card dark:text-app">
               台
             </span>
             <span className="font-serif text-lg font-bold tracking-tight text-ink">
@@ -431,7 +433,7 @@ export default function Dashboard() {
                         aria-pressed={sortKey === s.key}
                         className={`min-h-11 rounded-pill px-3 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
                           sortKey === s.key
-                            ? "bg-primary text-white shadow-card"
+                            ? "bg-primary text-white shadow-card dark:text-app"
                             : "text-muted hover:bg-surface hover:text-ink"
                         }`}
                       >
@@ -459,7 +461,7 @@ export default function Dashboard() {
                     aria-pressed={filterKey === f.key}
                     className={`min-h-11 shrink-0 whitespace-nowrap rounded-pill px-3 py-1 font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
                       filterKey === f.key
-                        ? "bg-primary text-white ring-primary"
+                        ? "bg-primary text-white ring-primary dark:text-app"
                         : "bg-surface text-muted ring-line hover:bg-primary-tint hover:text-primary"
                     }`}
                   >

@@ -68,7 +68,7 @@ export default function StockSearch() {
         {preview?.state === "found" ? (
           <button
             type="submit"
-            className="flex items-center gap-1.5 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            className="flex items-center gap-1.5 rounded-pill bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 dark:text-app"
           >
             <span className="max-w-[7rem] truncate">{preview.name}</span>
             <span aria-hidden>→</span>

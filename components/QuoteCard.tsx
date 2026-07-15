@@ -97,7 +97,7 @@ export default function QuoteCard({
       >
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4">
           <div className="min-w-0">
-            <div className="line-clamp-2 min-h-10 text-pretty font-serif text-base font-semibold leading-tight text-ink">
+            <div className="min-h-10 break-words text-pretty font-serif text-base font-semibold leading-tight text-ink">
               {quote.name}
             </div>
             <div className="mt-1 font-mono text-xs text-muted tabular">
@@ -132,7 +132,7 @@ export default function QuoteCard({
           <span
             className={`w-fit shrink-0 whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-xs font-semibold ${
               limit
-                ? `text-white ${limit === "up" ? "bg-up" : "bg-down"}`
+                ? `text-white dark:text-app ${limit === "up" ? "bg-up" : "bg-down"}`
                 : chipColor[t]
             }`}
           >

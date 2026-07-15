@@ -17,6 +17,10 @@ export default function DeleteStockDialog({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const busyRef = useRef(busy);
+  const onCancelRef = useRef(onCancel);
+  busyRef.current = busy;
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     if (!open) return;
@@ -29,9 +33,9 @@ export default function DeleteStockDialog({
     cancelRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !busy) {
+      if (event.key === "Escape" && !busyRef.current) {
         event.preventDefault();
-        onCancel();
+        onCancelRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -57,7 +61,11 @@ export default function DeleteStockDialog({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [busy, onCancel, open]);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && busy) dialogRef.current?.focus();
+  }, [busy, open]);
 
   if (!open) return null;
 
@@ -71,7 +79,9 @@ export default function DeleteStockDialog({
       <div
         ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
+        aria-busy={busy}
         aria-labelledby="delete-stock-title"
         aria-describedby="delete-stock-description"
         className="sheet-pop w-full overscroll-contain rounded-t-2xl bg-surface p-5 shadow-lift ring-1 ring-line sm:max-w-sm sm:rounded-card"
@@ -96,7 +106,7 @@ export default function DeleteStockDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="min-h-11 rounded-lg bg-up px-4 text-sm font-semibold text-white transition-colors hover:bg-up-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-up focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50"
+            className="min-h-11 rounded-lg bg-up px-4 text-sm font-semibold text-white transition-colors hover:bg-up-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-up focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 dark:text-app"
           >
             {busy ? "刪除中…" : "確認刪除"}
           </button>

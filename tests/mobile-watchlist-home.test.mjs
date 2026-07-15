@@ -47,7 +47,8 @@ test("桌面自選股採三欄平衡卡片且不再壓縮名稱與狀態", async
     assert.match(source, /lg:grid-cols-3/);
     assert.doesNotMatch(source, /xl:grid-cols-4/);
   }
-  assert.match(card, /line-clamp-2/);
+  assert.doesNotMatch(card, /line-clamp-2/);
+  assert.match(card, /break-words/);
   assert.match(card, /whitespace-nowrap/);
   assert.match(card, /signals\.slice\(0, 1\)/);
 });
@@ -93,6 +94,34 @@ test("桌面刪除與手機左滑共用確認流程且提供操作狀態", async
   assert.match(dialog, /aria-modal="true"/);
   assert.match(dialog, /確定刪除/);
   assert.doesNotMatch(swipe, /setDx\(-window\.innerWidth\)/);
+});
+
+test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點留在對話框", async () => {
+  const [page, dialog] = await Promise.all([
+    read("app/page.tsx"),
+    read("components/DeleteStockDialog.tsx"),
+  ]);
+
+  assert.match(page, /setPendingDelete\(null\);[\s\S]*setLiveMessage\(`已刪除/);
+  assert.match(page, /void refreshAll\(\)\.catch/);
+  assert.match(dialog, /tabIndex=\{-1\}/);
+  assert.match(dialog, /if \(open && busy\)[\s\S]*dialogRef\.current\?\.focus/);
+  assert.match(dialog, /\}, \[open\]\);/);
+});
+
+test("首頁深色模式的彩色底互動元件使用深色前景", async () => {
+  const files = await Promise.all([
+    read("app/page.tsx"),
+    read("components/QuoteCard.tsx"),
+    read("components/DeleteStockDialog.tsx"),
+    read("components/AddStockForm.tsx"),
+    read("components/StockSearch.tsx"),
+    read("components/SwipeToDelete.tsx"),
+  ]);
+
+  for (const source of files) {
+    assert.match(source, /dark:text-app/);
+  }
 });
 
 test("首頁主要互動不使用 transition-all", async () => {

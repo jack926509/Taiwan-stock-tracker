@@ -95,7 +95,7 @@ export default function BottomNav() {
                   {tab.icon}
                 </svg>
                 {tab.href === "/alerts" && activeAlerts > 0 && (
-                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-[10px] font-bold leading-4 text-white">
+                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-[10px] font-bold leading-4 text-white dark:text-app">
                     {activeAlerts > 9 ? "9+" : activeAlerts}
                   </span>
                 )}

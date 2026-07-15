@@ -94,7 +94,7 @@ export default function SwipeToDelete({
   return (
     <div className="relative overflow-hidden rounded-card md:overflow-visible">
       {/* 滑動時露出的紅色刪除底層 */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-end rounded-card bg-up px-6 text-white">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-end rounded-card bg-up px-6 text-white dark:text-app">
         <span className="flex items-center gap-1.5 text-sm font-semibold">
           <svg
             viewBox="0 0 24 24"
