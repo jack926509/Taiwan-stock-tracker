@@ -22,8 +22,8 @@ import { getMarketSessionDetail } from "@/lib/marketSession";
 const DraggableGrid = dynamic(() => import("@/components/DraggableGrid"), {
   ssr: false,
   loading: () => (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {[0, 1, 2, 3].map((i) => (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {[0, 1, 2].map((i) => (
         <div key={i} className="h-40 animate-pulse rounded-card bg-surface shadow-card" />
       ))}
     </div>
@@ -461,7 +461,7 @@ export default function Dashboard() {
                 return canSort ? (
                   <DraggableGrid cards={cards} onReorder={handleReorder} />
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {cards.map((c) => (
                       <div key={c.id} id={`stock-${c.id}`} className="scroll-mt-24">
                         {c.node}
@@ -477,8 +477,8 @@ export default function Dashboard() {
               description="還沒有自選股，輸入代號加入第一檔吧（例如 2330 台積電）"
             />
           ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((i) => (
                 <div key={i} className="h-40 animate-pulse rounded-card bg-surface shadow-card" />
               ))}
             </div>

@@ -40,52 +40,17 @@ const signalToneClass: Record<Signal["tone"], string> = {
 
 function SignalBadges({ signals }: { signals?: Signal[] }) {
   if (!signals || signals.length === 0) return null;
-  const shown = signals.slice(0, 2);
+  const shown = signals.slice(0, 1);
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex min-w-0 items-center gap-1.5">
       {shown.map((s) => (
         <span
           key={s.kind}
-          className={`rounded px-2 py-0.5 text-[11px] font-medium ${signalToneClass[s.tone]}`}
+          className={`truncate rounded px-2 py-1 text-xs font-medium ${signalToneClass[s.tone]}`}
         >
           {s.label}
         </span>
       ))}
-    </div>
-  );
-}
-
-// 當日區間條：現價落在當日 低～高 的位置（真實資料的現代化視覺）
-function DayRangeBar({ q }: { q: Quote }) {
-  const { low, high, price } = q;
-  if (low === null || high === null || price === null || high <= low) {
-    return null;
-  }
-  const pct = Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
-  const t = trendOf(q.change);
-  const fill = t === "up" ? "bg-up" : t === "down" ? "bg-down" : "bg-flat";
-  const grad =
-    t === "up"
-      ? "from-up/10 to-up/50"
-      : t === "down"
-        ? "from-down/10 to-down/50"
-        : "from-flat/10 to-flat/40";
-  return (
-    <div className="mt-3">
-      <div className="relative h-1.5 rounded-pill bg-app">
-        <div
-          className={`absolute inset-y-0 left-0 rounded-pill bg-gradient-to-r ${grad}`}
-          style={{ width: `${pct}%` }}
-        />
-        <div
-          className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ${fill} shadow-[0_1px_4px_rgba(16,24,40,0.3)] ring-2 ring-surface`}
-          style={{ left: `${pct}%` }}
-        />
-      </div>
-      <div className="mt-1 flex justify-between text-[11px] text-muted tabular">
-        <span>低 {fmt(low)}</span>
-        <span>高 {fmt(high)}</span>
-      </div>
     </div>
   );
 }
@@ -119,10 +84,10 @@ export default function QuoteCard({
   }, [quote.price]);
 
   return (
-    <div className="group relative">
+    <div className="group relative h-full">
       <a
         href={`/stock/${quote.stockId}`}
-        className={`block rounded-card bg-surface p-4 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`flex h-full flex-col rounded-card bg-surface p-4 shadow-card transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           limit === "up"
             ? "ring-2 ring-up"
             : limit === "down"
@@ -130,18 +95,18 @@ export default function QuoteCard({
               : "ring-1 ring-line"
         } ${flash}`}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4">
           <div className="min-w-0">
-            <div className="truncate font-serif text-base font-semibold leading-tight text-ink">
+            <div className="line-clamp-2 min-h-10 text-pretty font-serif text-base font-semibold leading-tight text-ink">
               {quote.name}
             </div>
-            <div className="mt-1 font-mono text-[11px] text-muted tabular">
+            <div className="mt-1 font-mono text-xs text-muted tabular">
               {quote.stockId}・{quote.market === "tse" ? "上市" : "上櫃"}
             </div>
           </div>
           <div className="shrink-0 text-right">
             <div
-              className={`font-mono text-3xl tracking-tight tabular ${
+              className={`whitespace-nowrap font-mono text-3xl tracking-tight tabular ${
                 strongMove ? "font-extrabold" : "font-bold"
               } ${strongMove ? strongTextColor[t] : textColor[t]}`}
             >
@@ -163,36 +128,39 @@ export default function QuoteCard({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className={`shrink-0 rounded-pill px-2 py-1 font-mono text-[11px] font-semibold ${chipColor[t]}`}>
-              {t === "up" ? "上漲" : t === "down" ? "下跌" : "持平"}
-            </span>
-            {limit && (
-              <span className={`rounded-pill px-1.5 py-1 text-[11px] font-bold text-white ${limit === "up" ? "bg-up" : "bg-down"}`}>
-                {limit === "up" ? "漲停" : "跌停"}
-              </span>
-            )}
-            {!quote.traded && <span className="text-[11px] text-warn">未成交</span>}
-          </div>
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_4.75rem] items-center gap-4">
+          <span
+            className={`w-fit shrink-0 whitespace-nowrap rounded-pill px-2.5 py-1 font-mono text-xs font-semibold ${
+              limit
+                ? `text-white ${limit === "up" ? "bg-up" : "bg-down"}`
+                : chipColor[t]
+            }`}
+          >
+            {limit
+              ? limit === "up"
+                ? "漲停"
+                : "跌停"
+              : t === "up"
+                ? "上漲"
+                : t === "down"
+                  ? "下跌"
+                  : "持平"}
+          </span>
           {spark ? <Sparkline points={spark} /> : null}
         </div>
 
-        <div className="hidden sm:block">
-          {/* 桌面版保留技術訊號與日內區間；手機優先顯示核心行情。 */}
-          {signals && signals.length > 0 && (
-            <div className="mt-3 border-t border-dotted border-line pt-2.5">
-              <SignalBadges signals={signals} />
-            </div>
-          )}
+        {signals && signals.length > 0 && (
+          <div className="mt-3 min-w-0 border-t border-line/70 pt-2.5">
+            <SignalBadges signals={signals} />
+          </div>
+        )}
 
-          <DayRangeBar q={quote} />
-        </div>
-
-        <div className="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-1 border-t border-line pt-3 text-[11px] text-muted tabular">
-          <span>報價 {quote.time || "—"}</span>
-          <span>成交量 {fmtVol(quote.volume)}</span>
-          <span className="hidden sm:inline">開 {fmt(quote.open)}・昨收 {fmt(quote.prevClose)}</span>
+        <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-line pt-3 text-xs text-muted tabular">
+          <span className="min-w-0 whitespace-nowrap">
+            報價 {quote.time || "—"}
+            {!quote.traded && <strong className="ml-2 font-semibold text-warn">未成交</strong>}
+          </span>
+          <span className="whitespace-nowrap">量 {fmtVol(quote.volume)}</span>
         </div>
       </a>
 
@@ -200,7 +168,7 @@ export default function QuoteCard({
         <button
           onClick={() => onDelete(quote.stockId)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute -right-2 -top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-all hover:scale-110 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97]"
+          className="absolute right-2 top-2 z-10 hidden h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97] md:flex"
         >
           ✕
         </button>

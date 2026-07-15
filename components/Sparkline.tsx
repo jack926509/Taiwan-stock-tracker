@@ -1,7 +1,5 @@
-// 迷你走勢圖：近 N 日收盤折線。依整體方向上紅下綠（台股紅漲綠跌）
-// 顏色對齊「晨間財經誌」token（tailwind.config.ts 的 up/down）
-const UP = "#C01926";
-const DOWN = "#0A7A45";
+// 迷你走勢圖：近 20 日收盤折線。固定使用品牌靛藍，
+// 避免近 20 日方向的紅綠色與卡片「今日漲跌」語意互相衝突。
 
 export default function Sparkline({ points }: { points: number[] }) {
   if (!points || points.length < 2) return null;
@@ -22,24 +20,23 @@ export default function Sparkline({ points }: { points: number[] }) {
     })
     .join(" ");
 
-  const rising = points[points.length - 1] >= points[0];
-
   return (
-    <svg
-      width={w}
-      height={h}
-      viewBox={`0 0 ${w} ${h}`}
-      aria-hidden
-      className="shrink-0"
+    <span
+      role="img"
+      aria-label="近 20 日收盤走勢"
+      className="grid w-[4.75rem] shrink-0 justify-items-end gap-1"
     >
-      <path
-        d={d}
-        fill="none"
-        stroke={rising ? UP : DOWN}
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
+      <span className="text-[10px] font-medium tracking-wide text-muted">20 日</span>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+        <path
+          d={d}
+          fill="none"
+          className="stroke-primary"
+          strokeWidth={1.75}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
   );
 }

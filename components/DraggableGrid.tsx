@@ -50,7 +50,7 @@ export default function DraggableGrid({
       onDragEnd={handleDragEnd}
     >
       <SortableContext items={ids} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => (
             <SortableCard key={c.id} id={c.id}>
               {c.node}
