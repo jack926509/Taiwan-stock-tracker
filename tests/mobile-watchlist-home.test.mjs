@@ -79,3 +79,30 @@ test("大盤資訊集中排列且小字警告色符合高對比設計", async ()
   assert.match(globals, /--c-warn:\s*151 82 0/);
   assert.match(globals, /--c-muted:\s*103 96 84/);
 });
+
+test("桌面刪除與手機左滑共用確認流程且提供操作狀態", async () => {
+  const [page, swipe, dialog] = await Promise.all([
+    read("app/page.tsx"),
+    read("components/SwipeToDelete.tsx"),
+    read("components/DeleteStockDialog.tsx"),
+  ]);
+
+  assert.match(page, /<DeleteStockDialog/);
+  assert.match(page, /aria-live="polite"/);
+  assert.match(dialog, /role="dialog"/);
+  assert.match(dialog, /aria-modal="true"/);
+  assert.match(dialog, /確定刪除/);
+  assert.doesNotMatch(swipe, /setDx\(-window\.innerWidth\)/);
+});
+
+test("首頁主要互動不使用 transition-all", async () => {
+  const files = await Promise.all([
+    read("components/QuoteCard.tsx"),
+    read("components/SortableCard.tsx"),
+    read("components/SwipeToDelete.tsx"),
+  ]);
+
+  for (const source of files) {
+    assert.doesNotMatch(source, /transition-all/);
+  }
+});

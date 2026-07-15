@@ -75,13 +75,10 @@ export default function SwipeToDelete({
     if (e.pointerType !== "touch") return;
     setAnimating(true);
     if (axis.current === "horizontal" && dxRef.current <= -THRESHOLD) {
-      setDx(-window.innerWidth);
-      dxRef.current = -window.innerWidth;
-      window.setTimeout(onDelete, 180);
-    } else {
-      setDx(0);
-      dxRef.current = 0;
+      onDelete();
     }
+    setDx(0);
+    dxRef.current = 0;
     axis.current = "none";
   }
 

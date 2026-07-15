@@ -15,6 +15,7 @@ import RelativeTime from "@/components/RelativeTime";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import EmptyState from "@/components/EmptyState";
+import DeleteStockDialog from "@/components/DeleteStockDialog";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionDetail } from "@/lib/marketSession";
 
@@ -44,6 +45,7 @@ const FILTERS = [
   { key: "down", label: "僅看跌" },
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
+type PendingDelete = { stockId: string; name: string };
 
 // masthead 日期時間：「2026 / 07 / 04　09:31 TPE」（台北時間，非依賴瀏覽器時區）
 function formatMastheadDate(date: Date): string {
@@ -89,6 +91,9 @@ export default function Dashboard() {
   const staleCount = useRef(0);
   const lastTimeKey = useRef("");
   const [now, setNow] = useState<Date | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [liveMessage, setLiveMessage] = useState("");
 
   // masthead 的日期／盤別文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
   useEffect(() => {
@@ -153,11 +158,37 @@ export default function Dashboard() {
     await Promise.all([watchlist.mutate(), quote.mutate()]);
   }, [watchlist, quote]);
 
-  async function handleDelete(stockId: string) {
-    await fetch(`/api/watchlist?id=${encodeURIComponent(stockId)}`, {
-      method: "DELETE",
-    });
-    refreshAll();
+  async function handleManualRefresh() {
+    try {
+      await refreshAll();
+      setLiveMessage("報價已更新");
+    } catch {
+      setLiveMessage("更新失敗，請檢查網路後再試一次");
+    }
+  }
+
+  function requestDelete(stockId: string, name: string) {
+    setPendingDelete({ stockId, name });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete || deleteBusy) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(
+        `/api/watchlist?id=${encodeURIComponent(pendingDelete.stockId)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const deletedName = pendingDelete.name;
+      await refreshAll();
+      setPendingDelete(null);
+      setLiveMessage(`已刪除 ${deletedName}`);
+    } catch {
+      setLiveMessage("刪除失敗，清單未變更，請稍後再試");
+    } finally {
+      setDeleteBusy(false);
+    }
   }
 
   // 拖曳結束：先在畫面即時排好（樂觀更新），再寫回後端
@@ -246,6 +277,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {liveMessage}
+      </p>
       {/* masthead（sticky）：左＝站名（襯線），右＝日期＋盤別；下接 2px 實色深墨分隔線 */}
       <header className="sticky top-0 z-10 bg-app/95 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-b-2 border-ink px-4 py-3 sm:px-6">
@@ -298,7 +332,7 @@ export default function Dashboard() {
               </svg>
             </Link>
             <button
-              onClick={refreshAll}
+              onClick={handleManualRefresh}
               disabled={quote.isValidating}
               aria-label="立即更新"
               className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:bg-primary-tint hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] disabled:opacity-50"
@@ -453,10 +487,10 @@ export default function Dashboard() {
                       className="rise-in"
                       style={{ animationDelay: `${140 + Math.min(i, 8) * 50}ms` }}
                     >
-                      <SwipeToDelete onDelete={() => handleDelete(q.stockId)}>
+                      <SwipeToDelete onDelete={() => requestDelete(q.stockId, q.name)}>
                         <QuoteCard
                           quote={q}
-                          onDelete={handleDelete}
+                          onDelete={(stockId) => requestDelete(stockId, q.name)}
                           spark={sparks.data?.data[q.stockId]?.spark}
                           signals={sparks.data?.data[q.stockId]?.signals}
                         />
@@ -504,6 +538,17 @@ export default function Dashboard() {
           報價約延遲 10 秒，僅供個人參考，非投資建議
         </footer>
       </main>
+      <DeleteStockDialog
+        open={pendingDelete !== null}
+        stockName={pendingDelete?.name ?? ""}
+        busy={deleteBusy}
+        onCancel={() => {
+          if (!deleteBusy) setPendingDelete(null);
+        }}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
+      />
     </div>
   );
 }
