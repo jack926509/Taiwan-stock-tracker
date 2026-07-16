@@ -6,15 +6,80 @@
   --font-sans: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
   --font-serif: "Songti TC", "Noto Serif CJK TC", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", monospace;
+
+  /* 「晨間財經誌」淺色（白日版）色票，供 tailwind.config.ts 的色票引用。
+     注意：帶透明度修飾語法（如 bg-app/95）的色票一律存「R G B」三數字（不含
+     井號、不加逗號），搭配 tailwind.config.ts 的 rgb(var(--x) / <alpha-value>)
+     寫法，Tailwind 才能把 /NN 換算成正確的 alpha 值；沒有透明度修飾需求的
+     tint/strong 系列則維持一般 hex／rgba() 即可。 */
+  --c-app: 248 246 241; /* 淡暖灰白底（--paper） */
+  --c-surface: 255 255 252; /* 清爽卡片底色（--card） */
+  --c-line: 211 205 193; /* 提高辨識的分隔線（--rule） */
+  --c-ink: 33 29 22; /* 主文字（--ink） */
+  --c-muted: 103 96 84; /* 次要文字（--sub），小字仍達 AA 對比 */
+  --c-primary: 26 58 99; /* 單一飽和點綴：靛藍 */
+  --c-primary-tint: #e7ecf3;
+  --c-up: 192 25 38; /* 漲・紅 */
+  --c-up-tint: #f7e2e0;
+  --c-up-strong: #8f1119; /* |漲跌幅|≥3% 加深一階 */
+  --c-down: 10 122 69; /* 跌・綠 */
+  --c-down-tint: #dcefe3;
+  --c-down-strong: #075c34; /* |漲跌幅|≥3% 加深一階 */
+  --c-flat: 95 87 69; /* 介於 muted 與 ink 之間的暖灰 */
+  --c-warn: 151 82 0;
+  --c-warn-tint: #f6ead6;
+
+  /* 卡片陰影色（淺色模式：暖墨半透明） */
+  --shadow-card-color: rgba(33, 29, 22, 0.06);
+  --shadow-lift-color: rgba(33, 29, 22, 0.08);
+
+  /* body 背景與互動色（淺色：暖白紙感） */
+  --body-bg: #f4f1ea;
+  --body-bg-glow: #fffdf7;
+  --selection-bg: rgba(26, 58, 99, 0.16);
+  --flash-up-bg: rgba(192, 25, 38, 0.07);
+  --flash-down-bg: rgba(10, 122, 69, 0.07);
+}
+
+/* 夜報版：跟隨系統深色模式，不做手動切換鈕。暖褐墨底，貼近「紙報熄燈」 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-app: 27 23 18;
+    --c-surface: 38 33 26;
+    --c-line: 61 54 42;
+    --c-ink: 234 226 207;
+    --c-muted: 156 144 120;
+    --c-primary: 143 169 204;
+    --c-primary-tint: rgba(143, 169, 204, 0.16);
+    --c-up: 232 100 112;
+    --c-up-tint: rgba(232, 100, 112, 0.14);
+    --c-up-strong: #f08a93; /* 深底需提亮才顯眼，與淺色模式的「加深」邏輯相反 */
+    --c-down: 67 181 126;
+    --c-down-tint: rgba(67, 181, 126, 0.14);
+    --c-down-strong: #6bcb9b;
+    --c-flat: 179 167 141;
+    --c-warn: 224 154 69;
+    --c-warn-tint: rgba(224, 154, 69, 0.16);
+
+    /* 深色模式陰影改用黑色系半透明，避免淺色陰影在暗底上發光 */
+    --shadow-card-color: rgba(0, 0, 0, 0.35);
+    --shadow-lift-color: rgba(0, 0, 0, 0.45);
+
+    --body-bg: #1b1712;
+    --body-bg-glow: #221c15;
+    --selection-bg: rgba(143, 169, 204, 0.24);
+    --flash-up-bg: rgba(232, 100, 112, 0.12);
+    --flash-down-bg: rgba(67, 181, 126, 0.12);
+  }
 }
 
 /* 中文本文用 PingFang TC 系統字；標題另走 --font-serif，數字另走 --font-mono */
 body {
   font-family: var(--font-sans);
-  /* 晨間財經誌：暖白紙感底，單一暖色光暈，避免冷灰調 */
-  background-color: #f2ecdd;
+  /* 晨間財經誌／夜報版：單一暖色光暈，避免冷灰調 */
+  background-color: var(--body-bg);
   background-image:
-    radial-gradient(circle at 12% 0%, #fbf7ec, transparent 60%);
+    radial-gradient(circle at 12% 0%, var(--body-bg-glow), transparent 60%);
   background-attachment: fixed;
 }
 
@@ -26,7 +91,7 @@ body {
 }
 
 ::selection {
-  background: rgba(26, 58, 99, 0.16);
+  background: var(--selection-bg);
 }
 
 /* 價格數字等寬，跳動時不位移（附錄 B.3） */
@@ -37,11 +102,11 @@ body {
 
 /* 報價更新閃動：漲紅閃／跌綠閃後回中性（附錄 B.5） */
 @keyframes flash-up {
-  0% { background-color: rgba(192, 25, 38, 0.07); }
+  0% { background-color: var(--flash-up-bg); }
   100% { background-color: transparent; }
 }
 @keyframes flash-down {
-  0% { background-color: rgba(10, 122, 69, 0.07); }
+  0% { background-color: var(--flash-down-bg); }
   100% { background-color: transparent; }
 }
 .flash-up { animation: flash-up 0.7s ease-out; }

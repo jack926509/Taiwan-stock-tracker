@@ -58,12 +58,48 @@ function legendDate(time: UTCTimestamp): string {
   return `${iso.slice(0, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`;
 }
 
-// 台股紅漲綠跌（與全站 token 一致，晨間財經誌配色）
-const UP = "#C01926";
-const DOWN = "#0A7A45";
-const PRIMARY = "#1A3A63"; // 單一飽和點綴：靛藍
-const MUTED = "#7D7361"; // 次要暖灰
-const BOLL_COLOR = PRIMARY;
+// 台股紅漲綠跌（與全站 token 一致，晨間財經誌／夜報版配色）
+// lightweight-charts 走 Canvas 繪製，無法用 CSS 變數，需依系統深色模式各自帶一套色票。
+const PALETTE = {
+  light: {
+    up: "#C01926",
+    down: "#0A7A45",
+    primary: "#1A3A63", // 單一飽和點綴：靛藍
+    muted: "#7D7361", // 次要暖灰
+    surface: "#FFFDF7", // 卡片底（圖表背景／布林下軌遮罩）
+    line: "#DDD3BF", // 分隔線
+    lineHover: "#C9BCA0",
+    grid: "rgba(221,211,191,0.5)",
+    volUp: "rgba(192,25,38,0.55)",
+    volDown: "rgba(10,122,69,0.55)",
+    macdUp: "rgba(192,25,38,0.5)",
+    macdDown: "rgba(10,122,69,0.5)",
+    bollFill: "rgba(26,58,99,0.14)",
+    chipOff: "#C9BFA8",
+  },
+  dark: {
+    up: "#E86470",
+    down: "#43B57E",
+    primary: "#8FA9CC",
+    muted: "#9C9078",
+    surface: "#26211A",
+    line: "#3D362A",
+    lineHover: "#4A4232",
+    grid: "rgba(61,54,42,0.55)",
+    volUp: "rgba(232,100,112,0.5)",
+    volDown: "rgba(67,181,126,0.5)",
+    macdUp: "rgba(232,100,112,0.45)",
+    macdDown: "rgba(67,181,126,0.45)",
+    bollFill: "rgba(143,169,204,0.16)",
+    chipOff: "#4A4232",
+  },
+};
+
+// 目前是否為深色模式（供 chip 開關等非圖表 inline style 使用）
+function isDarkMode(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
 function toTime(date: string): UTCTimestamp {
   return (Date.parse(`${date}T00:00:00Z`) / 1000) as UTCTimestamp;
@@ -95,28 +131,40 @@ export default function KlineChart({
   const [maOn, setMaOn] = useState({ 5: true, 20: true, 60: true });
   const [showBoll, setShowBoll] = useState(false);
   const [legend, setLegend] = useState<Legend | null>(null);
+  // 是否為深色模式（夜報版）：初始值以 SSR 安全的方式先設 false，掛載後於下方
+  // effect 讀取實際系統設定並監聽變化，變化時觸發整張圖重繪換色。
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    setIsDark(isDarkMode());
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || candles.length === 0) return;
+    const pal = isDark ? PALETTE.dark : PALETTE.light;
 
     const chart = createChart(el, {
       autoSize: true,
       layout: {
-        background: { color: "#FFFDF7" },
-        textColor: MUTED,
+        background: { color: pal.surface },
+        textColor: pal.muted,
         fontFamily: 'var(--font-sans), "PingFang TC", system-ui, sans-serif',
-        panes: { separatorColor: "#DDD3BF", separatorHoverColor: "#C9BCA0" },
+        panes: { separatorColor: pal.line, separatorHoverColor: pal.lineHover },
       },
       grid: {
-        vertLines: { color: "rgba(221,211,191,0.5)" },
-        horzLines: { color: "rgba(221,211,191,0.5)" },
+        vertLines: { color: pal.grid },
+        horzLines: { color: pal.grid },
       },
-      rightPriceScale: { borderColor: "#DDD3BF" },
-      timeScale: { borderColor: "#DDD3BF", timeVisible: false },
+      rightPriceScale: { borderColor: pal.line },
+      timeScale: { borderColor: pal.line, timeVisible: false },
       crosshair: {
-        horzLine: { labelBackgroundColor: PRIMARY },
-        vertLine: { labelBackgroundColor: PRIMARY },
+        horzLine: { labelBackgroundColor: pal.primary },
+        vertLine: { labelBackgroundColor: pal.primary },
       },
       localization: {
         locale: "zh-TW",
@@ -127,13 +175,13 @@ export default function KlineChart({
     chartRef.current = chart;
 
     // 布林通道填色帶：先畫在最底層（候選蠟燭圖之前），上軌用半透明色鋪滿到
-    // 圖底，下軌用卡片底色（不透明白）蓋掉下軌以下的區域，只留上下軌之間的帶狀色塊。
+    // 圖底，下軌用卡片底色（不透明）蓋掉下軌以下的區域，只留上下軌之間的帶狀色塊。
     if (showBoll) {
       const band = bollinger(candles);
       const upperFill = chart.addSeries(AreaSeries, {
         lineVisible: false,
-        topColor: "rgba(26,58,99,0.14)",
-        bottomColor: "rgba(26,58,99,0.14)",
+        topColor: pal.bollFill,
+        bottomColor: pal.bollFill,
         lastValueVisible: false,
         priceLineVisible: false,
         crosshairMarkerVisible: false,
@@ -143,8 +191,8 @@ export default function KlineChart({
       );
       const lowerMask = chart.addSeries(AreaSeries, {
         lineVisible: false,
-        topColor: "#FFFDF7",
-        bottomColor: "#FFFDF7",
+        topColor: pal.surface,
+        bottomColor: pal.surface,
         lastValueVisible: false,
         priceLineVisible: false,
         crosshairMarkerVisible: false,
@@ -155,12 +203,12 @@ export default function KlineChart({
     }
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: UP,
-      downColor: DOWN,
-      borderUpColor: UP,
-      borderDownColor: DOWN,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
+      upColor: pal.up,
+      downColor: pal.down,
+      borderUpColor: pal.up,
+      borderDownColor: pal.down,
+      wickUpColor: pal.up,
+      wickDownColor: pal.down,
     });
     candleSeries.setData(
       candles.map((c) => ({
@@ -179,7 +227,7 @@ export default function KlineChart({
     if (alertHigh != null) {
       candleSeries.createPriceLine({
         price: alertHigh,
-        color: UP,
+        color: pal.up,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
@@ -189,7 +237,7 @@ export default function KlineChart({
     if (alertLow != null) {
       candleSeries.createPriceLine({
         price: alertLow,
-        color: DOWN,
+        color: pal.down,
         lineWidth: 1,
         lineStyle: LineStyle.Dashed,
         axisLabelVisible: true,
@@ -234,9 +282,9 @@ export default function KlineChart({
         indReadouts.push({ label, color, series: s });
         return s;
       };
-      mk((b) => b.upper, BOLL_COLOR, LineStyle.Dashed, "上軌");
-      mk((b) => b.middle, BOLL_COLOR, LineStyle.Solid, "中軌");
-      mk((b) => b.lower, BOLL_COLOR, LineStyle.Dashed, "下軌");
+      mk((b) => b.upper, pal.primary, LineStyle.Dashed, "上軌");
+      mk((b) => b.middle, pal.primary, LineStyle.Solid, "中軌");
+      mk((b) => b.lower, pal.primary, LineStyle.Dashed, "下軌");
     }
 
     // 副圖（第 2 窗格）：成交量 / KD / MACD / RSI 四選一
@@ -274,26 +322,25 @@ export default function KlineChart({
         candles.map((c) => ({
           time: toTime(c.date),
           value: c.volume,
-          color:
-            c.close >= c.open ? "rgba(192,25,38,0.55)" : "rgba(10,122,69,0.55)",
+          color: c.close >= c.open ? pal.volUp : pal.volDown,
         }))
       );
-      indReadouts.push({ label: "量", color: MUTED, series: volumeSeries });
+      indReadouts.push({ label: "量", color: pal.muted, series: volumeSeries });
     } else if (subPane === "kd") {
       const data = kd(candles);
       indReadouts.push({
         label: "K",
-        color: PRIMARY,
+        color: pal.primary,
         series: addOsc(
-          PRIMARY,
+          pal.primary,
           data.map((p) => ({ time: toTime(p.date), value: p.k }))
         ),
       });
       indReadouts.push({
         label: "D",
-        color: MUTED,
+        color: pal.muted,
         series: addOsc(
-          MUTED,
+          pal.muted,
           data.map((p) => ({ time: toTime(p.date), value: p.d }))
         ),
       });
@@ -301,9 +348,9 @@ export default function KlineChart({
       const data = rsi(candles);
       indReadouts.push({
         label: "RSI",
-        color: BOLL_COLOR,
+        color: pal.primary,
         series: addOsc(
-          BOLL_COLOR,
+          pal.primary,
           data.map((p) => ({ time: toTime(p.date), value: p.value }))
         ),
       });
@@ -318,23 +365,23 @@ export default function KlineChart({
         data.map((p) => ({
           time: toTime(p.date),
           value: p.hist,
-          color: p.hist >= 0 ? "rgba(192,25,38,0.5)" : "rgba(10,122,69,0.5)",
+          color: p.hist >= 0 ? pal.macdUp : pal.macdDown,
         }))
       );
-      indReadouts.push({ label: "柱", color: MUTED, series: hist });
+      indReadouts.push({ label: "柱", color: pal.muted, series: hist });
       indReadouts.push({
         label: "DIF",
-        color: PRIMARY,
+        color: pal.primary,
         series: addOsc(
-          PRIMARY,
+          pal.primary,
           data.map((p) => ({ time: toTime(p.date), value: p.dif }))
         ),
       });
       indReadouts.push({
         label: "DEA",
-        color: MUTED,
+        color: pal.muted,
         series: addOsc(
-          MUTED,
+          pal.muted,
           data.map((p) => ({ time: toTime(p.date), value: p.dea }))
         ),
       });
@@ -423,10 +470,11 @@ export default function KlineChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [candles, subPane, maOn, showBoll, alertHigh, alertLow]);
+  }, [candles, subPane, maOn, showBoll, alertHigh, alertLow, isDark]);
 
   const up = legend ? legend.close >= legend.open : true;
   const closeTrend: "up" | "down" = up ? "up" : "down";
+  const pal = isDark ? PALETTE.dark : PALETTE.light; // 供下方 chip 開關等非圖表 inline style 使用
 
   return (
     <div>
@@ -446,7 +494,7 @@ export default function KlineChart({
           >
             <i
               className="h-0.5 w-3 rounded"
-              style={{ background: maOn[def.n] ? def.color : "#C9BFA8" }}
+              style={{ background: maOn[def.n] ? def.color : pal.chipOff }}
             />
             {def.label}
           </button>
@@ -461,7 +509,7 @@ export default function KlineChart({
         >
           <i
             className="h-0.5 w-3 rounded"
-            style={{ background: showBoll ? BOLL_COLOR : "#C9BFA8" }}
+            style={{ background: showBoll ? pal.primary : pal.chipOff }}
           />
           布林
         </button>
