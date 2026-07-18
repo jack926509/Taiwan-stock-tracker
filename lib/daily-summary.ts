@@ -6,6 +6,7 @@ import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
 import { pushLine, lineConfigured } from "@/lib/notify";
 import { taipeiNow, type TaipeiTime } from "@/lib/market-hours";
+import { hitToday } from "@/lib/alertLogic";
 import { newSignalsToday } from "@/lib/summarySignals";
 import type { Signal } from "@/lib/signals";
 import type { Candle } from "@/lib/providers/klineProvider";
@@ -66,19 +67,13 @@ function todayCandleFromQuote(
   };
 }
 
-// 今日是否曾觸發（供「今日觸發提醒」計數用；台北日期比對，與 alerts.ts 的每日一次性判斷同邏輯）
-function isTodayHit(hitAt: string | null, now: Date): boolean {
-  if (!hitAt) return false;
-  return taipeiNow(new Date(hitAt)).isoDate === taipeiNow(now).isoDate;
-}
-
 function countTodayHits(items: WatchItem[], now: Date): number {
   let n = 0;
   for (const i of items) {
-    if (isTodayHit(i.alert_high_hit_at, now)) n++;
-    if (isTodayHit(i.alert_low_hit_at, now)) n++;
-    if (isTodayHit(i.alert_change_hit_at, now)) n++;
-    if (isTodayHit(i.alert_volume_hit_at, now)) n++;
+    if (hitToday(i.alert_high_hit_at, now)) n++;
+    if (hitToday(i.alert_low_hit_at, now)) n++;
+    if (hitToday(i.alert_change_hit_at, now)) n++;
+    if (hitToday(i.alert_volume_hit_at, now)) n++;
   }
   return n;
 }

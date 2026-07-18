@@ -90,6 +90,11 @@ export function taipeiNow(now: Date = new Date()): TaipeiTime {
   };
 }
 
+// 兩個時間點是否落在同一個台北日曆日（跨日提醒重新武裝的判準）
+export function isSameTaipeiDay(a: Date, b: Date): boolean {
+  return taipeiNow(a).isoDate === taipeiNow(b).isoDate;
+}
+
 export async function isTradingDay(t: TaipeiTime): Promise<boolean> {
   const cal = await getHolidayCalendar();
   if (cal) {

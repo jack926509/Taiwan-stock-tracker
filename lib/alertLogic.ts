@@ -1,14 +1,14 @@
 // 到價／漲跌幅／爆量提醒的純判斷邏輯：抽離出 I/O（Supabase 讀寫、LINE 推播），供測試直接呼叫。
 // 只用相對匯入或 type-only 匯入（node --test 用 --experimental-transform-types，無法解析 "@/" 別名；
 // type-only 匯入會在轉譯時整段被抹除，不需要在執行期解析，故仍可安全使用別名）。
-import { taipeiNow } from "./market-hours.ts";
+import { isSameTaipeiDay } from "./market-hours.ts";
 import type { WatchItem } from "@/lib/store";
 import type { Quote } from "@/lib/providers/quoteProvider";
 
 // 每日一次性提醒（漲跌幅／爆量）：hit_at 的台北日期＝今天才算「今天已觸發」，跨日自動重新武裝
 export function hitToday(hitAt: string | null, now: Date): boolean {
   if (!hitAt) return false;
-  return taipeiNow(new Date(hitAt)).isoDate === taipeiNow(now).isoDate;
+  return isSameTaipeiDay(new Date(hitAt), now);
 }
 
 // 判斷某自選股本輪是否「已武裝」（有可能觸發某一種提醒），用來過濾要抓報價的清單
