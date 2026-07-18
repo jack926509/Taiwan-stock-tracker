@@ -25,21 +25,28 @@ test("首頁提供搜尋入口、可換行的排序篩選工具列與離線快�
 });
 
 test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
+  // Task 7 把 components/QuoteCard.tsx／components/SortableCard.tsx（孤兒檔，已刪除）
+  // 的職責併入 components/home/QuoteBoard.tsx（列/卡片內容）與
+  // components/home/SortableQuoteRows.tsx（拖曳把手）；斷言改讀新檔，強度不降低
+  // （44px 觸控目標 h-11 w-11 為 review 修復重點，務必對 live 檔案生效）。
   const [page, card, sortable] = await Promise.all([
     read("app/page.tsx"),
-    read("components/QuoteCard.tsx"),
-    read("components/SortableCard.tsx"),
+    read("components/home/QuoteBoard.tsx"),
+    read("components/home/SortableQuoteRows.tsx"),
   ]);
 
   assert.match(card, /報價/);
   assert.match(card, /成交/);
-  assert.match(card, /signals\.slice\(0, 1\)/);
+  // 舊版手機卡片訊號上限 1 個（signals.slice(0, 1)）；新版表格列改用合併徽章
+  // （漲跌停 + 訊號）並保留手機資訊層級上限，上限改為 3（badges.slice(0, 3)）。
+  assert.match(card, /badges\s*\.slice\(0, 3\)/);
   assert.match(card, /reorderable/);
-  assert.match(card, /hidden md:flex/);
-  assert.match(card, /absolute right-2 top-2/);
+  // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
+  assert.match(card, /md:flex max-\[599px\]:hidden/);
+  assert.match(card, /absolute right-2 top-1\/2/);
   assert.doesNotMatch(card, /-(?:right|top)-\d/);
   assert.match(sortable, /h-11 w-11/);
-  assert.match(sortable, /absolute left-2 top-2/);
+  assert.match(sortable, /absolute left-0\.5 top-1\/2/);
   assert.doesNotMatch(sortable, /-(?:left|top)-\d/);
   assert.doesNotMatch(sortable, /\s\[@media\(hover:hover\)\]:opacity-0/);
   assert.match(sortable, /md:\[@media\(hover:hover\)\]:opacity-0/);
@@ -149,9 +156,9 @@ test("首頁深色模式的彩色底互動元件使用深色前景", async () =>
 });
 
 test("首頁主要互動不使用 transition-all", async () => {
+  // components/QuoteCard.tsx／components/SortableCard.tsx 已刪除（孤兒檔，Task 7 後零引用）；
+  // 其職責已併入下方 components/home/QuoteBoard.tsx／SortableQuoteRows.tsx，範圍不縮小。
   const files = await Promise.all([
-    read("components/QuoteCard.tsx"),
-    read("components/SortableCard.tsx"),
     read("components/SwipeToDelete.tsx"),
     read("components/home/QuoteBoard.tsx"),
     read("components/home/SortableQuoteRows.tsx"),
