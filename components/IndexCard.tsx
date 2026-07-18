@@ -3,32 +3,37 @@
 import type { Quote } from "@/lib/types";
 import { fmt, fmtPct, trendOf, arrowOf, textColor } from "@/lib/format";
 
-// 大盤指數：手機兩顆各佔半寬、一次全部顯示（不需橫向滑動）；
-// 桌面版改為佔滿整條版面寬度的橫條帶，每檔各佔半條、中間以分隔線區隔。
+// 左欄「大盤指數」卡：直式卡片（名稱／代碼列＋大字現價＋漲跌），
+// 全斷點皆同一種直式版型；600–999px 兩顆併排兩欄，其餘斷點單欄堆疊（見外層 IndexCards 的 grid）。
 function IndexBlock({ q }: { q: Quote }) {
   const t = trendOf(q.change);
   const color = textColor[t];
   const label =
     q.stockId === "t00" ? "加權指數" : q.stockId === "o00" ? "櫃買指數" : q.name;
+  const mkt = q.stockId === "t00" ? "TAIEX" : q.stockId === "o00" ? "TPEX" : q.market.toUpperCase();
+  const pctTint = t === "up" ? "bg-up-tint" : t === "down" ? "bg-down-tint" : "bg-surface-2";
 
   return (
-    <div className="flex min-w-0 w-full flex-col gap-1 rounded-card border border-line bg-surface px-3 py-2.5 shadow-card sm:flex-1 sm:flex-row sm:items-center sm:justify-center sm:gap-5 sm:rounded-none sm:border-0 sm:border-r sm:border-line sm:bg-transparent sm:px-5 sm:py-3 sm:shadow-none sm:last:border-r-0">
-      <span className="whitespace-nowrap text-xs font-semibold text-ink sm:text-sm">{label}</span>
-      <div className="flex min-w-0 flex-col items-start gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
-        <span className={`font-mono text-base font-bold tabular sm:text-xl ${color}`}>
-          {fmt(q.price)}
-        </span>
-        <span
-          className={`flex items-center gap-0.5 whitespace-nowrap font-mono text-xs font-semibold tabular sm:text-sm ${color}`}
-        >
+    <div className="min-w-0 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-xs font-semibold text-ink">{label}</span>
+        <span className="shrink-0 font-mono text-[10px] tracking-wide text-faint">{mkt}</span>
+      </div>
+      <div className={`mt-2 whitespace-nowrap font-mono text-2xl font-bold tabular ${color}`}>
+        {fmt(q.price)}
+      </div>
+      <div className={`mt-1 flex items-center gap-2 font-mono text-sm tabular ${color}`}>
+        <span className="whitespace-nowrap">
           {arrowOf(t)}
           {q.change !== null && (
-            <span className="ml-0.5">
+            <span className="ml-1">
               {q.change > 0 ? "+" : ""}
               {fmt(q.change)}
             </span>
           )}
-          <span className="ml-0.5">{fmtPct(q.changePct)}</span>
+        </span>
+        <span className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xs font-bold ${pctTint}`}>
+          {fmtPct(q.changePct)}
         </span>
       </div>
     </div>
@@ -41,10 +46,10 @@ export default function IndexCards({ indices }: { indices: Quote[] }) {
     <div
       role="list"
       aria-label="大盤指數"
-      className="flex gap-2 sm:gap-0 sm:rounded-card sm:border sm:border-line sm:bg-surface sm:shadow-card"
+      className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-2 min-[1000px]:grid-cols-1"
     >
       {indices.map((q) => (
-        <div key={q.stockId} role="listitem" className="flex min-w-0 flex-1 basis-0">
+        <div key={q.stockId} role="listitem" className="min-w-0">
           <IndexBlock q={q} />
         </div>
       ))}
