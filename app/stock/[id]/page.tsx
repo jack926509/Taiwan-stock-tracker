@@ -40,7 +40,7 @@ const PERIOD_OPTIONS: { key: KlinePeriod; label: string }[] = [
 ];
 
 // lightweight-charts 屬重量套件，動態載入避免拖慢個股頁首次 JS
-const KlineChart = dynamic(() => import("@/components/KlineChart"), {
+const KlineChart = dynamic(() => import("@/components/kline/KlineChart"), {
   ssr: false,
   loading: () => <div className="h-[460px] animate-pulse rounded-card bg-app" />,
 });
@@ -197,13 +197,13 @@ export default function StockPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-app/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-line bg-app/95 backdrop-blur pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto max-w-[1360px] px-4 py-2.5 sm:px-[18px]">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <Link
                 href={`/#stock-${id}`}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted shadow-card transition-colors hover:text-ink"
                 aria-label="返回首頁"
               >
                 ←
@@ -213,7 +213,7 @@ export default function StockPage() {
                   <span className="truncate font-serif font-semibold">
                     {q?.name ?? id}
                   </span>
-                  <span className="rounded-pill bg-surface px-2 py-0.5 text-[11px] text-muted ring-1 ring-line">
+                  <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-[11px] text-muted">
                     {id}
                     {q && `・${q.market === "tse" ? "上市" : "上櫃"}`}
                   </span>
@@ -257,7 +257,7 @@ export default function StockPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 sm:py-6">
+      <main className="mx-auto max-w-[1360px] space-y-4 px-4 py-4 sm:px-[18px] sm:py-6">
         <MobileNetworkBanner
           stale={Boolean(kline.data?.stale)}
           error={quote.error ?? kline.error ?? fundamental.error}
@@ -265,7 +265,7 @@ export default function StockPage() {
 
         {/* 即時報價列 */}
         {q ? (
-          <div className="rise-in relative z-20 rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5">
+          <div className="rise-in relative z-20 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -311,10 +311,10 @@ export default function StockPage() {
                 <button
                   onClick={() => setAlertOpen((v) => !v)}
                   aria-label="到價提醒"
-                  className={`relative flex h-11 w-11 items-center justify-center rounded-card ring-1 transition-colors ${
+                  className={`relative flex h-11 w-11 items-center justify-center rounded-card border transition-colors ${
                     alertOpen || hasAlert
-                      ? "bg-primary-tint text-primary ring-primary/30"
-                      : "bg-app text-muted ring-line hover:text-ink"
+                      ? "border-primary/30 bg-primary-tint text-primary"
+                      : "border-line bg-app text-muted hover:text-ink"
                   }`}
                 >
                   <svg
@@ -335,7 +335,7 @@ export default function StockPage() {
                 </button>
 
                 {alertOpen && (
-                  <div className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lg ring-1 ring-line">
+                  <div className="absolute right-0 top-full z-20 mt-2 w-[min(20rem,calc(100vw-2.5rem))] rounded-card bg-surface p-4 shadow-lift ring-1 ring-line">
                     <PriceAlertCard
                       stockId={id}
                       name={q.name ?? id}
@@ -352,7 +352,7 @@ export default function StockPage() {
 
         {/* K 線圖 */}
         <div
-          className="rise-in rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5"
+          className="rise-in rounded-card border border-line bg-surface p-4 shadow-card sm:p-5"
           style={{ animationDelay: "80ms" }}
         >
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -452,7 +452,7 @@ export default function StockPage() {
             {prevWatch ? (
               <a
                 href={`/stock/${prevWatch.stock_id}`}
-                className="rounded-card bg-surface px-3 py-2 text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+                className="rounded-card border border-line bg-surface px-3 py-2 text-muted shadow-card transition-colors hover:text-ink"
               >
                 <span className="block text-[11px]">上一檔</span>
                 <span className="mt-0.5 block truncate font-serif font-semibold text-ink">
@@ -468,7 +468,7 @@ export default function StockPage() {
             {nextWatch ? (
               <a
                 href={`/stock/${nextWatch.stock_id}`}
-                className="rounded-card bg-surface px-3 py-2 text-right text-muted shadow-card ring-1 ring-line transition-colors hover:text-ink"
+                className="rounded-card border border-line bg-surface px-3 py-2 text-right text-muted shadow-card transition-colors hover:text-ink"
               >
                 <span className="block text-[11px]">下一檔</span>
                 <span className="mt-0.5 block truncate font-serif font-semibold text-ink">

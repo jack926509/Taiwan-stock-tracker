@@ -122,7 +122,7 @@ export default function FundamentalSection({
       {/* 估值（ETF 等無此資料時整塊隱藏） */}
       {valuation && (
         <div
-          className="rise-in flex flex-wrap items-end justify-between gap-4 rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          className="rise-in flex flex-wrap items-end justify-between gap-4 rounded-card border border-line bg-surface p-5 shadow-card"
           style={{ animationDelay: "140ms" }}
         >
           <div className="flex flex-wrap gap-10">
@@ -151,7 +151,7 @@ export default function FundamentalSection({
         {/* 法人買賣超 */}
         {instRecent.length > 0 && (
           <div
-            className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+            className="rise-in rounded-card border border-line bg-surface p-5 shadow-card"
             style={{ animationDelay: "200ms" }}
           >
             <h3 className="font-serif text-sm font-semibold">三大法人買賣超</h3>
@@ -204,7 +204,7 @@ export default function FundamentalSection({
         {/* 月營收 */}
         {revenue.length > 0 && (
           <div
-            className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+            className="rise-in rounded-card border border-line bg-surface p-5 shadow-card"
             style={{ animationDelay: "260ms" }}
           >
             <h3 className="font-serif text-sm font-semibold">月營收</h3>
@@ -246,7 +246,7 @@ export default function FundamentalSection({
       {/* 每股盈餘 EPS（單季；ETF 等無資料自動隱藏） */}
       {eps.length > 0 && (
         <div
-          className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          className="rise-in rounded-card border border-line bg-surface p-5 shadow-card"
           style={{ animationDelay: "320ms" }}
         >
           <div className="flex items-end justify-between gap-4">
@@ -303,7 +303,7 @@ export default function FundamentalSection({
       {/* 股利政策（近 5 年；ETF 等無配息資料整卡自動隱藏） */}
       {dividend.length > 0 && (
         <div
-          className="rise-in rounded-card bg-surface p-5 shadow-card ring-1 ring-line"
+          className="rise-in rounded-card border border-line bg-surface p-5 shadow-card"
           style={{ animationDelay: "380ms" }}
         >
           <div className="flex items-start justify-between gap-4">

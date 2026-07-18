@@ -17,22 +17,14 @@ import type { Candle } from "@/lib/providers/klineProvider";
 import { bollinger, rsi, kd, macd } from "@/lib/indicators";
 import { fmt, fmtVol, arrowOf } from "@/lib/format";
 import { MA_COLORS } from "@/lib/klineColors";
-
-// 副圖（第 2 窗格）四選一，成交量為預設
-type SubPane = "volume" | "kd" | "macd" | "rsi";
-
-const SUB_PANES: { key: SubPane; label: string }[] = [
-  { key: "volume", label: "成交量" },
-  { key: "kd", label: "KD" },
-  { key: "macd", label: "MACD" },
-  { key: "rsi", label: "RSI" },
-];
+import { getKlinePalette, isDarkMode } from "./klinePalette";
+import { OverlayToggleRow, SubPaneTabs, type MaDef, type SubPane } from "./KlineToolbar";
 
 // 主圖疊圖：MA5/20/60 各自開關 + 布林通道開關
-const MA_DEFS = [
-  { n: 5 as const, color: MA_COLORS.ma5, label: "MA5" },
-  { n: 20 as const, color: MA_COLORS.ma20, label: "MA20" },
-  { n: 60 as const, color: MA_COLORS.ma60, label: "MA60" },
+const MA_DEFS: MaDef[] = [
+  { n: 5, color: MA_COLORS.ma5, label: "MA5" },
+  { n: 20, color: MA_COLORS.ma20, label: "MA20" },
+  { n: 60, color: MA_COLORS.ma60, label: "MA60" },
 ];
 
 // 游標讀數中，每個指標數列的標籤與顏色
@@ -56,49 +48,6 @@ interface Legend {
 function legendDate(time: UTCTimestamp): string {
   const iso = new Date((time as number) * 1000).toISOString().slice(0, 10);
   return `${iso.slice(0, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`;
-}
-
-// 台股紅漲綠跌（與全站 token 一致，暖米白 × 深墨配色，完全去藍）
-// lightweight-charts 走 Canvas 繪製，無法用 CSS 變數，需依系統深色模式各自帶一套色票。
-const PALETTE = {
-  light: {
-    up: "#D92D3A",
-    down: "#0E9F6E",
-    primary: "#4A4237", // 深墨互動色（去藍，與 --c-primary 同值）
-    muted: "#29241C", // 圖表文字（與 --c-ink 同值，供 layout.textColor 用）
-    surface: "#FFFDF8", // 卡片底（圖表背景／布林下軌遮罩）
-    line: "#E9E2D3", // 分隔線（與 --c-line 同值）
-    lineHover: "#DDD4C0", // 與 --c-line-strong 同值
-    grid: "rgba(233,226,211,0.5)",
-    volUp: "rgba(217,45,58,0.55)",
-    volDown: "rgba(14,159,110,0.55)",
-    macdUp: "rgba(217,45,58,0.5)",
-    macdDown: "rgba(14,159,110,0.5)",
-    bollFill: "rgba(74,66,55,0.14)",
-    chipOff: "#DDD4C0",
-  },
-  dark: {
-    up: "#E86470",
-    down: "#43B57E",
-    primary: "#BFB49C", // 亮暖墨（與 --c-primary 深色版同值，去藍）
-    muted: "#EAE2CF", // 圖表文字（與 --c-ink 深色版同值）
-    surface: "#1D1913", // 與 --c-surface 深色版同值
-    line: "#3D362A",
-    lineHover: "#524939", // 與 --c-line-strong 深色版同值
-    grid: "rgba(61,54,42,0.55)",
-    volUp: "rgba(232,100,112,0.5)",
-    volDown: "rgba(67,181,126,0.5)",
-    macdUp: "rgba(232,100,112,0.45)",
-    macdDown: "rgba(67,181,126,0.45)",
-    bollFill: "rgba(191,180,156,0.16)",
-    chipOff: "#524939",
-  },
-};
-
-// 目前是否為深色模式（供 chip 開關等非圖表 inline style 使用）
-function isDarkMode(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 function toTime(date: string): UTCTimestamp {
@@ -146,7 +95,7 @@ export default function KlineChart({
   useEffect(() => {
     const el = containerRef.current;
     if (!el || candles.length === 0) return;
-    const pal = isDark ? PALETTE.dark : PALETTE.light;
+    const pal = getKlinePalette(isDark);
 
     const chart = createChart(el, {
       autoSize: true,
@@ -474,46 +423,20 @@ export default function KlineChart({
 
   const up = legend ? legend.close >= legend.open : true;
   const closeTrend: "up" | "down" = up ? "up" : "down";
-  const pal = isDark ? PALETTE.dark : PALETTE.light; // 供下方 chip 開關等非圖表 inline style 使用
+  const pal = getKlinePalette(isDark); // 供下方 chip 開關等非圖表 inline style 使用
 
   return (
     <div>
       {/* 主圖疊圖開關：MA5/MA20/MA60 + 布林通道，樣式一致的小型 chip 開關 */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-        {MA_DEFS.map((def) => (
-          <button
-            key={def.label}
-            onClick={() =>
-              setMaOn((prev) => ({ ...prev, [def.n]: !prev[def.n] }))
-            }
-            className={`flex min-h-[28px] items-center gap-1 rounded-pill px-2 py-1 font-medium ring-1 transition-colors ${
-              maOn[def.n]
-                ? "bg-app text-ink ring-line"
-                : "bg-transparent text-muted/60 ring-line/50"
-            }`}
-          >
-            <i
-              className="h-0.5 w-3 rounded"
-              style={{ background: maOn[def.n] ? def.color : pal.chipOff }}
-            />
-            {def.label}
-          </button>
-        ))}
-        <button
-          onClick={() => setShowBoll((v) => !v)}
-          className={`flex min-h-[28px] items-center gap-1 rounded-pill px-2 py-1 font-medium ring-1 transition-colors ${
-            showBoll
-              ? "bg-app text-ink ring-line"
-              : "bg-transparent text-muted/60 ring-line/50"
-          }`}
-        >
-          <i
-            className="h-0.5 w-3 rounded"
-            style={{ background: showBoll ? pal.primary : pal.chipOff }}
-          />
-          布林
-        </button>
-      </div>
+      <OverlayToggleRow
+        maDefs={MA_DEFS}
+        maOn={maOn}
+        onToggleMa={(n) => setMaOn((prev) => ({ ...prev, [n]: !prev[n] }))}
+        showBoll={showBoll}
+        onToggleBoll={() => setShowBoll((v) => !v)}
+        chipOffColor={pal.chipOff}
+        primaryColor={pal.primary}
+      />
 
       <div className="relative">
         {legend && (
@@ -560,23 +483,7 @@ export default function KlineChart({
       </div>
 
       {/* 指標切換 pill 列：成交量／KD／MACD／RSI 四選一 */}
-      <div className="mt-3 -mx-1 overflow-x-auto px-1">
-        <div className="inline-flex min-w-full rounded-pill bg-app p-0.5 text-xs sm:min-w-0">
-          {SUB_PANES.map((it) => (
-            <button
-              key={it.key}
-              onClick={() => setSubPane(it.key)}
-              className={`min-h-[44px] flex-1 whitespace-nowrap rounded-pill px-3 py-2 font-medium transition-colors sm:flex-none ${
-                subPane === it.key
-                  ? "bg-surface text-ink shadow-card"
-                  : "text-muted hover:text-ink"
-              }`}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SubPaneTabs subPane={subPane} onChange={setSubPane} />
     </div>
   );
 }
