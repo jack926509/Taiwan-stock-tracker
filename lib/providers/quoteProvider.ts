@@ -3,6 +3,8 @@
 // 換報價來源或部署形態，只改這支檔案。
 
 import { getSupabase } from "@/lib/supabase";
+import type { Quote } from "@/lib/types";
+export type { Quote };
 
 const MIS_BASE = "https://mis.twse.com.tw/stock/api";
 const MIS_HEADERS = {
@@ -20,22 +22,6 @@ export type Market = "tse" | "otc";
 export interface QuoteTarget {
   stockId: string;
   market: Market;
-}
-
-export interface Quote {
-  stockId: string;
-  name: string;
-  market: Market;
-  price: number | null;
-  prevClose: number | null;
-  change: number | null;
-  changePct: number | null;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  volume: number | null; // 累積成交量（張）；指數無此值
-  traded: boolean; // false = 當盤無成交，price 為最佳買價或昨收
-  time: string; // MIS 資料時間 HH:mm:ss
 }
 
 interface MisMsg {
