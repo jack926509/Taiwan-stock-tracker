@@ -340,6 +340,7 @@ export default function StockPage() {
                       stockId={id}
                       name={q.name ?? id}
                       currentPrice={q.price ?? null}
+                      trend={t}
                     />
                   </div>
                 )}

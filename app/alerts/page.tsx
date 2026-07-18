@@ -73,10 +73,17 @@ function AlertQuoteCard({
 
   return (
     <div
-      className={`rounded-card bg-surface shadow-card transition-all duration-200 ${
-        isEditing ? "ring-2 ring-primary" : "ring-1 ring-line"
+      className={`relative overflow-hidden rounded-card border bg-surface shadow-card transition-all duration-200 ${
+        isEditing ? "border-primary ring-2 ring-primary/15" : "border-line"
       }`}
     >
+      {/* 左緣 3px 漲跌色條，對齊首頁 QuoteBoard 卡片語彙 */}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] ${
+          t === "up" ? "bg-up" : t === "down" ? "bg-down" : "bg-transparent"
+        }`}
+      />
       <button
         type="button"
         onClick={onToggle}
@@ -228,7 +235,7 @@ function BottomSheet({
             type="button"
             onClick={onClose}
             aria-label="關閉"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink active:scale-[0.95]"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             ✕
           </button>
@@ -319,18 +326,26 @@ export default function AlertsPage() {
   }, [watchlist, quote]);
 
   const editingRow = items.find((a) => a.stock_id === editing) ?? null;
+  // 狀態列用：已實際設定任一種提醒門檻的檔數（僅供顯示，計算與排序邏輯無關）
+  const alertedCount = items.filter(
+    (a) =>
+      a.alert_high != null ||
+      a.alert_low != null ||
+      a.alert_change_pct != null ||
+      a.alert_volume_on
+  ).length;
 
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
-      {/* masthead（sticky）：比照首頁風格，左＝返回＋站名，右＝盤別＋自選連結 */}
-      <header className="sticky top-0 z-10 bg-app/95 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-b-2 border-ink px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2">
+      {/* masthead（sticky）：比照首頁 TopBar 風格，左＝返回＋站名，右＝盤別膠囊＋自選連結 */}
+      <header className="sticky top-0 z-40 border-b border-line bg-app/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-3 px-4 py-3 sm:px-[18px]">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               type="button"
               onClick={goBack}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted shadow-card transition-colors hover:text-ink active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               aria-label="上一頁"
               title="上一頁"
             >
@@ -341,13 +356,15 @@ export default function AlertsPage() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden text-right font-mono text-xs leading-tight text-muted tabular sm:block">
-              {now ? getMarketSessionLabel(now) : "載入中"}
+            <div className="hidden items-center rounded-pill border border-line bg-surface px-3.5 py-1.5 shadow-card sm:flex">
+              <span className="whitespace-nowrap font-mono text-xs font-semibold tabular text-ink">
+                {now ? getMarketSessionLabel(now) : "載入中"}
+              </span>
             </div>
             <Link
               href="/"
               aria-label="返回自選股列表"
-              className="rounded-pill bg-surface px-3 py-1.5 text-xs font-medium text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97]"
+              className="flex min-h-11 items-center whitespace-nowrap rounded-pill border border-line bg-surface px-3 text-xs font-medium text-muted shadow-card transition-colors hover:border-primary hover:text-primary active:scale-[0.97]"
             >
               自選
             </Link>
@@ -355,7 +372,7 @@ export default function AlertsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-3 px-4 py-5 sm:px-6">
+      <main className="mx-auto max-w-[1360px] space-y-4 px-4 py-5 sm:px-[18px]">
         <MobileNetworkBanner
           stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
@@ -363,6 +380,21 @@ export default function AlertsPage() {
 
         {showLineFailureBanner && lineFailure && (
           <LineFailureBanner minutesAgo={lineFailure.minutesAgo} />
+        )}
+
+        {/* 狀態列：已設提醒檔數／自選總數，對齊首頁 board-head 語彙 */}
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="text-base font-semibold text-ink">提醒總覽</h2>
+            <p className="inline-flex items-center gap-1.5 text-xs text-muted">
+              <span
+                aria-hidden="true"
+                className={`h-1.5 w-1.5 rounded-full bg-primary ${alertedCount > 0 ? "pulse-dot" : ""}`}
+              />
+              <b className="font-mono font-bold tabular text-ink">{alertedCount}</b>
+              {" "}/ {items.length} 檔已設提醒
+            </p>
+          </div>
         )}
 
         {!watchlist.data ? (
@@ -407,6 +439,7 @@ export default function AlertsPage() {
               stockId={editingRow.stock_id}
               name={editingRow.name}
               currentPrice={priceOf.get(editingRow.stock_id)?.price ?? null}
+              trend={trendOf(priceOf.get(editingRow.stock_id)?.change ?? null)}
             />
             <a
               href={`/stock/${editingRow.stock_id}`}
