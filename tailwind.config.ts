@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// 「晨間財經誌」風格 token（暖白紙感底＋深墨文字＋襯線標題＋單一靛藍點綴）。台股紅漲綠跌不變。
+// 「暖米白 × 深墨」風格 token（暖米白底＋深墨文字＋襯線標題＋深墨互動色，完全去藍）。台股紅漲綠跌不變。
 // 深色模式「夜報版」：色票改由 CSS 變數承接，實際淺／深色數值定義在 app/globals.css
 // 的 :root 與 @media (prefers-color-scheme: dark)，隨系統自動切換，不做手動切換鈕。
 const config: Config = {
@@ -15,9 +15,12 @@ const config: Config = {
         // 而非直接參與透明度修飾的 tint/strong 則維持一般 var(--x) 即可。
         app: "rgb(var(--c-app) / <alpha-value>)", // 底色（--paper／夜報底）
         surface: "rgb(var(--c-surface) / <alpha-value>)", // 卡片底色（--card）
+        "surface-2": "rgb(var(--c-surface-2) / <alpha-value>)", // 次層底色（表頭、hover）
         line: "rgb(var(--c-line) / <alpha-value>)", // 分隔線（--rule）
+        "line-strong": "rgb(var(--c-line-strong) / <alpha-value>)", // 強化分隔線
         ink: "rgb(var(--c-ink) / <alpha-value>)", // 主文字（--ink）
         muted: "rgb(var(--c-muted) / <alpha-value>)", // 次要文字（--sub）
+        faint: "rgb(var(--c-faint) / <alpha-value>)", // 更弱化文字
         primary: {
           DEFAULT: "rgb(var(--c-primary) / <alpha-value>)", // 單一飽和點綴
           tint: "var(--c-primary-tint)",
@@ -44,13 +47,13 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {
-        // 扁平雜誌排版：極輕陰影，靠實色分隔線分界，不做厚重浮起感
+        // 柔和兩層影：貼近視覺規範的暖米白卡片浮起感
         // 深色模式陰影改用黑色系半透明（見 globals.css 的 --shadow-card-color）
-        card: "0 1px 0 var(--shadow-card-color)",
-        lift: "0 1px 2px var(--shadow-lift-color)",
+        card: "0 1px 2px var(--shadow-card-color), 0 2px 8px var(--shadow-card-color)",
+        lift: "0 4px 14px var(--shadow-lift-color), 0 12px 32px var(--shadow-card-color)",
       },
       borderRadius: {
-        card: "4px",
+        card: "12px",
         pill: "999px",
       },
     },

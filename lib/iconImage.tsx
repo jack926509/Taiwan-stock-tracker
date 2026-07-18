@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
 
 const COLORS = {
-  cream: "#F7F2E7",
-  navy: "#17385F",
+  cream: "#F5F1E8",
+  navy: "#29241C", // 深墨（去藍，取代原靛藍 icon 底色）
   red: "#F05449",
   gold: "#E4B84F",
 } as const;
@@ -26,7 +26,7 @@ function BullMarketMark({ size }: { size: number }) {
         justifyContent: "center",
         borderRadius: size * 0.22,
         background: COLORS.navy,
-        boxShadow: `0 ${size * 0.07}px ${size * 0.16}px rgba(23, 56, 95, 0.24)`,
+        boxShadow: `0 ${size * 0.07}px ${size * 0.16}px rgba(41, 36, 28, 0.24)`,
       }}
     >
       <svg width={size * 0.76} height={size * 0.76} viewBox="0 0 100 100" fill="none">

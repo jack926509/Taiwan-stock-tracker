@@ -7,50 +7,56 @@
   --font-serif: "Songti TC", "Noto Serif CJK TC", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", monospace;
 
-  /* 「晨間財經誌」淺色（白日版）色票，供 tailwind.config.ts 的色票引用。
+  /* 「暖米白 × 深墨」淺色（白日版）色票，供 tailwind.config.ts 的色票引用。
      注意：帶透明度修飾語法（如 bg-app/95）的色票一律存「R G B」三數字（不含
      井號、不加逗號），搭配 tailwind.config.ts 的 rgb(var(--x) / <alpha-value>)
      寫法，Tailwind 才能把 /NN 換算成正確的 alpha 值；沒有透明度修飾需求的
      tint/strong 系列則維持一般 hex／rgba() 即可。 */
-  --c-app: 248 246 241; /* 淡暖灰白底（--paper） */
-  --c-surface: 255 255 252; /* 清爽卡片底色（--card） */
-  --c-line: 211 205 193; /* 提高辨識的分隔線（--rule） */
-  --c-ink: 33 29 22; /* 主文字（--ink） */
-  --c-muted: 103 96 84; /* 次要文字（--sub），小字仍達 AA 對比 */
-  --c-primary: 26 58 99; /* 單一飽和點綴：靛藍 */
-  --c-primary-tint: #e7ecf3;
-  --c-up: 192 25 38; /* 漲・紅 */
-  --c-up-tint: #f7e2e0;
-  --c-up-strong: #8f1119; /* |漲跌幅|≥3% 加深一階 */
-  --c-down: 10 122 69; /* 跌・綠 */
-  --c-down-tint: #dcefe3;
-  --c-down-strong: #075c34; /* |漲跌幅|≥3% 加深一階 */
-  --c-flat: 95 87 69; /* 介於 muted 與 ink 之間的暖灰 */
+  --c-app: 245 241 232; /* #f5f1e8 暖米白底 */
+  --c-surface: 255 253 248; /* #fffdf8 卡片 */
+  --c-surface-2: 250 246 238; /* #faf6ee 次層（表頭、hover） */
+  --c-line: 233 226 211; /* #e9e2d3 */
+  --c-line-strong: 221 212 192; /* #ddd4c0 */
+  --c-ink: 41 36 28; /* #29241c 主文字 */
+  --c-muted: 124 116 96; /* #7c7460 次要文字 */
+  --c-faint: 168 158 136; /* #a89e88 更弱化文字 */
+  --c-primary: 74 66 55; /* #4a4237 深墨互動色（去藍） */
+  --c-primary-tint: #f0ebe0;
+  --c-up: 217 45 58; /* #d92d3a 漲・紅 */
+  --c-up-tint: #fbeae7;
+  --c-up-strong: #a31622; /* |漲跌幅|≥3% 加深一階 */
+  --c-down: 14 159 110; /* #0e9f6e 跌・綠 */
+  --c-down-tint: #e6f6ef;
+  --c-down-strong: #0a7a52; /* |漲跌幅|≥3% 加深一階 */
+  --c-flat: 124 116 96; /* 介於 muted 與 ink 之間的暖灰 */
   --c-warn: 151 82 0;
   --c-warn-tint: #f6ead6;
 
   /* 卡片陰影色（淺色模式：暖墨半透明） */
-  --shadow-card-color: rgba(33, 29, 22, 0.06);
-  --shadow-lift-color: rgba(33, 29, 22, 0.08);
+  --shadow-card-color: rgba(74, 58, 28, 0.06);
+  --shadow-lift-color: rgba(74, 58, 28, 0.10);
 
-  /* body 背景與互動色（淺色：暖白紙感） */
-  --body-bg: #f4f1ea;
-  --body-bg-glow: #fffdf7;
-  --selection-bg: rgba(26, 58, 99, 0.16);
-  --flash-up-bg: rgba(192, 25, 38, 0.07);
-  --flash-down-bg: rgba(10, 122, 69, 0.07);
+  /* body 背景與互動色（淺色：暖米白紙感） */
+  --body-bg: #f5f1e8;
+  --body-bg-glow: #faf7f0;
+  --selection-bg: rgba(74, 66, 55, 0.18);
+  --flash-up-bg: rgba(217, 45, 58, 0.07);
+  --flash-down-bg: rgba(14, 159, 110, 0.07);
 }
 
 /* 夜報版：跟隨系統深色模式，不做手動切換鈕。暖褐墨底，貼近「紙報熄燈」 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --c-app: 27 23 18;
-    --c-surface: 38 33 26;
+    --c-app: 20 17 12; /* #14110c */
+    --c-surface: 29 25 19; /* #1d1913 */
+    --c-surface-2: 38 33 25;
     --c-line: 61 54 42;
+    --c-line-strong: 82 73 57;
     --c-ink: 234 226 207;
     --c-muted: 156 144 120;
-    --c-primary: 143 169 204;
-    --c-primary-tint: rgba(143, 169, 204, 0.16);
+    --c-faint: 120 110 90;
+    --c-primary: 191 180 156; /* 亮暖墨（深底上的互動色，仍無藍） */
+    --c-primary-tint: rgba(191, 180, 156, 0.16);
     --c-up: 232 100 112;
     --c-up-tint: rgba(232, 100, 112, 0.14);
     --c-up-strong: #f08a93; /* 深底需提亮才顯眼，與淺色模式的「加深」邏輯相反 */
@@ -65,9 +71,9 @@
     --shadow-card-color: rgba(0, 0, 0, 0.35);
     --shadow-lift-color: rgba(0, 0, 0, 0.45);
 
-    --body-bg: #1b1712;
-    --body-bg-glow: #221c15;
-    --selection-bg: rgba(143, 169, 204, 0.24);
+    --body-bg: #14110c;
+    --body-bg-glow: #1b1710;
+    --selection-bg: rgba(191, 180, 156, 0.24);
     --flash-up-bg: rgba(232, 100, 112, 0.12);
     --flash-down-bg: rgba(67, 181, 126, 0.12);
   }

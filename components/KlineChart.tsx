@@ -58,40 +58,40 @@ function legendDate(time: UTCTimestamp): string {
   return `${iso.slice(0, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`;
 }
 
-// 台股紅漲綠跌（與全站 token 一致，晨間財經誌／夜報版配色）
+// 台股紅漲綠跌（與全站 token 一致，暖米白 × 深墨配色，完全去藍）
 // lightweight-charts 走 Canvas 繪製，無法用 CSS 變數，需依系統深色模式各自帶一套色票。
 const PALETTE = {
   light: {
-    up: "#C01926",
-    down: "#0A7A45",
-    primary: "#1A3A63", // 單一飽和點綴：靛藍
-    muted: "#7D7361", // 次要暖灰
-    surface: "#FFFDF7", // 卡片底（圖表背景／布林下軌遮罩）
-    line: "#DDD3BF", // 分隔線
-    lineHover: "#C9BCA0",
-    grid: "rgba(221,211,191,0.5)",
-    volUp: "rgba(192,25,38,0.55)",
-    volDown: "rgba(10,122,69,0.55)",
-    macdUp: "rgba(192,25,38,0.5)",
-    macdDown: "rgba(10,122,69,0.5)",
-    bollFill: "rgba(26,58,99,0.14)",
-    chipOff: "#C9BFA8",
+    up: "#D92D3A",
+    down: "#0E9F6E",
+    primary: "#4A4237", // 深墨互動色（去藍，與 --c-primary 同值）
+    muted: "#29241C", // 圖表文字（與 --c-ink 同值，供 layout.textColor 用）
+    surface: "#FFFDF8", // 卡片底（圖表背景／布林下軌遮罩）
+    line: "#E9E2D3", // 分隔線（與 --c-line 同值）
+    lineHover: "#DDD4C0", // 與 --c-line-strong 同值
+    grid: "rgba(233,226,211,0.5)",
+    volUp: "rgba(217,45,58,0.55)",
+    volDown: "rgba(14,159,110,0.55)",
+    macdUp: "rgba(217,45,58,0.5)",
+    macdDown: "rgba(14,159,110,0.5)",
+    bollFill: "rgba(74,66,55,0.14)",
+    chipOff: "#DDD4C0",
   },
   dark: {
     up: "#E86470",
     down: "#43B57E",
-    primary: "#8FA9CC",
-    muted: "#9C9078",
-    surface: "#26211A",
+    primary: "#BFB49C", // 亮暖墨（與 --c-primary 深色版同值，去藍）
+    muted: "#EAE2CF", // 圖表文字（與 --c-ink 深色版同值）
+    surface: "#1D1913", // 與 --c-surface 深色版同值
     line: "#3D362A",
-    lineHover: "#4A4232",
+    lineHover: "#524939", // 與 --c-line-strong 深色版同值
     grid: "rgba(61,54,42,0.55)",
     volUp: "rgba(232,100,112,0.5)",
     volDown: "rgba(67,181,126,0.5)",
     macdUp: "rgba(232,100,112,0.45)",
     macdDown: "rgba(67,181,126,0.45)",
-    bollFill: "rgba(143,169,204,0.16)",
-    chipOff: "#4A4232",
+    bollFill: "rgba(191,180,156,0.16)",
+    chipOff: "#524939",
   },
 };
 

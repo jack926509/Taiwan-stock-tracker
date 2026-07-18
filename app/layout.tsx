@@ -31,8 +31,8 @@ export const viewport: Viewport = {
   viewportFit: "cover", // 讓 env(safe-area-inset-*) 在 iPhone 瀏海/底欄生效
   // 夜報版：瀏覽器 UI（如 Android 網址列色塊）跟隨系統深色模式自動換色
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F7F2E7" },
-    { media: "(prefers-color-scheme: dark)", color: "#1B1712" },
+    { media: "(prefers-color-scheme: light)", color: "#F5F1E8" },
+    { media: "(prefers-color-scheme: dark)", color: "#14110C" },
   ],
 };
 
