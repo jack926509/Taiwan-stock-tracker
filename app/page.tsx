@@ -66,7 +66,9 @@ export default function Dashboard() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 sm:px-[18px]">
-        <div className="grid grid-cols-1 gap-4 pt-4 min-[1000px]:grid-cols-[336px_1fr] min-[1000px]:items-start min-[1000px]:gap-5">
+        {/* 左欄 1360px 起才並排：1000–1359 併排會把主欄壓到 8 欄表格的最小寬以下，
+            表格橫向溢出→觸控板捲動被鎖在表格上（2026-07-19 滑不到底根因之一） */}
+        <div className="grid grid-cols-1 gap-4 pt-4 min-[1360px]:grid-cols-[336px_1fr] min-[1360px]:items-start min-[1360px]:gap-5">
           <IndexRail
             indices={data?.indices ?? []}
             watchStats={watchStats}

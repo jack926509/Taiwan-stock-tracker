@@ -9,7 +9,7 @@ import PriceAlertCard from "@/components/PriceAlertCard";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import EmptyState from "@/components/EmptyState";
-import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
+import { fmt, fmtPct, trendOf, arrowOf, chipColor } from "@/lib/format";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import useDialogFocus from "@/hooks/useDialogFocus";
@@ -59,9 +59,10 @@ function LineFailureBanner({ minutesAgo }: { minutesAgo: number }) {
   );
 }
 
-// 單張提醒卡片：視覺沿用首頁 QuoteCard 語彙（kicker 代號、大字現價、襯線股名、紅漲綠跌），
-// 點擊整卡從畫面底部彈出設定面板（BottomSheet + PriceAlertCard），毋須進個股頁、也不佔用卡片牆版位。
-function AlertQuoteCard({
+// 單列提醒（2026-07-19 重設計）：捨棄大字報價卡片牆——報價是首頁的事，本頁重點是「管理提醒」。
+// 每列＝一行身分（代號＋股名＋現價＋漲跌幅）＋一行門檻標籤，視覺語彙對齊首頁表格列。
+// 點整列從畫面底部彈出設定面板（BottomSheet + PriceAlertCard），毋須進個股頁。
+function AlertListRow({
   row,
   quote,
   isEditing,
@@ -85,117 +86,100 @@ function AlertQuoteCard({
     price != null && row.alert_low != null && price <= row.alert_low;
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-card border bg-surface shadow-card transition-all duration-200 ${
-        isEditing ? "border-primary ring-2 ring-primary/15" : "border-line"
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-haspopup="dialog"
+      aria-expanded={isEditing}
+      aria-label={`${row.name} 到價提醒設定`}
+      className={`group relative block w-full px-4 py-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+        isEditing ? "bg-surface-2" : ""
       }`}
     >
-      {/* 左緣 3px 漲跌色條，對齊首頁 QuoteBoard 卡片語彙 */}
+      {/* 左緣 3px 漲跌色條，對齊首頁 QuoteBoard 語彙 */}
       <span
         aria-hidden="true"
         className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] ${
           t === "up" ? "bg-up" : t === "down" ? "bg-down" : "bg-transparent"
         }`}
       />
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-haspopup="dialog"
-        aria-expanded={isEditing}
-        aria-label={`${row.name} 到價提醒設定`}
-        className="block w-full p-4 text-left active:scale-[0.99]"
-      >
-        {/* 第一行 kicker：漲跌方向 · 代號，等寬字＋靛藍點綴 */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-wider text-primary">
-            {t === "up" ? "上漲" : t === "down" ? "下跌" : "持平"}
-            <span className="mx-1 text-primary/40">·</span>
-            {row.stock_id}
+      {/* 第一行：代號＋股名＋市場別｜現價＋漲跌幅＋展開箭頭 */}
+      <div className="flex items-center gap-2.5">
+        <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-muted">
+          {row.stock_id}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold text-ink">{row.name}</span>
+          <span className="mt-0.5 block font-mono text-[10px] text-faint">
+            {row.market === "tse" ? "上市" : "上櫃"}
           </span>
-          <span className="shrink-0 text-muted" aria-hidden="true">
-            <IconChevronDown className="h-4 w-4" />
-          </span>
-        </div>
-
-        {/* 第二行：大字現價 */}
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className={`text-3xl font-bold tracking-tight tabular ${textColor[t]}`}>
-            {fmt(price)}
-          </span>
-        </div>
-
-        {/* 第三行：襯線股名、市場別；右側漲跌幅 */}
-        <div className="mt-1.5 flex items-baseline justify-between gap-2">
-          <div className="min-w-0">
-            <div className="truncate font-serif text-base font-medium leading-tight text-ink">
-              {row.name}
-            </div>
-            <div className="mt-0.5 text-[11px] text-muted">
-              {row.market === "tse" ? "上市" : "上櫃"}
-            </div>
-          </div>
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="font-mono text-sm font-bold tabular text-ink">{fmt(price)}</span>
           {quote && (
             <span
-              className={`shrink-0 rounded-pill px-2 py-1 text-right font-mono text-xs font-semibold tabular ${chipColor[t]}`}
+              className={`rounded-pill px-2 py-0.5 font-mono text-xs font-bold tabular ${chipColor[t]}`}
             >
               {arrowOf(t)} {fmtPct(quote.changePct)}
             </span>
           )}
-        </div>
+          <IconChevronDown
+            className="h-4 w-4 shrink-0 text-faint transition-colors group-hover:text-muted"
+            aria-hidden="true"
+          />
+        </span>
+      </div>
 
-        {/* 提醒門檻區塊：沿用原本判斷邏輯，僅換容器 */}
-        <div className="mt-3 border-t border-dotted border-line pt-2.5">
-          {hasAlert ? (
-            <div className="flex flex-wrap gap-2 font-mono text-xs">
-              {row.alert_high != null && (
-                <span
-                  className={`rounded-pill px-2.5 py-1 font-medium tabular ${
-                    highHit ? "bg-up text-white" : "bg-up-tint text-up"
-                  }`}
-                >
-                  ▲ 目標 {fmt(row.alert_high)}
-                  <span className="ml-1 font-normal">
-                    {highHit
-                      ? "・已觸及"
-                      : price != null
-                        ? `・差 ${fmtPct((row.alert_high - price) / price)}`
-                        : ""}
-                  </span>
-                </span>
-              )}
-              {row.alert_low != null && (
-                <span
-                  className={`rounded-pill px-2.5 py-1 font-medium tabular ${
-                    lowHit ? "bg-down text-white" : "bg-down-tint text-down"
-                  }`}
-                >
-                  ▼ 目標 {fmt(row.alert_low)}
-                  <span className="ml-1 font-normal">
-                    {lowHit
-                      ? "・已觸及"
-                      : price != null
-                        ? `・差 ${fmtPct((price - row.alert_low) / price)}`
-                        : ""}
-                  </span>
-                </span>
-              )}
-              {row.alert_change_pct != null && (
-                <span className="rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
-                  ±{row.alert_change_pct}%
-                </span>
-              )}
-              {row.alert_volume_on && (
-                <span className="flex items-center gap-1 rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
-                  <IconChartBar className="h-3 w-3" /> 爆量
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="text-xs text-muted">尚未設定提醒，點此設定</div>
-          )}
-        </div>
-      </button>
-    </div>
+      {/* 第二行：門檻標籤（已觸及＝實色、監控中＝淡底；漲跌幅／爆量走中性色，不與紅漲綠跌混淆） */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {hasAlert ? (
+          <>
+            {row.alert_high != null && (
+              <span
+                className={`rounded-pill px-2 py-0.5 font-mono text-[11px] font-semibold tabular ${
+                  highHit ? "bg-up text-white" : "bg-up-tint text-up"
+                }`}
+              >
+                漲到 {fmt(row.alert_high)}
+                {highHit
+                  ? "・已觸及"
+                  : price != null
+                    ? `・差 ${fmtPct((row.alert_high - price) / price)}`
+                    : ""}
+              </span>
+            )}
+            {row.alert_low != null && (
+              <span
+                className={`rounded-pill px-2 py-0.5 font-mono text-[11px] font-semibold tabular ${
+                  lowHit ? "bg-down text-white" : "bg-down-tint text-down"
+                }`}
+              >
+                跌到 {fmt(row.alert_low)}
+                {lowHit
+                  ? "・已觸及"
+                  : price != null
+                    ? `・差 ${fmtPct((price - row.alert_low) / price)}`
+                    : ""}
+              </span>
+            )}
+            {row.alert_change_pct != null && (
+              <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-semibold tabular text-ink ring-1 ring-line">
+                漲跌幅 ±{row.alert_change_pct}%
+              </span>
+            )}
+            {row.alert_volume_on && (
+              <span className="flex items-center gap-1 rounded-pill bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-line">
+                <IconChartBar className="h-3 w-3" aria-hidden="true" /> 爆量
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="inline-flex items-center rounded-pill border border-dashed border-line-strong px-2.5 py-0.5 text-[11px] font-medium text-muted transition-colors group-hover:border-primary group-hover:text-primary">
+            ＋ 設定提醒
+          </span>
+        )}
+      </div>
+    </button>
   );
 }
 
@@ -317,14 +301,9 @@ export default function AlertsPage() {
   }, [watchlist, quote]);
 
   const editingRow = items.find((a) => a.stock_id === editing) ?? null;
-  // 狀態列用：已實際設定任一種提醒門檻的檔數（僅供顯示，計算與排序邏輯無關）
-  const alertedCount = items.filter(
-    (a) =>
-      a.alert_high != null ||
-      a.alert_low != null ||
-      a.alert_change_pct != null ||
-      a.alert_volume_on
-  ).length;
+  // 分兩區呈現：已設提醒（管理重點）在前，尚未設定在後
+  const alerted = items.filter((a) => hasAnyAlert(a));
+  const unset = items.filter((a) => !hasAnyAlert(a));
 
   return (
     <div className="min-h-screen">
@@ -363,7 +342,15 @@ export default function AlertsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1360px] space-y-4 px-4 py-5 sm:px-[18px]">
+      {/* 主欄：窄螢幕單欄 820；寬螢幕（≥1000px）且兩區都有內容時放寬為 1180 走左右欄
+          （已設提醒｜尚未設定），只有一區時維持 820 單欄，避免孤欄被拉太寬 */}
+      <main
+        className={`mx-auto space-y-5 px-4 py-5 sm:px-[18px] ${
+          alerted.length > 0 && unset.length > 0
+            ? "max-w-[820px] min-[1000px]:max-w-[1180px]"
+            : "max-w-[820px]"
+        }`}
+      >
         <MobileNetworkBanner
           stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
@@ -373,28 +360,10 @@ export default function AlertsPage() {
           <LineFailureBanner minutesAgo={lineFailure.minutesAgo} />
         )}
 
-        {/* 狀態列：已設提醒檔數／自選總數，對齊首頁 board-head 語彙 */}
-        {items.length > 0 && (
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 className="text-base font-semibold text-ink">提醒總覽</h2>
-            <p className="inline-flex items-center gap-1.5 text-xs text-muted">
-              <span
-                aria-hidden="true"
-                className={`h-1.5 w-1.5 rounded-full bg-primary ${alertedCount > 0 ? "pulse-dot" : ""}`}
-              />
-              <b className="font-mono font-bold tabular text-ink">{alertedCount}</b>
-              {" "}/ {items.length} 檔已設提醒
-            </p>
-          </div>
-        )}
-
         {!watchlist.data ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-40 animate-pulse rounded-card bg-surface shadow-card"
-              />
+              <div key={i} className="h-[72px] animate-pulse bg-surface" />
             ))}
           </div>
         ) : items.length === 0 ? (
@@ -403,18 +372,69 @@ export default function AlertsPage() {
             description="還沒有自選股。先到「自選」分頁加入個股，再回來設定到價提醒。"
           />
         ) : (
-          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((a) => (
-              <AlertQuoteCard
-                key={a.stock_id}
-                row={a}
-                quote={priceOf.get(a.stock_id)}
-                isEditing={editing === a.stock_id}
-                onToggle={() =>
-                  setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
-                }
-              />
-            ))}
+          <div
+            className={`space-y-5 ${
+              alerted.length > 0 && unset.length > 0
+                ? "min-[1000px]:grid min-[1000px]:grid-cols-2 min-[1000px]:items-start min-[1000px]:gap-5 min-[1000px]:space-y-0"
+                : ""
+            }`}
+          >
+            {alerted.length > 0 && (
+              <section className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 rounded-full bg-primary pulse-dot"
+                  />
+                  <h2 className="font-mono text-[10px] tracking-[2px] text-muted">
+                    已設提醒
+                  </h2>
+                  <b className="font-mono text-xs font-bold tabular text-ink">
+                    {alerted.length}
+                  </b>
+                  <span className="h-px flex-1 bg-line" aria-hidden="true" />
+                </div>
+                <div className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+                  {alerted.map((a) => (
+                    <AlertListRow
+                      key={a.stock_id}
+                      row={a}
+                      quote={priceOf.get(a.stock_id)}
+                      isEditing={editing === a.stock_id}
+                      onToggle={() =>
+                        setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+            {unset.length > 0 && (
+              <section className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-mono text-[10px] tracking-[2px] text-muted">
+                    尚未設定
+                  </h2>
+                  <b className="font-mono text-xs font-bold tabular text-muted">
+                    {unset.length}
+                  </b>
+                  <span className="h-px flex-1 bg-line" aria-hidden="true" />
+                </div>
+                <div className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
+                  {unset.map((a) => (
+                    <AlertListRow
+                      key={a.stock_id}
+                      row={a}
+                      quote={priceOf.get(a.stock_id)}
+                      isEditing={editing === a.stock_id}
+                      onToggle={() =>
+                        setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
       </main>

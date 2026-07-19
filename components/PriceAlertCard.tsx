@@ -34,6 +34,19 @@ function mmdd(iso: string): string {
   }).format(d);
 }
 
+// 門檻狀態註記：未設定時不顯示（避免孤懸的「—」被誤讀成按鈕）；設定後顯示監控中或觸發時間。
+// 放在輸入框下方整行，不擠在窄欄裡直排斷字。
+function StatusNote({ set, hitAt }: { set: boolean; hitAt: string | null }) {
+  if (!set) return null;
+  return hitAt ? (
+    <span className="whitespace-nowrap font-mono text-[10px] tabular text-warn">
+      已於 {mmdd(hitAt)} 觸發
+    </span>
+  ) : (
+    <span className="whitespace-nowrap font-mono text-[10px] tabular text-muted">監控中</span>
+  );
+}
+
 // 到價提醒卡片：僅限自選股；穿越門檻時由後端常駐排程推 LINE（一次性，重設門檻可再武裝）。
 export default function PriceAlertCard({
   stockId,
@@ -190,22 +203,18 @@ export default function PriceAlertCard({
               placeholder="未設定"
               className="min-w-0 flex-1 rounded-card border border-line bg-app px-2.5 py-1.5 font-mono text-sm tabular outline-none transition-colors focus:border-up"
             />
-            <span className="w-16 shrink-0 text-right font-mono text-[10px] tabular text-muted">
-              {row?.alert_high == null
-                ? "—"
-                : row.alert_high_hit_at
-                  ? `已於 ${mmdd(row.alert_high_hit_at)} 觸發`
-                  : "監控中"}
-            </span>
           </label>
-          <button
-            type="button"
-            onClick={() => quickFill("high", 0.05)}
-            disabled={currentPrice == null}
-            className="ml-14 w-fit rounded-pill bg-up-tint px-2.5 py-1 text-[11px] font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            現價 +5%
-          </button>
+          <div className="ml-14 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => quickFill("high", 0.05)}
+              disabled={currentPrice == null}
+              className="w-fit rounded-pill bg-up-tint px-2.5 py-1 text-[11px] font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              現價 +5%
+            </button>
+            <StatusNote set={row?.alert_high != null} hitAt={row?.alert_high_hit_at ?? null} />
+          </div>
         </div>
         {/* 跌到（綠） */}
         <div className="flex flex-col gap-1.5">
@@ -218,22 +227,18 @@ export default function PriceAlertCard({
               placeholder="未設定"
               className="min-w-0 flex-1 rounded-card border border-line bg-app px-2.5 py-1.5 font-mono text-sm tabular outline-none transition-colors focus:border-down"
             />
-            <span className="w-16 shrink-0 text-right font-mono text-[10px] tabular text-muted">
-              {row?.alert_low == null
-                ? "—"
-                : row.alert_low_hit_at
-                  ? `已於 ${mmdd(row.alert_low_hit_at)} 觸發`
-                  : "監控中"}
-            </span>
           </label>
-          <button
-            type="button"
-            onClick={() => quickFill("low", -0.05)}
-            disabled={currentPrice == null}
-            className="ml-14 w-fit rounded-pill bg-down-tint px-2.5 py-1 text-[11px] font-medium text-down transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            現價 −5%
-          </button>
+          <div className="ml-14 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => quickFill("low", -0.05)}
+              disabled={currentPrice == null}
+              className="w-fit rounded-pill bg-down-tint px-2.5 py-1 text-[11px] font-medium text-down transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              現價 −5%
+            </button>
+            <StatusNote set={row?.alert_low != null} hitAt={row?.alert_low_hit_at ?? null} />
+          </div>
         </div>
         <div className="border-t border-dotted border-line pt-3" />
         {/* 漲跌幅提醒（每日一次性，隔日自動重新啟用，不需手動重設） */}
@@ -251,14 +256,12 @@ export default function PriceAlertCard({
               />
               <span className="shrink-0 font-mono text-sm text-muted">%</span>
             </div>
-            <span className="w-16 shrink-0 text-right font-mono text-[10px] tabular text-muted">
-              {row?.alert_change_pct == null
-                ? "—"
-                : row.alert_change_hit_at
-                  ? `${mmdd(row.alert_change_hit_at)} 已觸發`
-                  : "監控中"}
-            </span>
           </label>
+          {row?.alert_change_pct != null && (
+            <div className="ml-14 flex justify-end">
+              <StatusNote set hitAt={row.alert_change_hit_at} />
+            </div>
+          )}
         </div>
         {/* 爆量提醒：現量達近 5 日均量 2 倍即推播；同樣每日一次性 */}
         <div className="flex items-center justify-between gap-2">
@@ -271,13 +274,14 @@ export default function PriceAlertCard({
             role="switch"
             aria-checked={volumeOn}
             onClick={() => setVolumeOn((v) => !v)}
-            className={`relative h-5 w-9 shrink-0 rounded-pill transition-colors ${
-              volumeOn ? "bg-primary" : "bg-line"
+            className={`relative h-6 w-11 shrink-0 rounded-pill transition-colors ${
+              volumeOn ? "bg-primary" : "bg-line-strong"
             }`}
           >
+            {/* 圓鈕必須錨定 left-0.5：button 預設置中會讓 absolute 元素的靜態位置在中間，再位移就衝出右緣 */}
             <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                volumeOn ? "translate-x-4" : "translate-x-0.5"
+              className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                volumeOn ? "translate-x-5" : ""
               }`}
             />
           </button>

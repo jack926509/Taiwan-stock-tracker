@@ -146,6 +146,9 @@ export default function ClosingSummary() {
         )}
         <span>今日觸發提醒 {s.alertHits} 則</span>
       </div>
+
+      {/* 收尾細線：卡片 ring 很淡，內容結束處補一條細線明確收版（2026-07-19 使用者要求） */}
+      <div aria-hidden="true" className="mt-3.5 h-px bg-line" />
     </section>
   );
 }

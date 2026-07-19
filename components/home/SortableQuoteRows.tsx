@@ -48,7 +48,7 @@ export function SortableRow({ id, children }: { id: string; children: ReactNode 
         {...attributes}
         {...listeners}
         aria-label="拖曳排序"
-        className="absolute left-0.5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-lg text-faint transition-[color,opacity] hover:text-muted active:cursor-grabbing focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:h-8 md:w-8 md:[@media(hover:hover)]:opacity-0 md:[@media(hover:hover)]:group-hover/sort:opacity-100"
+        className="absolute left-0.5 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-lg text-faint transition-[color,opacity] hover:text-muted active:cursor-grabbing focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-[600px]:h-8 min-[600px]:w-8 md:[@media(hover:hover)]:opacity-0 md:[@media(hover:hover)]:group-hover/sort:opacity-100"
       >
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
           <circle cx="9" cy="6" r="1.4" />

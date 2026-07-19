@@ -27,9 +27,15 @@ export const FILTERS = [
 ] as const;
 export type FilterKey = (typeof FILTERS)[number]["key"];
 
-// 桌面 7 欄格線，照抄視覺規範 2026-07-18-visual-spec-final.html（.thead, .row）
+// 桌面格線源自視覺規範 2026-07-18-visual-spec-final.html（.thead, .row）7 欄，
+// 另加一欄（36px）放刪除鍵：不可用 absolute 浮貼＋列 padding 預留——padding 會壓縮
+// 格線可用寬，寬度不足時欄位溢出 padding 區、刪除鍵照樣疊到最後一欄（2026-07-19 教訓）。
+// 600–1359px 只排 6 欄（藏成交量、日內走勢）：表格一旦橫向溢出，Mac 觸控板帶斜向的
+// 捲動手勢會被鎖在表格橫向軸、整頁垂直捲動被吃掉（CDP 手勢實測重現；使用者若開
+// 頁面縮放，有效寬度更容易落入此區間）。≥1360px 才排滿 8 欄。
 const GRID_COLS =
-  "grid-cols-[minmax(150px,1.1fr)_90px_120px_minmax(196px,1.5fr)_86px_104px_92px]";
+  "grid-cols-[minmax(140px,1.1fr)_84px_110px_minmax(196px,1.5fr)_92px_36px] " +
+  "min-[1360px]:grid-cols-[minmax(140px,1.1fr)_84px_110px_minmax(196px,1.5fr)_80px_88px_92px_36px]";
 // 手機把同一組欄位改用具名區域堆成卡片，照抄規範 .row（max-width:599px）
 const MOBILE_AREAS =
   "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'pill_change'_'sig_sig'_'trend_trend'_'foot_foot']";
@@ -78,7 +84,7 @@ function Row({
     <SwipeToDelete onDelete={() => onDelete(quote.stockId, quote.name)}>
       <div
         id={`stock-${quote.stockId}`}
-        className={`group relative scroll-mt-24 grid items-center gap-3.5 border-b border-line bg-surface px-4 py-3 last:border-b-0 hover:bg-surface-2 rise-in max-[599px]:gap-y-2.5 max-[599px]:rounded-card max-[599px]:border max-[599px]:border-line max-[599px]:bg-surface max-[599px]:px-4 max-[599px]:py-3.5 max-[599px]:shadow-card ${GRID_COLS} ${MOBILE_AREAS} ${reorderable ? "max-[599px]:pl-8" : ""}`}
+        className={`group relative scroll-mt-24 grid items-center gap-3 border-line bg-surface px-4 py-3 hover:bg-surface-2 rise-in max-[599px]:gap-y-2.5 max-[599px]:rounded-card max-[599px]:border max-[599px]:border-line max-[599px]:bg-surface max-[599px]:px-4 max-[599px]:py-3.5 max-[599px]:shadow-card ${GRID_COLS} ${MOBILE_AREAS} ${reorderable ? "max-[599px]:pl-8 min-[600px]:pl-9" : ""}`}
       >
         {/* 左緣 3px 漲跌色條 */}
         <span
@@ -98,7 +104,7 @@ function Row({
           <span className="min-w-0">
             <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
               <span className="truncate">{quote.name}</span>
-              {hasAlert && <BellIcon className="h-3 w-3 shrink-0 text-primary" />}
+              {hasAlert && <BellIcon className="h-3.5 w-3.5 shrink-0 text-warn" />}
             </span>
             <span className="mt-0.5 block font-mono text-[10px] text-faint">
               {quote.market === "tse" ? "上市" : "上櫃"}
@@ -156,11 +162,13 @@ function Row({
           )}
         </div>
 
-        <div className="text-right font-mono text-xs tabular text-ink [grid-area:vol] max-[599px]:hidden">
+        {/* 成交量欄只在 ≥1360px 排入格線（600–1359 藏欄防橫向捲軸；<600 手機另在 foot 列顯示量）；
+            桌面格線沒有具名區域，不可加 grid-area，否則會被推進隱形末欄並多出一列空白 */}
+        <div className="hidden text-right font-mono text-xs tabular text-ink min-[1360px]:block">
           {fmtVol(quote.volume)}
         </div>
 
-        <div className="flex justify-center max-[599px]:[grid-area:trend]">
+        <div className="flex justify-center max-[599px]:[grid-area:trend] min-[600px]:max-[1359px]:hidden">
           {spark && spark.length > 1 ? <Sparkline points={spark} /> : <span className="text-xs text-faint">—</span>}
         </div>
 
@@ -173,19 +181,20 @@ function Row({
             量 {fmtVol(quote.volume)}
           </span>
           {hasAlert ? (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-semibold text-primary">
-              <BellIcon className="h-2.5 w-2.5" />已設
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-pill bg-warn-tint px-2 py-0.5 text-[10px] font-semibold text-warn">
+              <BellIcon className="h-3 w-3" />已設
             </span>
           ) : (
             <span className="text-[11px] text-faint">—</span>
           )}
         </div>
 
+        {/* 刪除鍵＝格線第 8 欄（40px）的正式成員，滑入列才浮現；手機（<600px）改用滑動刪除 */}
         <button
           type="button"
           onClick={() => onDelete(quote.stockId, quote.name)}
           aria-label={`刪除 ${quote.name}`}
-          className="absolute right-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-up-tint hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97] md:flex max-[599px]:hidden"
+          className="hidden h-8 w-8 items-center justify-center justify-self-end rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-up-tint hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97] md:flex max-[599px]:hidden"
         >
           ✕
         </button>
@@ -255,22 +264,28 @@ export default function QuoteBoard({
   });
 
   return (
-    // 600–999px（平板窄寬）時 7 欄表格的最小內容寬（約 922px）可能超過可用欄寬；
-    // 外層 overflow-x-auto 讓「表格自己」局部橫向捲動，不把整個頁面撐寬（見 task-7-report.md）。
+    // 6 欄版最小內容寬約 770px，600–805px 視窗仍可能溢出；外層 overflow-x-auto 讓
+    // 「表格自己」局部橫向捲動，不把整個頁面撐寬（見 task-7-report.md）。此捲動容器
+    // 在溢出時會吃掉觸控板斜向手勢的垂直分量，所以欄位設計上盡量讓它不溢出。
     <div className="max-[599px]:overflow-visible overflow-x-auto">
       <div className="rounded-card border border-line bg-surface shadow-card max-[599px]:border-0 max-[599px]:bg-transparent max-[599px]:shadow-none">
         <div
-          className={`grid items-center gap-3.5 border-b border-line bg-surface-2 px-4 py-2.5 font-mono text-[10px] uppercase tracking-wide text-muted max-[599px]:hidden ${GRID_COLS}`}
+          className={`grid items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 font-mono text-[10px] uppercase tracking-wide text-muted max-[599px]:hidden ${GRID_COLS} ${canDrag ? "min-[600px]:pl-9" : ""}`}
         >
           <span>商品</span>
           <span className="text-right">現價</span>
           <span className="text-right">漲跌 / 幅度</span>
           <span>訊號</span>
-          <span className="text-right">量</span>
-          <span className="text-center">日內走勢</span>
+          {/* 量、日內走勢兩欄與列一致：只在 ≥1360px 排入 */}
+          <span className="hidden text-right min-[1360px]:block">量</span>
+          <span className="hidden text-center min-[1360px]:block">日內走勢</span>
           <span className="text-right">報價 / 提醒</span>
+          {/* 末欄＝刪除鍵欄，表頭留空對齊 */}
+          <span aria-hidden="true" />
         </div>
-        <div className="max-[599px]:grid max-[599px]:gap-3">
+        {/* 列間細分隔線畫在容器（divide-y 作用於外層 wrapper）：列本身不能用 border-b＋last:，
+            因為每列都被 rise-in/Sortable wrapper 包住、皆為 :last-child，線會全被吃掉 */}
+        <div className="divide-y divide-line max-[599px]:grid max-[599px]:gap-3 max-[599px]:divide-y-0">
           {canDrag && onReorder ? (
             <SortableQuoteRows ids={ids} onReorder={onReorder}>
               {rows}

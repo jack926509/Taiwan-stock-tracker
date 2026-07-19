@@ -44,7 +44,7 @@ export default function WatchlistToolbar({
                   onClick={() => onSort(s.key)}
                   aria-label={`依${s.label}排序`}
                   aria-pressed={sort === s.key}
-                  className={`min-h-11 rounded-pill px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
+                  className={`min-h-11 rounded-pill px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:min-h-8 ${
                     sort === s.key
                       ? "bg-primary text-white shadow-card dark:text-app"
                       : "border border-line bg-surface text-muted hover:border-primary hover:text-primary"
@@ -65,7 +65,7 @@ export default function WatchlistToolbar({
                   onClick={() => onFilter(f.key)}
                   aria-label={`篩選：${f.label}`}
                   aria-pressed={filter === f.key}
-                  className={`min-h-11 whitespace-nowrap rounded-pill px-3 py-1 text-xs font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] ${
+                  className={`min-h-11 whitespace-nowrap rounded-pill px-3 py-1 text-xs font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:min-h-8 ${
                     filter === f.key
                       ? "bg-primary text-white ring-primary dark:text-app"
                       : "bg-surface text-muted ring-line hover:bg-primary-tint hover:text-primary"

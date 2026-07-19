@@ -31,11 +31,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover", // 讓 env(safe-area-inset-*) 在 iPhone 瀏海/底欄生效
-  // 夜報版：瀏覽器 UI（如 Android 網址列色塊）跟隨系統深色模式自動換色
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F5F1E8" },
-    { media: "(prefers-color-scheme: dark)", color: "#14110C" },
-  ],
+  // 全站固定暖米白，瀏覽器 UI（如 Android 網址列色塊）同色（2026-07-19 取消夜報版）
+  themeColor: "#F5F1E8",
 };
 
 export default function RootLayout({

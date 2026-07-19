@@ -46,7 +46,7 @@ export default function IndexCards({ indices }: { indices: Quote[] }) {
     <div
       role="list"
       aria-label="大盤指數"
-      className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-2 min-[1000px]:grid-cols-1"
+      className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-2 min-[1360px]:grid-cols-1"
     >
       {indices.map((q) => (
         <div key={q.stockId} role="listitem" className="min-w-0">
