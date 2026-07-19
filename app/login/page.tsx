@@ -40,20 +40,20 @@ export default function LoginPage() {
         onSubmit={submit}
         className="w-full max-w-xs space-y-4 rounded-card border border-line bg-surface p-6 shadow-card"
       >
-        <h1 className="text-center text-lg font-semibold">台股追蹤</h1>
+        <h1 className="text-center text-lg font-semibold text-ink">台股追蹤</h1>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="輸入存取密碼"
           autoFocus
-          className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-primary"
+          className="w-full rounded-lg border border-line bg-app px-3 py-2 text-sm text-ink outline-none focus:border-primary"
         />
-        {error && <p className="text-xs text-up">{error}</p>}
+        {error && <p className="text-xs text-warn">{error}</p>}
         <button
           type="submit"
           disabled={busy || !password}
-          className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white disabled:opacity-50 dark:text-app"
         >
           {busy ? "驗證中…" : "進入"}
         </button>

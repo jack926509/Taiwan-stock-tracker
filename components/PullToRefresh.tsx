@@ -81,7 +81,7 @@ export default function PullToRefresh({
       className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex justify-center md:hidden"
       style={{ transform: `translateY(${Math.max(0, pull - 48)}px)` }}
     >
-      <div className="rounded-pill bg-ink px-3 py-1.5 text-xs font-semibold text-white shadow-card">
+      <div className="rounded-pill bg-ink px-3 py-1.5 text-xs font-semibold text-white shadow-card dark:text-app">
         {pull >= TRIGGER_PX ? "放開更新" : "下拉更新"}
       </div>
     </div>

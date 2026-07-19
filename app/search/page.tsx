@@ -9,16 +9,16 @@ import AddStockForm from "@/components/AddStockForm";
 export default function SearchPage() {
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-line/70 bg-app/95 pt-[env(safe-area-inset-top)]">
+      <header className="sticky top-0 z-40 border-b border-line bg-app/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
             href="/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card bg-surface text-muted ring-1 ring-line transition-colors hover:text-ink active:scale-[0.97] md:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted shadow-card transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:hidden"
             aria-label="返回自選"
           >
             ←
           </Link>
-          <span className="font-serif font-semibold">搜尋個股</span>
+          <span className="font-serif font-semibold text-ink">搜尋個股</span>
         </div>
       </header>
 
@@ -31,7 +31,7 @@ export default function SearchPage() {
         </section>
 
         <section className="rounded-card bg-surface p-4 shadow-card ring-1 ring-line">
-          <h2 className="mb-3 font-serif text-sm font-semibold">加入自選股</h2>
+          <h2 className="mb-3 font-serif text-sm font-semibold text-ink">加入自選股</h2>
           <AddStockForm onAdded={() => {}} />
         </section>
       </main>
