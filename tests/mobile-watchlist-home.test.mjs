@@ -9,19 +9,40 @@ const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("首頁提供搜尋入口、可換行的排序篩選工具列與離線快取時間", async () => {
-  const [page, toolbar, dashboard, banner] = await Promise.all([
+  const [page, toolbar, dashboard, banner, searchPage] = await Promise.all([
     read("app/page.tsx"),
     read("components/home/WatchlistToolbar.tsx"),
     read("lib/useHomeDashboard.ts"),
     read("components/MobileNetworkBanner.tsx"),
+    read("app/search/page.tsx"),
   ]);
 
   assert.match(page, /<StockSearch/);
+  // 新版型：手機首頁只放搜尋入口，加自選入口移到底部導覽的「搜尋」分頁（app/search/page.tsx），
+  // 桌機首頁另有 hidden md:block 的 AddStockForm。加自選功能未消失，只是換位置，故在此驗證搜尋頁具備。
+  assert.match(searchPage, /<AddStockForm/);
   // 舊版手機工具列用橫向捲動（overflow-x-auto）；視覺規範 2026-07-18-visual-spec-final.html
   // 的 .toolbar 改用可換行（flex-wrap），排序/篩選晶片在窄螢幕自動換行，不再橫向捲動。
   assert.match(toolbar, /flex-wrap/);
   assert.match(dashboard, /revalidateOnReconnect:\s*true/);
   assert.match(banner, /asOf/);
+});
+
+test("搜尋支援名稱與代號並以無障礙下拉呈現建議", async () => {
+  const [search, addForm, hook] = await Promise.all([
+    read("components/StockSearch.tsx"),
+    read("components/AddStockForm.tsx"),
+    read("hooks/useStockSuggestions.ts"),
+  ]);
+
+  for (const source of [search, addForm]) {
+    assert.match(source, /useStockSuggestions/);
+    assert.match(source, /role="listbox"/);
+    assert.doesNotMatch(source, /inputMode="numeric"/);
+  }
+  assert.match(search, /role="combobox"/);
+  assert.match(search, /aria-activedescendant/);
+  assert.match(hook, /\/api\/search\?q=/);
 });
 
 test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
@@ -37,8 +58,8 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
 
   assert.match(card, /報價/);
   assert.match(card, /成交/);
-  // 舊版手機卡片訊號上限 1 個（signals.slice(0, 1)）；新版表格列改用合併徽章
-  // （漲跌停 + 訊號）並保留手機資訊層級上限，上限改為 3（badges.slice(0, 3)）。
+  // 舊版手機卡片訊號上限 1 個（signals.slice(0, 1)），遠端曾放寬為 2；新版表格列改用合併徽章
+  // （漲跌停 + 訊號）並保留手機資訊層級上限，上限為 3（badges.slice(0, 3)），較兩版都寬，不弱化。
   assert.match(card, /badges\s*\.slice\(0, 3\)/);
   assert.match(card, /reorderable/);
   // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
@@ -63,8 +84,8 @@ test("大盤指數卡在左欄堆疊，600–999px 併排兩欄、其餘斷點�
 });
 
 test("桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號可換行不裁切", async () => {
-  // 舊版桌面是 3 欄卡片格線（lg:grid-cols-3）；Task 7 換成視覺規範的表格（.thead/.row 7 欄），
-  // 這裡改驗證新格線與「名稱/訊號不被壓縮裁切」兩件事的新載體。
+  // 舊版桌面是 3 欄卡片格線（lg:grid-cols-3，元件 DraggableGrid/QuoteCard 已刪除）；
+  // Task 7 換成視覺規範的表格（.thead/.row 7 欄），這裡改驗證新格線與「名稱/訊號不被壓縮裁切」。
   const board = await read("components/home/QuoteBoard.tsx");
   assert.match(
     board,
@@ -105,18 +126,37 @@ test("大盤指數卡名稱與市場代碼清楚分列且保留小字警告語�
 });
 
 test("桌面刪除與手機左滑共用確認流程且提供操作狀態", async () => {
-  const [page, swipe, dialog] = await Promise.all([
+  const [page, dashboard, swipe, dialog, toast] = await Promise.all([
     read("app/page.tsx"),
+    read("lib/useHomeDashboard.ts"),
     read("components/SwipeToDelete.tsx"),
     read("components/DeleteStockDialog.tsx"),
+    read("components/Toast.tsx"),
   ]);
 
   assert.match(page, /<DeleteStockDialog/);
-  assert.match(page, /aria-live="polite"/);
+  // 視覺回饋改由 Toast 承擔（資料層 useHomeDashboard 觸發）；Toast 容器本身是 aria-live 區域（讀屏＋明眼共用同一份訊息）
+  assert.match(dashboard, /toast\.show/);
+  assert.match(toast, /aria-live="polite"/);
+  assert.match(toast, /role="status"/);
   assert.match(dialog, /role="dialog"/);
   assert.match(dialog, /aria-modal="true"/);
   assert.match(dialog, /確定刪除/);
   assert.doesNotMatch(swipe, /setDx\(-window\.innerWidth\)/);
+});
+
+test("破壞性操作使用 danger 色而非漲色紅", async () => {
+  const [swipe, dialog, config] = await Promise.all([
+    read("components/SwipeToDelete.tsx"),
+    read("components/DeleteStockDialog.tsx"),
+    read("tailwind.config.ts"),
+  ]);
+
+  assert.match(config, /danger:/);
+  assert.match(swipe, /bg-danger/);
+  assert.doesNotMatch(swipe, /bg-up/);
+  assert.match(dialog, /bg-danger/);
+  assert.doesNotMatch(dialog, /bg-up/);
 });
 
 test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點留在對話框", async () => {
@@ -126,7 +166,8 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
     read("components/DeleteStockDialog.tsx"),
   ]);
 
-  assert.match(dashboard, /setPendingDelete\(null\);[\s\S]*setLiveMessage\(`已刪除/);
+  // 操作回饋由 Toast 承擔（Toast 容器本身是 aria-live），刪除成功訊息在資料層 useHomeDashboard 觸發
+  assert.match(dashboard, /setPendingDelete\(null\);[\s\S]*toast\.show\(`已刪除/);
   assert.match(dashboard, /void refreshAll\(\)\.catch/);
   assert.match(dialog, /tabIndex=\{-1\}/);
   assert.match(dialog, /if \(open && busy\)[\s\S]*dialogRef\.current\?\.focus/);
@@ -139,14 +180,14 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
 
 test("首頁深色模式的彩色底互動元件使用深色前景", async () => {
   // app/page.tsx 本身不再直接持有任何彩色底互動元件（都搬進 components/home/*）；
-  // 檢查目標換成實際持有這些元件的新檔案，範圍不縮小（新增 TopBar/WatchlistToolbar/QuoteBoard）。
+  // 檢查目標換成實際持有這些元件的新檔案，範圍不縮小（TopBar/WatchlistToolbar/QuoteBoard）。
+  // 註：StockSearch 改版後不再有彩色底按鈕，故不在此清單。
   const files = await Promise.all([
     read("components/home/TopBar.tsx"),
     read("components/home/WatchlistToolbar.tsx"),
     read("components/home/QuoteBoard.tsx"),
     read("components/DeleteStockDialog.tsx"),
     read("components/AddStockForm.tsx"),
-    read("components/StockSearch.tsx"),
     read("components/SwipeToDelete.tsx"),
   ]);
 

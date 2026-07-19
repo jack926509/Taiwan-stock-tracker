@@ -10,8 +10,17 @@ import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import EmptyState from "@/components/EmptyState";
 import { fmt, fmtPct, trendOf, arrowOf, textColor, chipColor } from "@/lib/format";
-import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionLabel } from "@/lib/marketSession";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import useDialogFocus from "@/hooks/useDialogFocus";
+import { usePollGuard } from "@/hooks/usePollGuard";
+import {
+  IconArrowLeft,
+  IconChevronDown,
+  IconX,
+  IconChartBar,
+  IconAlertTriangle,
+} from "@/components/icons";
 
 interface AlertRow {
   stock_id: string;
@@ -40,8 +49,12 @@ const LINE_FAILURE_STALE_MIN = 180;
 
 function LineFailureBanner({ minutesAgo }: { minutesAgo: number }) {
   return (
-    <div className="rounded-xl border border-warn/20 bg-warn-tint px-4 py-3 text-sm font-medium text-warn">
-      ⚠️ LINE 推播可能異常（最近一次失敗約 {minutesAgo} 分鐘前），提醒可能未送達，請檢查。
+    <div className="flex items-start gap-2 rounded-xl border border-warn/20 bg-warn-tint px-4 py-3 text-sm font-medium text-warn">
+      <IconAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>
+        LINE 推播可能異常（最近一次失敗約 {minutesAgo}{" "}
+        分鐘前），提醒可能未送達，請檢查。
+      </span>
     </div>
   );
 }
@@ -100,7 +113,7 @@ function AlertQuoteCard({
             {row.stock_id}
           </span>
           <span className="shrink-0 text-muted" aria-hidden="true">
-            ⌄
+            <IconChevronDown className="h-4 w-4" />
           </span>
         </div>
 
@@ -172,8 +185,8 @@ function AlertQuoteCard({
                 </span>
               )}
               {row.alert_volume_on && (
-                <span className="rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
-                  📊 爆量
+                <span className="flex items-center gap-1 rounded-pill bg-line/60 px-2.5 py-1 font-medium tabular text-ink">
+                  <IconChartBar className="h-3 w-3" /> 爆量
                 </span>
               )}
             </div>
@@ -199,6 +212,9 @@ function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, sheetRef);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -222,7 +238,9 @@ function BottomSheet({
         aria-hidden="true"
       />
       <div
+        ref={sheetRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-label={title}
         className="sheet-pop relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-surface shadow-lift ring-1 ring-line sm:max-w-md sm:rounded-card"
@@ -235,9 +253,9 @@ function BottomSheet({
             type="button"
             onClick={onClose}
             aria-label="關閉"
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink active:scale-[0.95] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="-mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.95]"
           >
-            ✕
+            <IconX className="h-4 w-4" />
           </button>
         </div>
         <div className="px-4 pb-6 pt-3">{children}</div>
@@ -260,9 +278,7 @@ export default function AlertsPage() {
   const lineFailure = health.data?.lineLastFailure;
   const showLineFailureBanner =
     !!lineFailure && lineFailure.minutesAgo < LINE_FAILURE_STALE_MIN;
-  const [autoPaused, setAutoPaused] = useState(false);
-  const staleCount = useRef(0);
-  const lastTimeKey = useRef("");
+  const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
   const [now, setNow] = useState<Date | null>(null);
 
   // 頂部時段文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
@@ -273,45 +289,20 @@ export default function AlertsPage() {
   }, []);
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
-    refreshInterval: (latest) =>
-      autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+    refreshInterval,
     refreshWhenHidden: false,
-    onSuccess: (data) => {
-      // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
-      const key = data.quotes.map((q) => q.time).join("|");
-      if (data.marketOpen && key && key === lastTimeKey.current) {
-        staleCount.current += 1;
-        if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
-      } else {
-        staleCount.current = 0;
-      }
-      lastTimeKey.current = key;
-    },
+    onSuccess: onQuoteSuccess,
   });
-
-  // 使用者切回分頁時解除自動暫停、重新輪詢
-  useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "visible") {
-        staleCount.current = 0;
-        setAutoPaused(false);
-      }
-    };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
 
   const [editing, setEditing] = useState<string | null>(null);
 
   const priceOf = new Map(
     (quote.data?.quotes ?? []).map((q) => [q.stockId, q])
   );
-  // 已設提醒者排前面，其餘維持自選清單原順序
-  const items = [...(watchlist.data?.items ?? [])].sort((a, b) => {
-    const sa = a.alert_high != null || a.alert_low != null ? 0 : 1;
-    const sb = b.alert_high != null || b.alert_low != null ? 0 : 1;
-    return sa - sb;
-  });
+  // 已設提醒者排前面（四種提醒任一有設定即算），其餘維持自選清單原順序
+  const items = [...(watchlist.data?.items ?? [])].sort(
+    (a, b) => (hasAnyAlert(a) ? 0 : 1) - (hasAnyAlert(b) ? 0 : 1)
+  );
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -349,7 +340,7 @@ export default function AlertsPage() {
               aria-label="上一頁"
               title="上一頁"
             >
-              ←
+              <IconArrowLeft className="h-3.5 w-3.5" />
             </button>
             <span className="truncate font-serif text-lg font-bold tracking-tight text-ink">
               到價提醒

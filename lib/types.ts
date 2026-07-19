@@ -33,5 +33,7 @@ export interface WatchlistItem {
   alert_low: number | null;
   alert_high_hit_at: string | null;
   alert_low_hit_at: string | null;
+  alert_change_pct: number | null;
+  alert_volume_on: boolean;
   sort_order: number;
 }

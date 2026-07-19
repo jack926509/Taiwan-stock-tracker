@@ -24,8 +24,8 @@ function fmtPct(p: number | null, decimals = 2): string {
   return `${sign}${(p * 100).toFixed(decimals)}%`;
 }
 
-// 本週一（台北）的 ISO 日期；用來界定「本週累計」基準
-function thisMondayIso(t: TaipeiTime): string {
+// 本週一（台北）的 ISO 日期；用來界定「本週累計」基準（匯出供站內收盤總覽 lib/summaryData.ts 共用）
+export function thisMondayIso(t: TaipeiTime): string {
   const offset = t.dayOfWeek === 0 ? 6 : t.dayOfWeek - 1; // 距週一幾天
   const d = new Date(`${t.isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - offset);
@@ -33,7 +33,7 @@ function thisMondayIso(t: TaipeiTime): string {
 }
 
 // 本週累計漲跌幅（小數）：以本週一之前最後一個收盤為基準，對比現價
-async function weekChangePct(
+export async function weekChangePct(
   stockId: string,
   price: number | null,
   mondayIso: string
@@ -52,7 +52,7 @@ async function weekChangePct(
 // 訊號差集邏輯在 lib/summarySignals.ts（獨立小模組，node --test 可直接載入測試）
 
 // 以當日 MIS 報價合成一根收盤 candle；報價無現價時回 null（跳過該檔訊號計算，不誤報）
-function todayCandleFromQuote(
+export function todayCandleFromQuote(
   q: { price: number | null; open: number | null; high: number | null; low: number | null; volume: number | null },
   isoDate: string
 ): Candle | null {
@@ -67,7 +67,8 @@ function todayCandleFromQuote(
   };
 }
 
-function countTodayHits(items: WatchItem[], now: Date): number {
+// 供 lib/summaryData.ts 的站內收盤總覽計數用；沿用 alertLogic.hitToday 單一實作（台北日期比對）
+export function countTodayHits(items: WatchItem[], now: Date): number {
   let n = 0;
   for (const i of items) {
     if (hitToday(i.alert_high_hit_at, now)) n++;

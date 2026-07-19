@@ -31,6 +31,8 @@
   --c-flat: 124 116 96; /* 介於 muted 與 ink 之間的暖灰 */
   --c-warn: 151 82 0;
   --c-warn-tint: #f6ead6;
+  --c-danger: 139 30 18; /* #8b1e12 破壞性操作深磚紅，與漲色區隔 */
+  --c-danger-tint: #f3e3df;
 
   /* 卡片陰影色（淺色模式：暖墨半透明） */
   --shadow-card-color: rgba(74, 58, 28, 0.06);
@@ -66,6 +68,8 @@
     --c-flat: 179 167 141;
     --c-warn: 224 154 69;
     --c-warn-tint: rgba(224, 154, 69, 0.16);
+    --c-danger: 224 116 104; /* 深底需提亮才顯眼，與 up-strong 同邏輯 */
+    --c-danger-tint: rgba(224, 116, 104, 0.16);
 
     /* 深色模式陰影改用黑色系半透明，避免淺色陰影在暗底上發光 */
     --shadow-card-color: rgba(0, 0, 0, 0.35);
@@ -145,6 +149,15 @@ body {
   animation: sheet-up 0.2s ease-out;
 }
 
+/* 吐司通知：自畫面底部淡入上浮 */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .flash-up, .flash-down, .rise-in, .pulse-dot, .sheet-pop { animation: none; }
+  .flash-up, .flash-down, .rise-in, .pulse-dot, .sheet-pop, .toast-in { animation: none; }
 }

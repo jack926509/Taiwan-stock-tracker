@@ -3,6 +3,7 @@
 import Link from "next/link";
 import StockSearch from "@/components/StockSearch";
 import AddStockForm from "@/components/AddStockForm";
+import { IconArrowLeft } from "@/components/icons";
 
 // 搜尋分頁（手機底部導覽用，桌機亦可直接造訪）：
 // 上方查任意個股看 K 線/基本面，下方可直接加入自選。
@@ -16,7 +17,7 @@ export default function SearchPage() {
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted shadow-card transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.97] md:hidden"
             aria-label="返回自選"
           >
-            ←
+            <IconArrowLeft className="h-4 w-4" />
           </Link>
           <span className="font-serif font-semibold text-ink">搜尋個股</span>
         </div>
@@ -26,7 +27,7 @@ export default function SearchPage() {
         <section className="space-y-2">
           <StockSearch />
           <p className="px-1 text-xs text-muted">
-            輸入代號（例如 2330）即可查看 K 線與基本面，不必先加入自選。
+            輸入代號或公司名稱（例如 2330 或 台積電）即可查看 K 線與基本面，不必先加入自選。
           </p>
         </section>
 

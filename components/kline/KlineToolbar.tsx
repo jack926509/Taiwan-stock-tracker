@@ -43,10 +43,11 @@ export function OverlayToggleRow({
         <button
           key={def.label}
           onClick={() => onToggleMa(def.n)}
-          className={`flex min-h-[28px] items-center gap-1 rounded-pill px-2 py-1 font-medium ring-1 transition-colors ${
+          aria-pressed={maOn[def.n]}
+          className={`flex min-h-11 items-center gap-1 rounded-pill px-2.5 py-1 font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-[28px] sm:px-2 ${
             maOn[def.n]
               ? "bg-app text-ink ring-line"
-              : "bg-transparent text-muted/60 ring-line/50"
+              : "bg-transparent text-muted ring-line/50"
           }`}
         >
           <i
@@ -58,10 +59,11 @@ export function OverlayToggleRow({
       ))}
       <button
         onClick={onToggleBoll}
-        className={`flex min-h-[28px] items-center gap-1 rounded-pill px-2 py-1 font-medium ring-1 transition-colors ${
+        aria-pressed={showBoll}
+        className={`flex min-h-11 items-center gap-1 rounded-pill px-2.5 py-1 font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:min-h-[28px] sm:px-2 ${
           showBoll
             ? "bg-app text-ink ring-line"
-            : "bg-transparent text-muted/60 ring-line/50"
+            : "bg-transparent text-muted ring-line/50"
         }`}
       >
         <i
@@ -88,7 +90,8 @@ export function SubPaneTabs({
           <button
             key={it.key}
             onClick={() => onChange(it.key)}
-            className={`min-h-[44px] flex-1 whitespace-nowrap rounded-pill px-3 py-2 font-medium transition-colors sm:flex-none ${
+            aria-pressed={subPane === it.key}
+            className={`min-h-[44px] flex-1 whitespace-nowrap rounded-pill px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex-none ${
               subPane === it.key
                 ? "bg-surface text-ink shadow-card"
                 : "text-muted hover:text-ink"

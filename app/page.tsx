@@ -12,6 +12,7 @@ import TopBar from "@/components/home/TopBar";
 import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
+import ClosingSummary from "@/components/ClosingSummary";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
 
 export default function Dashboard() {
@@ -33,7 +34,6 @@ export default function Dashboard() {
     canSort,
     sessionLabel,
     sessionDetail,
-    liveMessage,
     pendingDelete,
     setPendingDelete,
     deleteBusy,
@@ -56,9 +56,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen">
       <PullToRefresh onRefresh={refreshAll} />
-      <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {liveMessage}
-      </p>
 
       <TopBar
         sessionLabel={sessionLabel}
@@ -138,6 +135,9 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+
+            {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
+            {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
 
             {quote.error && !data && (
               <div className="rounded-card bg-surface p-4 text-sm text-warn shadow-card ring-1 ring-line">

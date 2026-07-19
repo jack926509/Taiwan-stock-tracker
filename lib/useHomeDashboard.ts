@@ -10,6 +10,7 @@ import type { Signal } from "@/lib/signals";
 import { hitToday } from "@/lib/alertLogic";
 import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
 import { getMarketSessionLabel } from "@/lib/marketSession";
+import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
 
@@ -49,7 +50,9 @@ export function useHomeDashboard() {
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [liveMessage, setLiveMessage] = useState("");
+  // 操作回饋統一走 Toast（容器本身是 aria-live 區域，明眼＋讀屏共用同一份訊息），
+  // 取代原本 app/page.tsx 的 sr-only 隱形提示，避免同一則訊息被兩個 live region 重複播報。
+  const toast = useToast();
 
   // masthead 的日期／盤別文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
   useEffect(() => {
@@ -117,9 +120,9 @@ export function useHomeDashboard() {
   async function handleManualRefresh() {
     try {
       await refreshAll();
-      setLiveMessage("報價已更新");
+      toast.show("報價已更新", { tone: "success" });
     } catch {
-      setLiveMessage("更新失敗，請檢查網路後再試一次");
+      toast.show("更新失敗，請檢查網路後再試一次", { tone: "error" });
     }
   }
 
@@ -138,12 +141,14 @@ export function useHomeDashboard() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const deletedName = pendingDelete.name;
       setPendingDelete(null);
-      setLiveMessage(`已刪除 ${deletedName}`);
+      toast.show(`已刪除 ${deletedName}`, { tone: "success" });
       void refreshAll().catch(() => {
-        setLiveMessage(`已刪除 ${deletedName}，但畫面重新整理失敗，請稍後更新`);
+        toast.show(`已刪除 ${deletedName}，但畫面重新整理失敗，請稍後更新`, {
+          tone: "error",
+        });
       });
     } catch {
-      setLiveMessage("刪除失敗，清單未變更，請稍後再試");
+      toast.show("刪除失敗，清單未變更，請稍後再試", { tone: "error" });
     } finally {
       setDeleteBusy(false);
     }
@@ -285,7 +290,6 @@ export function useHomeDashboard() {
     canSort,
     sessionLabel,
     sessionDetail,
-    liveMessage,
     pendingDelete,
     setPendingDelete,
     deleteBusy,

@@ -40,6 +40,11 @@ const config: Config = {
           DEFAULT: "rgb(var(--c-warn) / <alpha-value>)", // 橘色系暖化以貼近整體暖色調
           tint: "var(--c-warn-tint)",
         },
+        // 破壞性操作專用深磚紅：與漲色區隔，避免「刪除＝上漲」語意衝突（遠端 #7 導入，改走 CSS 變數以支援深色）
+        danger: {
+          DEFAULT: "rgb(var(--c-danger) / <alpha-value>)",
+          tint: "var(--c-danger-tint)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
