@@ -26,7 +26,7 @@ export default function ErrorPage({
           <button
             type="button"
             onClick={() => reset()}
-            className="w-full rounded-pill bg-primary px-4 py-2 text-sm font-medium text-white shadow-card transition-opacity hover:opacity-90"
+            className="w-full rounded-pill bg-primary px-4 py-2 text-sm font-medium text-white shadow-card transition-opacity hover:opacity-90 dark:text-app"
           >
             重試
           </button>

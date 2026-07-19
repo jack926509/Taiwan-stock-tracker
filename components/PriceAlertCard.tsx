@@ -162,7 +162,7 @@ export default function PriceAlertCard({
           <button
             onClick={addToWatch}
             disabled={busy}
-            className="w-full rounded-pill bg-primary px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-pill bg-primary px-3 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:text-app"
           >
             {busy ? "處理中…" : "加入自選股"}
           </button>
@@ -285,7 +285,7 @@ export default function PriceAlertCard({
         <button
           onClick={save}
           disabled={busy}
-          className="w-full rounded-pill bg-primary px-5 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-pill bg-primary px-5 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:text-app"
         >
           {busy ? "儲存中…" : "儲存"}
         </button>
