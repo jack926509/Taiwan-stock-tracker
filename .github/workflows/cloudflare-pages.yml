@@ -2,8 +2,10 @@ name: 部署 Cloudflare Pages 前端
 
 # 只建置、部署 frontend/ 這個靜態站；Zeabur（主程式）由 Zeabur 自己的 GitHub 整合處理，不受影響。
 # 2026-07-20：改用這個 workflow 直接呼叫 wrangler 部署，繞開 Cloudflare 內建 Git 整合的建置
-#（該建置只能看到 frontend/ 子目錄本身，讀不到 frontend/ 依路徑別名共用的上層 app/、
-# components/、lib/，一律失敗；GitHub Actions 用完整 checkout 沒有這個限制）。
+#（實測失敗原因：只在 frontend/ 裝相依套件，但 frontend/ 透過路徑別名 externalDir
+# 共用上層 app/、components/、lib/，那些檔案 import 的 swr 等套件只在根目錄
+# package.json，根目錄沒裝 node_modules 就會 Module not found；本檔同時裝根目錄與
+# frontend/ 兩份相依套件即可解決）。
 on:
   push:
     branches: [main]
@@ -20,6 +22,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: 安裝根目錄相依套件（frontend/ 透過路徑別名共用的 app/、components/、lib/ 需要）
+        run: npm ci
 
       - name: 安裝 frontend 相依套件
         working-directory: frontend
