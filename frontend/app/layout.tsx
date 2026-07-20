@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import PWAServiceWorker from "@/components/PWAServiceWorker";
+import ToastProvider from "@/components/Toast";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
@@ -37,7 +38,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#F7F2E7" }],
+  // 全站固定暖米白，與主站 app/layout.tsx 同步（2026-07-19 主站取消夜報版）
+  themeColor: "#F5F1E8",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -49,10 +51,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         ))}
       </head>
       <body className="min-h-screen text-ink antialiased">
-        <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+        <ToastProvider>
+          <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">{children}</div>
+          <PWAInstallPrompt />
+          <BottomNav />
+        </ToastProvider>
         <PWAServiceWorker />
-        <PWAInstallPrompt />
-        <BottomNav />
       </body>
     </html>
   );
