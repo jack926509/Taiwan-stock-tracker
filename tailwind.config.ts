@@ -1,9 +1,11 @@
 import type { Config } from "tailwindcss";
 
 // 「暖米白 × 深墨」風格 token（暖米白底＋深墨文字＋襯線標題＋深墨互動色，完全去藍）。台股紅漲綠跌不變。
-// 深色模式「夜報版」：色票改由 CSS 變數承接，實際淺／深色數值定義在 app/globals.css
-// 的 :root 與 @media (prefers-color-scheme: dark)，隨系統自動切換，不做手動切換鈕。
+// 全站固定淺色、不提供深色模式（使用者 2026-07-21 指定「不要有深色模式」）：
+// darkMode 設為 "class"，讓散落各元件的 dark: 變體只在祖先有 .dark class 時才作用；
+// 全站從不加 .dark，因此系統深色模式不會再觸發任何深色樣式（預設 "media" 會觸發，故必須明設）。
 const config: Config = {
+  darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {

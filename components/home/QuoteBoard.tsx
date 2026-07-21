@@ -33,9 +33,12 @@ export type FilterKey = (typeof FILTERS)[number]["key"];
 // 600–1359px 只排 6 欄（藏成交量、日內走勢）：表格一旦橫向溢出，Mac 觸控板帶斜向的
 // 捲動手勢會被鎖在表格橫向軸、整頁垂直捲動被吃掉（CDP 手勢實測重現；使用者若開
 // 頁面縮放，有效寬度更容易落入此區間）。≥1360px 才排滿 8 欄。
+// 商品名（元大台灣加權指數ETF基金…）較長，原 minmax(140px,1.1fr) 會被 truncate 切成「元大台灣…」；
+// 訊號欄原 minmax(196px,1.5fr) 留白過多。把寬度從訊號欄挪給商品欄：兩欄「最小寬」總和維持 336px 不變
+// （210+126），不增加橫向溢出風險（見下方 600–1359px 溢出警告），只調 fr 權重讓商品欄優先吃多餘空間。
 const GRID_COLS =
-  "grid-cols-[minmax(140px,1.1fr)_84px_110px_minmax(196px,1.5fr)_92px_36px] " +
-  "min-[1360px]:grid-cols-[minmax(140px,1.1fr)_84px_110px_minmax(196px,1.5fr)_80px_88px_92px_36px]";
+  "grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_92px_36px] " +
+  "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_80px_88px_92px_36px]";
 // 手機把同一組欄位改用具名區域堆成卡片，照抄規範 .row（max-width:599px）
 const MOBILE_AREAS =
   "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'pill_change'_'sig_sig'_'trend_trend'_'foot_foot']";

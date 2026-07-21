@@ -17,7 +17,7 @@ import type { Candle } from "@/lib/providers/klineProvider";
 import { bollinger, rsi, kd, macd } from "@/lib/indicators";
 import { fmt, fmtVol, arrowOf } from "@/lib/format";
 import { MA_COLORS } from "@/lib/klineColors";
-import { getKlinePalette, isDarkMode } from "./klinePalette";
+import { getKlinePalette } from "./klinePalette";
 import { OverlayToggleRow, SubPaneTabs, type MaDef, type SubPane } from "./KlineToolbar";
 
 // 主圖疊圖：MA5/20/60 各自開關 + 布林通道開關
@@ -80,17 +80,9 @@ export default function KlineChart({
   const [maOn, setMaOn] = useState({ 5: true, 20: true, 60: true });
   const [showBoll, setShowBoll] = useState(false);
   const [legend, setLegend] = useState<Legend | null>(null);
-  // 是否為深色模式（夜報版）：初始值以 SSR 安全的方式先設 false，掛載後於下方
-  // effect 讀取實際系統設定並監聽變化，變化時觸發整張圖重繪換色。
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(isDarkMode());
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  // 全站固定暖米白、不跟隨系統深色模式（見 app/globals.css 2026-07-19 決定）。
+  // K 線圖一併固定淺色色票：否則使用者系統設為深色時，淺色頁面中會夾一張黑底圖表（不一致）。
+  const isDark = false;
 
   useEffect(() => {
     const el = containerRef.current;
