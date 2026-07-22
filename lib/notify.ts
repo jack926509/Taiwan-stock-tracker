@@ -109,9 +109,13 @@ export async function getLineLastFailure(): Promise<LineFailure | null> {
   return (data?.payload as LineFailure) ?? null;
 }
 
-// 推一則純文字訊息給設定的 userId；成功回 true，未設定、超過每日上限或失敗回 false
+// 任意一則 LINE message 物件（text／flex 皆可，型別由呼叫端負責組對）
+export type LineMessage = Record<string, unknown>;
+
+// 底層送出：承載每日上限與用量/失敗記錄，訊息型別不拘（text 或 flex 都走這條路，行為完全一致）
+// 成功回 true，未設定、超過每日上限或失敗回 false
 // （不丟例外，避免中斷檢查迴圈；語意對呼叫端相容——呼叫端本來就把 false 當失敗處理）
-export async function pushLine(text: string): Promise<boolean> {
+export async function pushLineMessages(messages: LineMessage[]): Promise<boolean> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   const to = process.env.LINE_TARGET_USER_ID;
   if (!token || !to) return false;
@@ -134,7 +138,7 @@ export async function pushLine(text: string): Promise<boolean> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ to, messages: [{ type: "text", text }] }),
+      body: JSON.stringify({ to, messages }),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
@@ -155,4 +159,9 @@ export async function pushLine(text: string): Promise<boolean> {
     if (db) await recordFailure(db, now, String(e));
     return false;
   }
+}
+
+// 推一則純文字訊息給設定的 userId；薄封裝 pushLineMessages，維持既有呼叫端相容
+export async function pushLine(text: string): Promise<boolean> {
+  return pushLineMessages([{ type: "text", text }]);
 }
