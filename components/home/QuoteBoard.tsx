@@ -36,9 +36,12 @@ export type FilterKey = (typeof FILTERS)[number]["key"];
 // 商品名（元大台灣加權指數ETF基金…）較長，原 minmax(140px,1.1fr) 會被 truncate 切成「元大台灣…」；
 // 訊號欄原 minmax(196px,1.5fr) 留白過多。把寬度從訊號欄挪給商品欄：兩欄「最小寬」總和維持 336px 不變
 // （210+126），不增加橫向溢出風險（見下方 600–1359px 溢出警告），只調 fr 權重讓商品欄優先吃多餘空間。
+// 報價欄 92→120px（2026-07-22）：盤中「報價 13:25:47未成交」whitespace-nowrap 不換行會溢出 92px 欄、
+// 侵入左側走勢欄（CDP 實測 gap −14px）；加寬到 120px 後最壞情況 gap +14px。彈性兩欄餘裕充足、不增溢出風險。
+// 走勢欄的「20 日」語意已移到表頭欄名，Sparkline 只留圖並置中，不再於每列右緣印字與報價時間相撞。
 const GRID_COLS =
-  "grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_92px_36px] " +
-  "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_80px_88px_92px_36px]";
+  "grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_120px_36px] " +
+  "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_80px_88px_120px_36px]";
 // 手機把同一組欄位改用具名區域堆成卡片，照抄規範 .row（max-width:599px）
 const MOBILE_AREAS =
   "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'pill_change'_'sig_sig'_'trend_trend'_'foot_foot']";
@@ -281,7 +284,7 @@ export default function QuoteBoard({
           <span>訊號</span>
           {/* 量、日內走勢兩欄與列一致：只在 ≥1360px 排入 */}
           <span className="hidden text-right min-[1360px]:block">量</span>
-          <span className="hidden text-center min-[1360px]:block">日內走勢</span>
+          <span className="hidden text-center min-[1360px]:block">20 日走勢</span>
           <span className="text-right">報價 / 提醒</span>
           {/* 末欄＝刪除鍵欄，表頭留空對齊 */}
           <span aria-hidden="true" />

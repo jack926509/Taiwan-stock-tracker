@@ -24,9 +24,8 @@ export default function Sparkline({ points }: { points: number[] }) {
     <span
       role="img"
       aria-label="近 20 日收盤走勢"
-      className="grid w-[4.75rem] shrink-0 justify-items-end gap-1"
+      className="inline-flex shrink-0 justify-center"
     >
-      <span className="text-[10px] font-medium tracking-wide text-muted">20 日</span>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
         <path
           d={d}
