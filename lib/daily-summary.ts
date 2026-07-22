@@ -15,7 +15,7 @@ import type { Candle } from "@/lib/providers/klineProvider";
 const WEEKDAY = ["日", "一", "二", "三", "四", "五", "六"];
 
 // 卡片站台按鈕連結：與 lib/alerts.ts 的 BASE_URL 同一套環境變數約定
-const BASE_URL = process.env.APP_BASE_URL ?? "https://tw-stock-tracker.zeabur.app";
+const BASE_URL = process.env.APP_BASE_URL ?? "https://twstock.xiehnet.com";
 
 // ── 色票（沿用機票降價通知卡 Flight-search-web/backend/services/notifier.py 的暖棕色語言）──
 const C_PRIMARY = "#1F3A5F"; // 深藍（使用者 2026-07-22 由原咖啡色 #B0522E 改為深藍）：標題色塊＋按鈕

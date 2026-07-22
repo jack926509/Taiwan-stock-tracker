@@ -29,7 +29,7 @@ function fmtChange(change: number | null, pct: number | null): string {
   return `　${sign}${fmtPrice(change)}${p}`;
 }
 
-const BASE_URL = process.env.APP_BASE_URL ?? "https://tw-stock-tracker.zeabur.app";
+const BASE_URL = process.env.APP_BASE_URL ?? "https://twstock.xiehnet.com";
 
 // 組一則到價提醒訊息（精簡 4 行：標題／現價／今日高低／時間＋連結）
 function buildMessage(
