@@ -39,9 +39,14 @@ export type FilterKey = (typeof FILTERS)[number]["key"];
 // 報價欄 92→120px（2026-07-22）：盤中「報價 13:25:47未成交」whitespace-nowrap 不換行會溢出 92px 欄、
 // 侵入左側走勢欄（CDP 實測 gap −14px）；加寬到 120px 後最壞情況 gap +14px。彈性兩欄餘裕充足、不增溢出風險。
 // 走勢欄的「20 日」語意已移到表頭欄名，Sparkline 只留圖並置中，不再於每列右緣印字與報價時間相撞。
+// 8 欄最小寬須塞進「固定」主欄（2026-07-23）：外層 max-w-[1360px]、左欄 rail 336px+gap 20px 把主欄鎖在
+// 約 968px；可拖曳時列還有 pl-9（36px）。舊版 8 欄最小寬總和 854px+gaps 84px=938px，扣掉內距後超出可用寬
+// 約 24px，剛好把最後一欄（刪除鍵）擠出卡片右邊界。改法：收窄非內容關鍵欄——漲跌 110→100、量 80→64、
+// 走勢 88→72、刪除 36→32（共 −46px），最小寬總和降到 808px，穩穩落在可用寬內留餘裕；商品欄(210)、報價欄(120)
+// 不動避免長名截斷／盤中報價時間溢出回歸。收窄多出的空間由彈性 fr 欄（商品／訊號）吸收，列仍填滿主欄不留空。
 const GRID_COLS =
-  "grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_120px_36px] " +
-  "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_110px_minmax(126px,0.9fr)_80px_88px_120px_36px]";
+  "grid-cols-[minmax(210px,1.8fr)_84px_100px_minmax(126px,0.9fr)_120px_32px] " +
+  "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_100px_minmax(126px,0.9fr)_64px_72px_120px_32px]";
 // 手機把同一組欄位改用具名區域堆成卡片，照抄規範 .row（max-width:599px）
 const MOBILE_AREAS =
   "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'pill_change'_'sig_sig'_'trend_trend'_'foot_foot']";
