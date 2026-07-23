@@ -64,7 +64,9 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /reorderable/);
   // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
   assert.match(card, /md:flex max-\[599px\]:hidden/);
-  assert.match(card, /absolute right-2 top-1\/2/);
+  // 刪除鍵已從舊版 absolute 浮貼改為格線最後一欄的正式成員（justify-self-end 靠右對齊，
+  // 見 QuoteBoard「刪除鍵＝格線第 8 欄」註解）；不用 absolute＋負偏移浮貼避免壓縮格線可用寬。
+  assert.match(card, /justify-self-end/);
   assert.doesNotMatch(card, /-(?:right|top)-\d/);
   assert.match(sortable, /h-11 w-11/);
   assert.match(sortable, /absolute left-0\.5 top-1\/2/);
@@ -74,22 +76,25 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(page, /reorderable=\{canSort\}/);
 });
 
-test("大盤指數卡在左欄堆疊，600–999px 併排兩欄、其餘斷點單欄", async () => {
+test("大盤指數卡在左欄堆疊，600–1359px 併排兩欄、其餘斷點單欄", async () => {
   // 舊版「手機兩顆各半寬」是首頁頂欄橫條帶的版型；視覺規範把指數卡搬進左欄（IndexRail），
-  // 改成直式卡片：<600px／≥1000px 單欄堆疊，600–999px 兩欄併排（同一套「可依斷點縮放」訴求）。
+  // 改成直式卡片：<600px／≥1360px 單欄堆疊，600–1359px 兩欄併排（同一套「可依斷點縮放」訴求）。
+  // 單欄斷點由 1000px 拉到 1360px，對齊自選股表格「≥1360px 才排滿欄」的同一斷點。
   const indexCard = await read("components/IndexCard.tsx");
   assert.match(indexCard, /min-w-0/);
   assert.match(indexCard, /min-\[600px\]:grid-cols-2/);
-  assert.match(indexCard, /min-\[1000px\]:grid-cols-1/);
+  assert.match(indexCard, /min-\[1360px\]:grid-cols-1/);
 });
 
-test("桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號可換行不裁切", async () => {
+test("桌面自選股改為表格版型，欄位格線照抄視覺規範且訊號可換行不裁切", async () => {
   // 舊版桌面是 3 欄卡片格線（lg:grid-cols-3，元件 DraggableGrid/QuoteCard 已刪除）；
-  // Task 7 換成視覺規範的表格（.thead/.row 7 欄），這裡改驗證新格線與「名稱/訊號不被壓縮裁切」。
+  // Task 7 換成視覺規範的表格（.thead/.row），這裡驗證 ≥1360px 排滿的完整格線與「名稱/訊號不被壓縮裁切」。
+  // 格線在 2026-07-22 調整：商品欄加寬（minmax(210px,1.8fr)）、報價欄 92→120px 防盤中報價時間溢出，
+  // 對應寬度從訊號欄挪回商品欄，末欄 36px 放刪除鍵（見 QuoteBoard GRID_COLS 註解）。
   const board = await read("components/home/QuoteBoard.tsx");
   assert.match(
     board,
-    /minmax\(150px,1\.1fr\)_90px_120px_minmax\(196px,1\.5fr\)_86px_104px_92px/
+    /minmax\(210px,1\.8fr\)_84px_110px_minmax\(126px,0\.9fr\)_80px_88px_120px_36px/
   );
   assert.doesNotMatch(board, /line-clamp/);
   assert.match(board, /flex-wrap/);
