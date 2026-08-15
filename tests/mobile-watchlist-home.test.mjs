@@ -64,7 +64,7 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /reorderable/);
   // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
   assert.match(card, /md:flex max-\[599px\]:hidden/);
-  assert.match(card, /absolute right-2 top-1\/2/);
+  assert.match(card, /max-\[599px\]:pl-8/);
   assert.doesNotMatch(card, /-(?:right|top)-\d/);
   assert.match(sortable, /h-11 w-11/);
   assert.match(sortable, /absolute left-0\.5 top-1\/2/);
@@ -80,7 +80,7 @@ test("大盤指數卡在左欄堆疊，600–999px 併排兩欄、其餘斷點�
   const indexCard = await read("components/IndexCard.tsx");
   assert.match(indexCard, /min-w-0/);
   assert.match(indexCard, /min-\[600px\]:grid-cols-2/);
-  assert.match(indexCard, /min-\[1000px\]:grid-cols-1/);
+  assert.match(indexCard, /min-\[1360px\]:grid-cols-1/);
 });
 
 test("桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號可換行不裁切", async () => {
@@ -89,7 +89,7 @@ test("桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號
   const board = await read("components/home/QuoteBoard.tsx");
   assert.match(
     board,
-    /minmax\(150px,1\.1fr\)_90px_120px_minmax\(196px,1\.5fr\)_86px_104px_92px/
+    /grid-cols-\[minmax\(210px,1\.8fr\)_84px_110px_minmax\(126px,0\.9fr\)_120px_36px\]/
   );
   assert.doesNotMatch(board, /line-clamp/);
   assert.match(board, /flex-wrap/);
