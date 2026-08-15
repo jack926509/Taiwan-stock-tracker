@@ -19,10 +19,32 @@ test("package exposes OpenNext build, preview and upload commands", () => {
 
 test("wrangler serves OpenNext assets without a production custom domain", () => {
   const config = read("wrangler.jsonc");
-  assert.match(config, /"main":\s*"\.\/\.open-next\/worker\.js"/);
+  assert.match(config, /"main":\s*"\.\/cloudflare-worker\.ts"/);
   assert.match(config, /"directory":\s*"\.open-next\/assets"/);
   const parsed = JSON.parse(config);
   assert.equal(parsed.workers_dev, true);
   assert.equal(parsed.route, undefined);
   assert.equal(parsed.routes, undefined);
+});
+
+test("custom worker exposes fetch and scheduled handlers", () => {
+  const worker = read("cloudflare-worker.ts");
+  assert.match(worker, /fetch:\s*handler\.fetch/);
+  assert.match(worker, /async scheduled\(/);
+  assert.match(worker, /ctx\.waitUntil\(/);
+  assert.match(
+    worker,
+    /runScheduledCron\(event\.cron,\s*new Date\(event\.scheduledTime\)\)/,
+  );
+  assert.match(worker, /console\.error\("\[scheduled\] 執行失敗"\)/);
+});
+
+test("wrangler config registers the four UTC cron triggers", () => {
+  const config = JSON.parse(read("wrangler.jsonc"));
+  assert.deepEqual(config.triggers?.crons, [
+    "* * * * 1-5",
+    "35 5 * * 1-5",
+    "0 9 * * 1-5",
+    "30 4 * * 0,6",
+  ]);
 });
