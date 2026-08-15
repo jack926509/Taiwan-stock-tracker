@@ -27,7 +27,8 @@ test("scheduled job migration is additive and service-role only", () => {
     /where public\.scheduled_job_state\.lease_until <= now\(\)/
   );
   assert.match(sql, /create or replace function public\.finish_scheduled_job/);
-  assert.equal(sql.match(/security definer\s+set search_path = public/g)?.length, 2);
+  assert.equal(sql.match(/security definer\s+set search_path = ''/g)?.length, 2);
+  assert.doesNotMatch(sql, /security definer\s+set search_path = public/);
   assert.match(
     sql,
     /where job_name = p_job_name\s+and run_id = p_run_id/

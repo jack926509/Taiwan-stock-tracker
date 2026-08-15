@@ -97,6 +97,7 @@ npm run dev
 | `npx tsc --noEmit` | 檢查 TypeScript 型別 |
 | `npm run build` | 建置 Next.js 產物 |
 | `npm run cf:build` | 以 OpenNext 產生 Cloudflare Worker 與靜態資源 |
+| `npx wrangler deploy --dry-run` | 檢查可上傳 bundle 的 gzip 大小；不會上傳或部署 |
 | `npm run cf:preview` | 以本機 workerd 啟動 Worker 預覽 |
 | `npm run cf:upload` | 上傳 Worker 預覽版本；需 Cloudflare 憑證，不綁定正式網域 |
 | `VERIFY_BASE_URL=<URL> npm run verify:cloudflare` | 實打預覽版的首頁、登入、健康檢查、manifest 與 service worker |

@@ -25,7 +25,7 @@ create or replace function public.claim_scheduled_job(
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   changed integer;
@@ -75,7 +75,7 @@ create or replace function public.finish_scheduled_job(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   if p_status not in ('ok', 'error') then
