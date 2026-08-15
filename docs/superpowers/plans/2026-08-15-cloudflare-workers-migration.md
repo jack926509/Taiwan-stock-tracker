@@ -585,7 +585,7 @@ git commit -m "feat: 在健康檢查顯示 Worker 排程狀態"
 - Modify: `tests/cloudflare-config.test.mjs`
 
 **Interfaces:**
-- Consumes: `VERIFY_BASE_URL` 與公開 HTTP endpoints。
+- Consumes: `VERIFY_BASE_URL`、僅在 shell 注入的 `VERIFY_APP_ACCESS_PASSWORD` 與 `VERIFY_HEALTH_DETAIL_TOKEN`。
 - Produces: `npm run verify:cloudflare`；branch 只 build，手動 dispatch 才 upload，`main` 在正式切換核准後才 deploy。
 
 - [ ] **Step 1: 寫入 workflow 與 verifier 契約測試**
@@ -613,7 +613,7 @@ Workflow 的 `validate` job 固定執行 `npm ci`、`npm test`、`npm run build`
 
 - [ ] **Step 4: 建立公開發行驗證器**
 
-`scripts/verify-cloudflare-release.mjs` 要求 `VERIFY_BASE_URL`，依序檢查 `/`、`/login`、`/api/health`、`/manifest.webmanifest`、`/sw.js`；每個請求 15 秒 timeout，非 2xx 就結束碼 1。不得讀取或輸出 `.env.local`。
+`scripts/verify-cloudflare-release.mjs` 要求 `VERIFY_BASE_URL`、`VERIFY_APP_ACCESS_PASSWORD` 與 `VERIFY_HEALTH_DETAIL_TOKEN`，依序檢查公開頁面、登入、Supabase 自選股、授權詳細健康檢查與靜態資源；每個請求 15 秒 timeout，非 2xx 或不是 Supabase 儲存就結束碼 1。不得讀取或輸出 `.env.local`、密碼、token 或 cookie。
 
 `package.json` 加入：
 
@@ -629,7 +629,7 @@ Run: `node --test tests/cloudflare-config.test.mjs`
 
 Expected: PASS。
 
-Run: `VERIFY_BASE_URL=http://127.0.0.1:9 npm run verify:cloudflare`
+Run: `VERIFY_BASE_URL=http://127.0.0.1:9 VERIFY_APP_ACCESS_PASSWORD=test VERIFY_HEALTH_DETAIL_TOKEN=test npm run verify:cloudflare`
 
 Expected: FAIL 且錯誤只含 endpoint 與連線結果，不含 secrets。
 
@@ -687,7 +687,7 @@ Expected: 無輸出。
 
 Run: `npm run cf:preview`
 
-在桌面與 390×844 手機 viewport 檢查 `/`、`/login`、`/search`、`/alerts`、`/stock/2330`；確認沒有白頁、console error、失效資源或無法操作的主要按鈕。再以預覽網址執行 `VERIFY_BASE_URL=<preview-url> npm run verify:cloudflare`。
+在桌面與 390×844 手機 viewport 檢查 `/`、`/login`、`/search`、`/alerts`、`/stock/2330`；確認沒有白頁、console error、失效資源或無法操作的主要按鈕。再以預覽網址執行 `VERIFY_BASE_URL=<preview-url> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`，三個值只可由 shell 安全注入。
 
 - [ ] **Step 5: 提交文件與本機驗收切片**
 
@@ -760,7 +760,7 @@ Expected: 取得 Cloudflare preview URL；`twstock.xiehnet.com` 仍由既有 Pag
 
 - [ ] **Step 4: 驗證頁面、API 與 Supabase**
 
-Run: `VERIFY_BASE_URL=<preview-url> npm run verify:cloudflare`
+Run: `VERIFY_BASE_URL=<preview-url> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`
 
 Expected: 全數 PASS。
 
@@ -827,7 +827,7 @@ Workflow 的 production job 只允許 `main` 且 validate 成功後執行 `openn
 
 - [ ] **Step 5: 實測正式網域**
 
-Run: `VERIFY_BASE_URL=https://twstock.xiehnet.com npm run verify:cloudflare`
+Run: `VERIFY_BASE_URL=https://twstock.xiehnet.com VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`
 
 實際用桌面與手機開啟網站，登入並檢查首頁、搜尋、自選股、個股、提醒、quote、kline、fundamental、summary、health detail。確認回應不再含 `x-zeabur-request-id`。
 
