@@ -9,6 +9,7 @@
     "cf:preview": "opennextjs-cloudflare preview",
     "cf:upload": "opennextjs-cloudflare upload",
     "cf:types": "wrangler types --env-interface CloudflareEnv --include-runtime false",
+    "verify:cloudflare": "node scripts/verify-cloudflare-release.mjs",
     "start": "next start",
     "test": "node --test --experimental-transform-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/*.test.mjs",
     "smoke": "node scripts/smoke-test.mjs"
