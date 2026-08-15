@@ -189,6 +189,39 @@ test("業務函式失敗後記錄精簡錯誤並重新拋出原錯誤", async ()
   });
 });
 
+test("業務與完成記錄同時失敗時仍拋出原業務錯誤", async () => {
+  const businessFailure = new Error("原始業務錯誤");
+  const finishSecret = "finish-service-role-secret";
+  const logCalls = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    logCalls.push(args);
+  };
+
+  try {
+    await assert.rejects(
+      runScheduledCron(
+        "0 9 * * 1-5",
+        NOW,
+        deps({
+          backfillWatchlist: async () => {
+            throw businessFailure;
+          },
+          finish: async () => {
+            throw new Error(`完成記錄失敗 ${finishSecret}`);
+          },
+        })
+      ),
+      (error) => error === businessFailure
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(logCalls.length, 1);
+  assert.doesNotMatch(JSON.stringify(logCalls), new RegExp(finishSecret));
+});
+
 test("非 Error 型別的失敗不寫入原始內容", async () => {
   const finishes = [];
 

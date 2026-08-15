@@ -117,7 +117,12 @@ export async function runScheduledCron(
         error: error instanceof Error ? error.message.slice(0, 300) : "unknown",
       },
     };
-    await deps.finish(job, runId, result);
+    try {
+      await deps.finish(job, runId, result);
+    } catch {
+      // 不輸出 finish 錯誤內容，避免將資料庫密鑰寫入日誌。
+      console.error(`[scheduled:${job}] 無法記錄業務失敗狀態`);
+    }
     throw error;
   }
 
