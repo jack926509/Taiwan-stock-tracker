@@ -1,16 +1,25 @@
 # tw-stock-tracker 專案規範
 
-台股即時追蹤網頁，技術棧：Next.js + Supabase。
+台股即時追蹤網頁，技術棧：Next.js + OpenNext for Cloudflare + Supabase。正式頁面、API 與排程目標運行於單一 Cloudflare Worker；Supabase 是唯一正式資料庫。
 
 ## 驗收指令
 改動後依序執行：
-1. `npm run build`（build 綠燈才算過）
-2. `npm run smoke`（僅測本機／部署節點能否穩定連上 TWSE 即時報價源，**不是**完整功能測試，不驗證頁面、API 回應格式或 Supabase 連線）
+1. `npm test`（單元與整合測試全數通過）
+2. `npx tsc --noEmit`（TypeScript 型別檢查通過）
+3. `npm run build`（Next.js build 成功）
+4. `npm run cf:build`（OpenNext Worker build 成功，壓縮後 bundle 小於 Cloudflare Workers Paid 限制）
+5. `git diff --check`（無 whitespace error）
+6. 啟動 `npm run cf:preview`，再以實際預覽網址執行 `VERIFY_BASE_URL=<preview-url> npm run verify:cloudflare`
+7. 用桌面與 390 × 844 手機 viewport 實際檢查 `/`、`/login`、`/search`、`/alerts`、`/stock/2330`，確認沒有白頁、console error、失效資源或無法操作的主要按鈕
+
+`npm run smoke` 僅測試執行節點能否穩定連上 TWSE 即時報價源，不是完整功能測試，不驗證頁面、API 回應格式或 Supabase 連線。
 
 ## 部署
-Zeabur（東京常駐 Node 服務，固定 IP）：https://tw-stock-tracker.zeabur.app
+目標平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；在正式切換前，現行服務仍在 Zeabur。`wrangler.jsonc` 目前僅允許 `workers.dev` 預覽，尚未設定正式 custom domain。`npm run cf:upload` 與 GitHub Actions `workflow_dispatch` 只能在驗證成功後上傳預覽版本；不得在使用者核准前綁定 `twstock.xiehnet.com`、停止 Zeabur 或變更正式資料。
 
 ## 特殊規則
 - Secrets 只能放在 `.env.local`，絕對不可進 git；範本檔為 `.env.local.example`（可進 git）。
-- 排程任務（補資料、到價提醒、每日總結）邏輯見 `instrumentation-node.ts`。
+- Supabase 是唯一正式資料庫；本機 JSON 只供開發。Cloudflare Workers filesystem 不持久，禁止當作正式儲存。
+- Worker Cron 與業務工作的分派見 `lib/scheduledJobs.ts`；四個 UTC Cron 以 `wrangler.jsonc` 為準。`instrumentation-node.ts` 只保留為遷移歷史，production 不得 import。
+- Worker runtime 的應用程式 secrets 設於 Cloudflare Worker Secrets，不寫入 `wrangler.jsonc`、GitHub Actions logs 或原始碼。
 - 一律繁體中文、絕對禁止簡體字。
