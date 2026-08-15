@@ -702,9 +702,11 @@ git commit -m "docs: 更新 Cloudflare Worker 維運與驗收流程"
 
 - [ ] 所有 Task 1–7 commits 都在 `codex/cloudflare-workers-migration`。
 - [ ] `npm test`、`npx tsc --noEmit`、`npm run build`、`npm run cf:build` 全部成功。
-- [ ] workerd 桌面與手機渲染驗收成功。
+- [ ] workerd 桌面與手機基本渲染驗收成功；缺少 Supabase runtime secrets 或 `scheduled_job_state` 時，不得把完整資料 API 驗收誤報為成功。
 - [ ] 由另一個 AI 依 `origin/main..HEAD` 交叉審查 diff 與驗收證據。
 - [ ] 使用者核准後，才進行 Supabase migration 與 Cloudflare 預覽部署。
+
+完整 Supabase verifier（登入、`/api/watchlist` 與授權 detailed health）必須在 Task 8 套用 `scheduled_job_state` 後的 Task 9 執行；不得為了提前通過 verifier 而先改動正式資料庫。
 
 ---
 
