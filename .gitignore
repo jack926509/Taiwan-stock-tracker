@@ -8,5 +8,6 @@ out/
 next-env.d.ts
 scripts/smoke-result.json
 .data/
+.worktrees/
 supabase/.temp/
 .DS_Store
