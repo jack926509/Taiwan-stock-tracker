@@ -84,6 +84,18 @@ test("worker workflow validates every push but uploads only after a successful m
   );
   assert.match(upload, /CLOUDFLARE_API_TOKEN:\s*\$\{\{\s*secrets\.CLOUDFLARE_API_TOKEN\s*\}\}/);
   assert.match(upload, /CLOUDFLARE_ACCOUNT_ID:\s*\$\{\{\s*secrets\.CLOUDFLARE_ACCOUNT_ID\s*\}\}/);
+  assert.doesNotMatch(
+    upload,
+    /\n    env:\n/,
+    "Cloudflare secrets 不可放在 upload-preview job env",
+  );
+  const uploadStep = upload.match(
+    /      - name: 上傳 Worker 預覽版本\n[\s\S]*$/,
+  )?.[0];
+  assert.ok(uploadStep, "workflow 必須有唯一上傳 step");
+  assert.match(uploadStep, /\n        env:\n/);
+  assert.equal(upload.match(/^          CLOUDFLARE_API_TOKEN:/gm)?.length, 1);
+  assert.equal(upload.match(/^          CLOUDFLARE_ACCOUNT_ID:/gm)?.length, 1);
   const uploadBuildIndex = upload.indexOf("run: npm run cf:build");
   const uploadCommandIndex = upload.indexOf("run: npm run cf:upload");
   assert.ok(uploadBuildIndex >= 0, "手動 upload job 必須在獨立 runner 重建");
@@ -113,7 +125,8 @@ test("Cloudflare verifier declares the public endpoint and timeout contract with
   assert.doesNotMatch(verifier, /\.env\.local|dotenv|readFile/i);
   assert.match(verifier, /AbortSignal\.timeout\(15_000\)/);
   assert.match(verifier, /response\.ok/);
-  assert.match(verifier, /process\.exitCode\s*=\s*1/);
+  assert.match(verifier, /redirect:\s*"manual"/);
+  assert.match(verifier, /process\.exitCode\s*=\s*await runVerifierCli\(\)/);
 
   const endpoints = [
     '"/"',
@@ -180,4 +193,31 @@ test("Cloudflare verifier stops at the first non-2xx response without leaking th
     },
   );
   assert.deepEqual(requests, ["/", "/login"]);
+});
+
+test("Cloudflare verifier CLI routine treats a 302 as an immediate failure without following it", async () => {
+  const { runVerifierCli } = await loadVerifier();
+  const requests = [];
+  const redirects = [];
+  const errors = [];
+
+  const exitCode = await runVerifierCli({
+    baseUrl: "https://release.invalid",
+    fetchImpl: async (url, options) => {
+      const endpoint = new URL(url).pathname;
+      requests.push(endpoint);
+      redirects.push(options.redirect);
+      return {
+        ok: endpoint !== "/login",
+        status: endpoint === "/login" ? 302 : 200,
+      };
+    },
+    log: () => {},
+    errorLog: (message) => errors.push(message),
+  });
+
+  assert.equal(exitCode, 1);
+  assert.deepEqual(requests, ["/", "/login"]);
+  assert.deepEqual(redirects, ["manual", "manual"]);
+  assert.match(errors.join("\n"), /\/login.*HTTP 302/);
 });

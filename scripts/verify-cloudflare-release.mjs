@@ -47,7 +47,7 @@ export async function verifyCloudflareRelease(
     let response;
     try {
       response = await fetchImpl(new URL(endpoint, rootUrl), {
-        redirect: "follow",
+        redirect: "manual",
         signal: AbortSignal.timeout(15_000),
       });
     } catch (error) {
@@ -62,14 +62,24 @@ export async function verifyCloudflareRelease(
   }
 }
 
+export async function runVerifierCli({
+  baseUrl = process.env.VERIFY_BASE_URL,
+  fetchImpl = globalThis.fetch,
+  log = console.log,
+  errorLog = console.error,
+} = {}) {
+  try {
+    await verifyCloudflareRelease(baseUrl, { fetchImpl, log });
+    return 0;
+  } catch (error) {
+    errorLog(`[失敗] ${error.message}`);
+    return 1;
+  }
+}
+
 const isCommandLine =
   process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isCommandLine) {
-  try {
-    await verifyCloudflareRelease(process.env.VERIFY_BASE_URL);
-  } catch (error) {
-    console.error(`[失敗] ${error.message}`);
-    process.exitCode = 1;
-  }
+  process.exitCode = await runVerifierCli();
 }
