@@ -41,6 +41,56 @@
 
 ---
 
+### Task 0: 校正既有 UI 測試與目前核准版面的一致性
+
+**Files:**
+- Modify: `tests/mobile-watchlist-home.test.mjs`
+
+**Interfaces:**
+- Consumes: `components/home/QuoteBoard.tsx` 的既有手機／桌面 class 契約與 `docs/superpowers/specs/2026-07-18-visual-spec-final.html`。
+- Produces: 與目前核准版面一致、可重現的基線測試。
+
+- [ ] **Step 1: 確認三個基線失敗都只是不再適用的字串期望**
+
+Run: `node --test tests/mobile-watchlist-home.test.mjs`
+
+Expected: 只有下列三個測試失敗，且錯誤顯示期望的舊 class 不存在、目前 `QuoteBoard.tsx` 具有新版 class：
+
+- `自選股卡片與拖曳把手符合手機資訊層級`
+- `大盤指數卡在左欄堆疊，600–999px 併排兩欄、其餘斷點單欄`
+- `桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號可換行不裁切`
+
+- [ ] **Step 2: 用現行元件與視覺規格更新三條斷言**
+
+只更新 `tests/mobile-watchlist-home.test.mjs` 的 regexp，使它驗證目前元件實際使用的：
+
+```js
+assert.match(quoteBoard, /max-\[599px\]:pl-8/);
+assert.match(indexRail, /min-\[600px\]:grid-cols-2/);
+assert.match(quoteBoard, /grid-cols-\[minmax\(210px,1\.8fr\)_84px_110px_minmax\(126px,0\.9fr\)_120px_36px\]/);
+```
+
+不得修改 `components/`、`app/`、CSS 或視覺規格文件；若現行元件和視覺規格矛盾，停止並回報，不得用改測試掩蓋產品缺陷。
+
+- [ ] **Step 3: 驗證校正結果**
+
+Run: `node --test tests/mobile-watchlist-home.test.mjs`
+
+Expected: 全數 PASS。
+
+Run: `npm test`
+
+Expected: 全數 PASS，沒有測試警告。
+
+- [ ] **Step 4: 提交基線測試校正**
+
+```bash
+git add tests/mobile-watchlist-home.test.mjs
+git commit -m "test: 對齊自選股版面既有視覺契約"
+```
+
+---
+
 ### Task 1: 建立可重現的 OpenNext Worker build
 
 **Files:**
