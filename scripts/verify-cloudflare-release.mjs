@@ -4,9 +4,9 @@ const ENDPOINTS = Object.freeze([
   "/",
   "/login",
   "/api/health",
-  "/manifest.webmanifest",
-  "/sw.js",
 ]);
+
+const STATIC_ENDPOINTS = Object.freeze(["/manifest.webmanifest", "/sw.js"]);
 
 function parseBaseUrl(baseUrl) {
   if (!baseUrl) {
@@ -37,16 +37,54 @@ function connectionResult(error) {
   return "請求失敗";
 }
 
+function requireVerifierSecret(value, name) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${name} 未設定`);
+  }
+  return value;
+}
+
+async function readJson(response, endpoint) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`${endpoint}: JSON 格式無效`);
+  }
+}
+
+function authCookie(response) {
+  const setCookie = response.headers?.get?.("set-cookie") ?? "";
+  const match = setCookie.match(/(?:^|,\s*)app_auth=([^;,\s]+)/);
+  if (!match) {
+    throw new Error("/api/auth: 缺少驗證 cookie");
+  }
+  return `app_auth=${match[1]}`;
+}
+
 export async function verifyCloudflareRelease(
   baseUrl,
-  { fetchImpl = globalThis.fetch, log = console.log } = {},
+  {
+    fetchImpl = globalThis.fetch,
+    log = console.log,
+    appPassword,
+    healthDetailToken,
+  } = {},
 ) {
   const rootUrl = parseBaseUrl(baseUrl);
+  const verifiedAppPassword = requireVerifierSecret(
+    appPassword,
+    "VERIFY_APP_ACCESS_PASSWORD",
+  );
+  const verifiedHealthToken = requireVerifierSecret(
+    healthDetailToken,
+    "VERIFY_HEALTH_DETAIL_TOKEN",
+  );
 
-  for (const endpoint of ENDPOINTS) {
+  const request = async (endpoint, init = {}) => {
     let response;
     try {
       response = await fetchImpl(new URL(endpoint, rootUrl), {
+        ...init,
         redirect: "manual",
         signal: AbortSignal.timeout(15_000),
       });
@@ -59,17 +97,57 @@ export async function verifyCloudflareRelease(
     }
 
     log(`[通過] ${endpoint}: HTTP ${response.status}`);
+    return response;
+  };
+
+  for (const endpoint of ENDPOINTS) {
+    await request(endpoint);
+  }
+
+  const loginResponse = await request("/api/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: verifiedAppPassword }),
+  });
+  const cookie = authCookie(loginResponse);
+
+  const watchlistResponse = await request("/api/watchlist", {
+    headers: { Cookie: cookie },
+  });
+  const watchlist = await readJson(watchlistResponse, "/api/watchlist");
+  if (!Array.isArray(watchlist?.items) || watchlist.storage !== "supabase") {
+    throw new Error("/api/watchlist: 未使用 Supabase");
+  }
+
+  const detailEndpoint = "/api/health?detail=1";
+  const detailResponse = await request(detailEndpoint, {
+    headers: { Authorization: `Bearer ${verifiedHealthToken}` },
+  });
+  const detail = await readJson(detailResponse, detailEndpoint);
+  if (detail?.ok !== true || detail.storage !== "supabase") {
+    throw new Error(`${detailEndpoint}: 詳細健康檢查未使用 Supabase`);
+  }
+
+  for (const endpoint of STATIC_ENDPOINTS) {
+    await request(endpoint);
   }
 }
 
 export async function runVerifierCli({
   baseUrl = process.env.VERIFY_BASE_URL,
+  appPassword = process.env.VERIFY_APP_ACCESS_PASSWORD,
+  healthDetailToken = process.env.VERIFY_HEALTH_DETAIL_TOKEN,
   fetchImpl = globalThis.fetch,
   log = console.log,
   errorLog = console.error,
 } = {}) {
   try {
-    await verifyCloudflareRelease(baseUrl, { fetchImpl, log });
+    await verifyCloudflareRelease(baseUrl, {
+      fetchImpl,
+      log,
+      appPassword,
+      healthDetailToken,
+    });
     return 0;
   } catch (error) {
     errorLog(`[失敗] ${error.message}`);

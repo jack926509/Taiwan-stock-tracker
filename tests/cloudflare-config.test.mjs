@@ -121,6 +121,8 @@ test("Cloudflare verifier declares the public endpoint and timeout contract with
   );
   assert.deepEqual(verifier.match(/process\.env\.[A-Z0-9_]+/g), [
     "process.env.VERIFY_BASE_URL",
+    "process.env.VERIFY_APP_ACCESS_PASSWORD",
+    "process.env.VERIFY_HEALTH_DETAIL_TOKEN",
   ]);
   assert.doesNotMatch(verifier, /\.env\.local|dotenv|readFile/i);
   assert.match(verifier, /AbortSignal\.timeout\(15_000\)/);
@@ -143,29 +145,138 @@ test("Cloudflare verifier declares the public endpoint and timeout contract with
   }
 });
 
-test("Cloudflare verifier checks all endpoints sequentially on success", async () => {
+test("Cloudflare verifier authenticates and checks Supabase-backed watchlist plus detailed health", async () => {
   const { verifyCloudflareRelease } = await loadVerifier();
   const requests = [];
   const messages = [];
 
   await verifyCloudflareRelease("https://release.invalid/base?private=value", {
     fetchImpl: async (url, options) => {
-      requests.push(new URL(url).pathname);
+      const parsed = new URL(url);
+      const endpoint = `${parsed.pathname}${parsed.search}`;
+      requests.push({ endpoint, options });
       assert.ok(options.signal instanceof AbortSignal);
+      if (endpoint === "/api/auth") {
+        return {
+          ok: true,
+          status: 200,
+          headers: {
+            get: (name) =>
+              name.toLowerCase() === "set-cookie"
+                ? "app_auth=verified-cookie; Path=/; HttpOnly"
+                : null,
+          },
+        };
+      }
+      if (endpoint === "/api/watchlist") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ items: [], storage: "supabase" }),
+        };
+      }
+      if (endpoint === "/api/health?detail=1") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, storage: "supabase" }),
+        };
+      }
       return { ok: true, status: 200 };
     },
     log: (message) => messages.push(message),
+    appPassword: "app-secret",
+    healthDetailToken: "health-secret",
   });
 
+  assert.deepEqual(requests.map(({ endpoint }) => endpoint), [
+    "/",
+    "/login",
+    "/api/health",
+    "/api/auth",
+    "/api/watchlist",
+    "/api/health?detail=1",
+    "/manifest.webmanifest",
+    "/sw.js",
+  ]);
+  const authRequest = requests.find(({ endpoint }) => endpoint === "/api/auth");
+  assert.equal(authRequest.options.method, "POST");
+  assert.equal(authRequest.options.body, '{"password":"app-secret"}');
+  const watchlistRequest = requests.find(
+    ({ endpoint }) => endpoint === "/api/watchlist",
+  );
+  assert.equal(watchlistRequest.options.headers.Cookie, "app_auth=verified-cookie");
+  const detailRequest = requests.find(
+    ({ endpoint }) => endpoint === "/api/health?detail=1",
+  );
+  assert.equal(detailRequest.options.headers.Authorization, "Bearer health-secret");
+  assert.equal(messages.length, 8);
+  assert.doesNotMatch(
+    messages.join("\n"),
+    /release\.invalid|private=value|app-secret|health-secret|verified-cookie/,
+  );
+});
+
+test("Cloudflare verifier requires both verifier credentials before making requests", async () => {
+  const { verifyCloudflareRelease } = await loadVerifier();
+  let requestCount = 0;
+
+  await assert.rejects(
+    () =>
+      verifyCloudflareRelease("https://release.invalid", {
+        fetchImpl: async () => {
+          requestCount += 1;
+          return { ok: true, status: 200 };
+        },
+        log: () => {},
+      }),
+    /VERIFY_APP_ACCESS_PASSWORD 未設定/,
+  );
+  assert.equal(requestCount, 0);
+});
+
+test("Cloudflare verifier rejects a local-storage watchlist despite HTTP 200", async () => {
+  const { verifyCloudflareRelease } = await loadVerifier();
+  const requests = [];
+
+  await assert.rejects(
+    () =>
+      verifyCloudflareRelease("https://release.invalid", {
+        fetchImpl: async (url) => {
+          const parsed = new URL(url);
+          const endpoint = `${parsed.pathname}${parsed.search}`;
+          requests.push(endpoint);
+          if (endpoint === "/api/auth") {
+            return {
+              ok: true,
+              status: 200,
+              headers: {
+                get: () => "app_auth=verified-cookie; Path=/; HttpOnly",
+              },
+            };
+          }
+          if (endpoint === "/api/watchlist") {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ items: [], storage: "local" }),
+            };
+          }
+          return { ok: true, status: 200 };
+        },
+        log: () => {},
+        appPassword: "app-secret",
+        healthDetailToken: "health-secret",
+      }),
+    /\/api\/watchlist: 未使用 Supabase/,
+  );
   assert.deepEqual(requests, [
     "/",
     "/login",
     "/api/health",
-    "/manifest.webmanifest",
-    "/sw.js",
+    "/api/auth",
+    "/api/watchlist",
   ]);
-  assert.equal(messages.length, 5);
-  assert.doesNotMatch(messages.join("\n"), /release\.invalid|private=value/);
 });
 
 test("Cloudflare verifier stops at the first non-2xx response without leaking the base URL", async () => {
@@ -185,6 +296,8 @@ test("Cloudflare verifier stops at the first non-2xx response without leaking th
           };
         },
         log: () => {},
+        appPassword: "app-secret",
+        healthDetailToken: "health-secret",
       }),
     (error) => {
       assert.match(error.message, /\/login.*HTTP 503/);
@@ -214,6 +327,8 @@ test("Cloudflare verifier CLI routine treats a 302 as an immediate failure witho
     },
     log: () => {},
     errorLog: (message) => errors.push(message),
+    appPassword: "app-secret",
+    healthDetailToken: "health-secret",
   });
 
   assert.equal(exitCode, 1);
