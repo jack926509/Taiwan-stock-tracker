@@ -1,7 +1,10 @@
 node_modules/
 .next/
+.open-next/
+.wrangler/
 out/
 .env*
+.dev.vars*
 !.env.local.example
 .vercel
 *.tsbuildinfo
