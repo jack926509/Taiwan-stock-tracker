@@ -13,4 +13,5 @@ scripts/smoke-result.json
 .data/
 .worktrees/
 supabase/.temp/
+.backups/
 .DS_Store
