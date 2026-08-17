@@ -366,7 +366,7 @@ git commit -m "feat: 以 Supabase 租約防止排程重複執行"
 ```js
 test("盤外 alerts cron 不取得鎖也不抓報價", async () => {
   const calls = [];
-  const result = await runScheduledCron("* * * * 1-5", NOW, deps({
+  const result = await runScheduledCron("* * * * MON-FRI", NOW, deps({
     isMarketOpenNow: async () => false,
     claim: async () => { calls.push("claim"); return true; },
     checkAlerts: async () => { calls.push("alerts"); return 1; },
@@ -376,7 +376,7 @@ test("盤外 alerts cron 不取得鎖也不抓報價", async () => {
 });
 
 test("重複 cron 取不到租約時跳過", async () => {
-  const result = await runScheduledCron("35 5 * * 1-5", NOW, deps({
+  const result = await runScheduledCron("35 5 * * MON-FRI", NOW, deps({
     isTradingDay: async () => true,
     claim: async () => false,
   }));
@@ -400,10 +400,10 @@ export type ScheduledJobExecution =
   | { job: ScheduledJobName; status: "skipped"; reason: "market-closed" | "non-trading-day" | "locked" };
 
 const CRON_JOB = {
-  "* * * * 1-5": "alerts",
-  "35 5 * * 1-5": "daily-summary",
-  "0 9 * * 1-5": "backfill",
-  "30 4 * * 0,6": "keep-alive",
+  "* * * * MON-FRI": "alerts",
+  "35 5 * * MON-FRI": "daily-summary",
+  "0 9 * * MON-FRI": "backfill",
+  "30 4 * * SAT,SUN": "keep-alive",
 } as const;
 ```
 
@@ -462,7 +462,7 @@ test("custom worker exposes fetch and scheduled handlers", () => {
 
 test("wrangler config registers the four UTC cron triggers", () => {
   const config = read("wrangler.jsonc");
-  for (const cron of ["* * * * 1-5", "35 5 * * 1-5", "0 9 * * 1-5", "30 4 * * 0,6"]) {
+  for (const cron of ["* * * * MON-FRI", "35 5 * * MON-FRI", "0 9 * * MON-FRI", "30 4 * * SAT,SUN"]) {
     assert.match(config, new RegExp(cron.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });

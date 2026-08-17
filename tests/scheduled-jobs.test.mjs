@@ -22,7 +22,7 @@ function deps(overrides = {}) {
 test("盤外 alerts cron 不取得鎖也不抓報價", async () => {
   const calls = [];
   const result = await runScheduledCron(
-    "* * * * 1-5",
+    "* * * * MON-FRI",
     NOW,
     deps({
       isMarketOpenNow: async () => false,
@@ -47,7 +47,7 @@ test("盤外 alerts cron 不取得鎖也不抓報價", async () => {
 
 test("重複 cron 取不到租約時跳過", async () => {
   const result = await runScheduledCron(
-    "35 5 * * 1-5",
+    "35 5 * * MON-FRI",
     NOW,
     deps({
       isTradingDay: async () => true,
@@ -65,28 +65,28 @@ test("重複 cron 取不到租約時跳過", async () => {
 test("四個 UTC cron 對應正確工作、租約時間與成功 detail", async () => {
   const cases = [
     {
-      cron: "* * * * 1-5",
+      cron: "* * * * MON-FRI",
       job: "alerts",
       leaseSeconds: 55,
       override: { checkAlerts: async () => 3 },
       detail: { sent: 3 },
     },
     {
-      cron: "35 5 * * 1-5",
+      cron: "35 5 * * MON-FRI",
       job: "daily-summary",
       leaseSeconds: 300,
       override: { dailySummary: async () => true },
       detail: { sent: true },
     },
     {
-      cron: "0 9 * * 1-5",
+      cron: "0 9 * * MON-FRI",
       job: "backfill",
       leaseSeconds: 840,
       override: { backfillWatchlist: async () => ({ ok: 4, fail: 1 }) },
       detail: { ok: 4, fail: 1 },
     },
     {
-      cron: "30 4 * * 0,6",
+      cron: "30 4 * * SAT,SUN",
       job: "keep-alive",
       leaseSeconds: 60,
       override: { keepAlive: async () => {} },
@@ -131,7 +131,7 @@ test("收盤總覽以 UTC 時間轉換的台北日期判斷交易日", async () 
   const tradingDayInputs = [];
   const calls = [];
   const result = await runScheduledCron(
-    "35 5 * * 1-5",
+    "35 5 * * MON-FRI",
     NOW,
     deps({
       isTradingDay: async (taipeiTime) => {
@@ -166,7 +166,7 @@ test("業務函式失敗後記錄精簡錯誤並重新拋出原錯誤", async ()
 
   await assert.rejects(
     runScheduledCron(
-      "0 9 * * 1-5",
+      "0 9 * * MON-FRI",
       NOW,
       deps({
         backfillWatchlist: async () => {
@@ -201,7 +201,7 @@ test("業務與完成記錄同時失敗時仍拋出原業務錯誤", async () =>
   try {
     await assert.rejects(
       runScheduledCron(
-        "0 9 * * 1-5",
+        "0 9 * * MON-FRI",
         NOW,
         deps({
           backfillWatchlist: async () => {
@@ -227,7 +227,7 @@ test("非 Error 型別的失敗不寫入原始內容", async () => {
 
   await assert.rejects(
     runScheduledCron(
-      "30 4 * * 0,6",
+      "30 4 * * SAT,SUN",
       NOW,
       deps({
         keepAlive: async () => {
@@ -253,7 +253,7 @@ test("租約取得失敗時不執行外部通知業務", async () => {
 
   await assert.rejects(
     runScheduledCron(
-      "* * * * 1-5",
+      "* * * * MON-FRI",
       NOW,
       deps({
         claim: async () => {

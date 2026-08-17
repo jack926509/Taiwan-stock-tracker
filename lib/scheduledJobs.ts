@@ -31,10 +31,10 @@ export interface ScheduledJobDependencies {
 }
 
 const CRON_JOB = {
-  "* * * * 1-5": "alerts",
-  "35 5 * * 1-5": "daily-summary",
-  "0 9 * * 1-5": "backfill",
-  "30 4 * * 0,6": "keep-alive",
+  "* * * * MON-FRI": "alerts",
+  "35 5 * * MON-FRI": "daily-summary",
+  "0 9 * * MON-FRI": "backfill",
+  "30 4 * * SAT,SUN": "keep-alive",
 } as const satisfies Record<string, ScheduledJobName>;
 
 const LEASE_SECONDS: Record<ScheduledJobName, number> = {

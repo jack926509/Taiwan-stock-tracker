@@ -44,10 +44,10 @@ test("custom worker exposes fetch and scheduled handlers", () => {
 test("wrangler config registers the four UTC cron triggers", () => {
   const config = JSON.parse(read("wrangler.jsonc"));
   assert.deepEqual(config.triggers?.crons, [
-    "* * * * 1-5",
-    "35 5 * * 1-5",
-    "0 9 * * 1-5",
-    "30 4 * * 0,6",
+    "* * * * MON-FRI",
+    "35 5 * * MON-FRI",
+    "0 9 * * MON-FRI",
+    "30 4 * * SAT,SUN",
   ]);
 });
 
