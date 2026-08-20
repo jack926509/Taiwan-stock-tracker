@@ -64,6 +64,7 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /reorderable/);
   // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
   assert.match(card, /md:flex max-\[599px\]:hidden/);
+  assert.match(card, /max-\[599px\]:pl-8/);
   // 刪除鍵已從舊版 absolute 浮貼改為格線最後一欄的正式成員（justify-self-end 靠右對齊，
   // 見 QuoteBoard「刪除鍵＝格線第 8 欄」註解）；不用 absolute＋負偏移浮貼避免壓縮格線可用寬。
   assert.match(card, /justify-self-end/);
@@ -84,9 +85,9 @@ test("大盤指數卡在左欄堆疊，600–1359px 併排兩欄、其餘斷點�
   // 窄螢幕單欄堆疊、中間斷點兩欄併排、進左欄後回單欄（單欄斷點值以 \d+ 容忍未來微調）。
   const indexCard = await read("components/IndexCard.tsx");
   assert.match(indexCard, /min-w-0/);
-  assert.match(indexCard, /grid-cols-1/); // 窄螢幕單欄堆疊
-  assert.match(indexCard, /min-\[600px\]:grid-cols-2/); // 中間斷點兩欄併排
-  assert.match(indexCard, /min-\[\d+px\]:grid-cols-1/); // 進左欄後回單欄
+  assert.match(indexCard, /grid-cols-1/);
+  assert.match(indexCard, /min-\[600px\]:grid-cols-2/);
+  assert.match(indexCard, /min-\[1360px\]:grid-cols-1/);
 });
 
 test("桌面自選股改為表格版型，欄位格線照抄視覺規範且訊號可換行不裁切", async () => {
