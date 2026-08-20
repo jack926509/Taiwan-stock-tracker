@@ -1,3 +1,14 @@
+<!--
+  ⚠️ 後續調整（2026-07-22 起，本定稿之後）——實作已在下列處刻意偏離本 mockup，
+  「照抄視覺規範」時請以程式碼為現行準據，勿再沿用本檔的舊數值：
+    1. 桌面單欄／排滿斷點：1000px → 1360px（IndexCard 指數卡、QuoteBoard 表格同步）。
+    2. 報價欄寬：92px → 120px（防盤中「報價 13:25:47未成交」whitespace-nowrap 溢出侵入走勢欄）。
+    3. 商品欄加寬（minmax→210px,1.8fr）、對應寬度自訊號欄挪回，避免長名被 truncate 切斷。
+    4. 刪除鍵：由 absolute 浮貼改為格線最後一欄（justify-self-end），避免壓縮格線可用寬。
+    5. 走勢欄「20 日」語意移到表頭欄名，Sparkline 每列只留圖置中，不再與報價時間相撞。
+  本 mockup 內容維持定稿當時原樣（歷史記錄）；偏離原因詳見 components/home/QuoteBoard.tsx
+  的 GRID_COLS 註解與 components/IndexCard.tsx。
+-->
 <title>台股追蹤 — 定稿預覽：表格版型 × 暖米白</title>
 <style>
   :root {
