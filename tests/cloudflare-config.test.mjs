@@ -19,14 +19,19 @@ test("package exposes OpenNext build, preview and upload commands", () => {
   assert.ok(pkg.devDependencies.wrangler);
 });
 
-test("wrangler serves OpenNext assets without a production custom domain", () => {
+test("wrangler serves OpenNext assets and declares the production custom domain", () => {
   const config = read("wrangler.jsonc");
   assert.match(config, /"main":\s*"\.\/cloudflare-worker\.ts"/);
   assert.match(config, /"directory":\s*"\.open-next\/assets"/);
   const parsed = JSON.parse(config);
   assert.equal(parsed.workers_dev, true);
   assert.equal(parsed.route, undefined);
-  assert.equal(parsed.routes, undefined);
+  assert.deepEqual(parsed.routes, [
+    {
+      pattern: "twstock.xiehnet.com",
+      custom_domain: true,
+    },
+  ]);
 });
 
 test("custom worker exposes fetch and scheduled handlers", () => {
