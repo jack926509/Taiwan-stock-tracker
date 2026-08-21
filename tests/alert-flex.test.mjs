@@ -29,6 +29,7 @@ test("跌破提醒產生精簡綠色 Flex 卡片與個股連結", () => {
   assert.match(message.altText, /元大台灣 50 0050 跌破設定價 103/);
   assert.equal(bubble.header.backgroundColor, "#4E7A3A");
   assert.equal(bubble.footer.contents[0].action.uri, "https://twstock.xiehnet.com/stock/0050");
+  assert.equal(bubble.footer.contents[0].action.label, "查看 0050 即時報價");
   assert.match(JSON.stringify(bubble.body), /跌破設定價 103/);
 });
 

@@ -134,7 +134,7 @@ export function buildAlertFlex(input: AlertFlexInput): LineMessage {
             style: "primary",
             color: colors.header,
             height: "sm",
-            action: { type: "uri", label: `查看 ${input.stockId}`, uri: `${input.baseUrl}/stock/${input.stockId}` },
+            action: { type: "uri", label: `查看 ${input.stockId} 即時報價`, uri: `${input.baseUrl}/stock/${input.stockId}` },
           },
         ],
       },
