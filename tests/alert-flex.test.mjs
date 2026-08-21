@@ -32,6 +32,17 @@ test("跌破提醒產生精簡綠色 Flex 卡片與個股連結", () => {
   assert.match(JSON.stringify(bubble.body), /跌破設定價 103/);
 });
 
+test("到價卡採緊湊間距，避免大面積留白", () => {
+  const message = buildAlertFlex({ ...BASE, kind: "low", threshold: 103 });
+  const bubble = bubbleOf(message);
+
+  assert.equal(bubble.header.paddingAll, "12px");
+  assert.equal(bubble.body.paddingAll, "14px");
+  assert.equal(bubble.body.spacing, "xs");
+  assert.equal(bubble.footer.paddingAll, "10px");
+  assert.equal(bubble.body.contents[0].text, "元大台灣 50　0050");
+});
+
 test("漲破提醒以紅色語意呈現觸發門檻", () => {
   const message = buildAlertFlex({ ...BASE, kind: "high", price: 103.1, changePct: 0.012, threshold: 103 });
   const bubble = bubbleOf(message);

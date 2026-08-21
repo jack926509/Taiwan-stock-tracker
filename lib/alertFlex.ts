@@ -79,18 +79,17 @@ function altText(input: AlertFlexInput): string {
 }
 
 function separator(): object {
-  return { type: "separator", color: C_HAIRLINE, margin: "md" };
+  return { type: "separator", color: C_HAIRLINE, margin: "sm" };
 }
 
 export function buildAlertFlex(input: AlertFlexInput): LineMessage {
   const colors = tone(input);
   const body: object[] = [
-    { type: "text", text: input.name, size: "lg", weight: "bold", color: C_INK },
-    { type: "text", text: input.stockId, size: "xs", color: C_MUTED, margin: "none" },
+    { type: "text", text: `${input.name}　${input.stockId}`, size: "lg", weight: "bold", color: C_INK },
     {
       type: "box",
       layout: "baseline",
-      margin: "md",
+      margin: "sm",
       contents: [
         { type: "text", text: fmtPrice(input.price), size: "xxl", weight: "bold", color: C_INK, flex: 6 },
         { type: "text", text: fmtPct(input.changePct), size: "md", weight: "bold", color: colors.accent, align: "end", flex: 4 },
@@ -118,17 +117,17 @@ export function buildAlertFlex(input: AlertFlexInput): LineMessage {
         type: "box",
         layout: "horizontal",
         backgroundColor: colors.header,
-        paddingAll: "16px",
+        paddingAll: "12px",
         contents: [
           { type: "text", text: title(input), color: "#FFFFFF", weight: "bold", size: "md", flex: 8 },
           { type: "text", text: input.time, color: "#FFFFFF", size: "sm", align: "end", flex: 2 },
         ],
       },
-      body: { type: "box", layout: "vertical", paddingAll: "20px", spacing: "sm", contents: body },
+      body: { type: "box", layout: "vertical", paddingAll: "14px", spacing: "xs", contents: body },
       footer: {
         type: "box",
         layout: "vertical",
-        paddingAll: "12px",
+        paddingAll: "10px",
         contents: [
           {
             type: "button",
