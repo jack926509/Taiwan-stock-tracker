@@ -62,7 +62,16 @@ export function buildAlertFlex(input: AlertFlexInput): LineMessage {
     : input.kind === "volume"
       ? { header: "#6B5E54", text: "#2B2420" }
       : { header: "#4E7A3A", text: "#4E7A3A" };
-  return { type: "flex", altText: buildAltText(input), contents: { type: "bubble", header: /* ... */, body: /* ... */, footer: /* ... */ } };
+  return {
+    type: "flex",
+    altText: buildAlertAltText(input),
+    contents: {
+      type: "bubble",
+      header: alertHeader(input, tone),
+      body: alertBody(input, tone),
+      footer: alertFooter(input),
+    },
+  };
 }
 ```
 
@@ -107,7 +116,20 @@ Expected: FAIL，因現有程式仍以 `pushLine()` 發送純文字。
 - [ ] **Step 3: 以最小改動接線**
 
 ```ts
-const message = buildAlertFlex({ /* q、decision、time、BASE_URL */ });
+const message = buildAlertFlex({
+  kind: decision.kind,
+  stockId: q.stockId,
+  name: q.name,
+  price: q.price,
+  changePct: q.changePct,
+  threshold: decision.threshold,
+  time,
+  open: q.open,
+  high: q.high,
+  low: q.low,
+  volume: q.volume,
+  baseUrl: BASE_URL,
+});
 if (await pushLineMessages([message])) {
   await markAlertHit(row.stock_id, decision.kind, at);
 }
