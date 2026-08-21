@@ -2,7 +2,7 @@
 
 一套以「快速掌握自選股狀態」為核心的台股追蹤工具，整合即時行情、技術圖表、基本面、法人動向、收盤摘要與 LINE 到價通知，並支援手機安裝與離線瀏覽。
 
-> **遷移狀態：** Cloudflare Worker 程式已進入本機驗收，但尚未綁定正式網域；現行正式服務仍由 [Zeabur](https://tw-stock-tracker.zeabur.app) 提供。預覽驗收、Supabase migration 與正式切換都要另行取得核准，本機指令不會自動部署。
+> **正式環境：** [twstock.xiehnet.com](https://twstock.xiehnet.com) 已由 Cloudflare Worker 提供前端、API、Cron 與 LINE 通知，Supabase 是唯一正式資料庫。舊 Cloudflare Pages 的 Zeabur API 代理已停用。
 
 ## ✨ 核心功能
 
@@ -127,7 +127,7 @@ Cloudflare Cron 以 UTC 設定，Worker 會依 `event.cron` 分派下列工作�
 2. 執行 `npm run cf:preview`，用 workerd 實際驗收頁面與公開 API。
 3. 必要時由 GitHub Actions 手動 `workflow_dispatch`，在 `validate` 成功後才執行 `npm run cf:upload`。一般 push 與 pull request 只會驗證，不會上傳或部署。
 4. 以預覽 URL 與僅在 shell 注入的驗收憑證執行 `VERIFY_BASE_URL=<preview-url> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`，再完成 Supabase、LINE、四種 Cron、Workers Logs 與盤中 TWSE 驗收。
-5. 全部驗收通過且取得使用者明確核准後，才能綁定 `twstock.xiehnet.com` 與停止 Zeabur；不得在預覽驗收前切換正式網域。
+5. 正式網域 `twstock.xiehnet.com` 已綁定 Worker；任何部署都必須重新驗收登入、Supabase、LINE、四種 Cron 與盤中 TWSE，再決定是否停用舊平台。
 
 `wrangler.jsonc` 只放公開設定；應用程式 secrets 只設於 Cloudflare Worker Secrets。GitHub Actions 只使用上傳所需的 `CLOUDFLARE_API_TOKEN` 與 `CLOUDFLARE_ACCOUNT_ID`，不複製 Supabase、FinMind、LINE 或登入密碼。
 

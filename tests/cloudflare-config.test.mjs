@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -117,6 +117,23 @@ test("worker workflow validates every push but uploads only after a successful m
   assert.doesNotMatch(workflow, /custom[_ -]?domain/i);
   assert.doesNotMatch(workflow, /pages\s+delete|delete\s+pages/i);
   assert.doesNotMatch(workflow, /zeabur/i);
+});
+
+test("legacy Pages deployment and Zeabur API proxy are removed", () => {
+  for (const path of [
+    ".github/workflows/cloudflare-pages.yml",
+    "frontend/functions/api/[[path]].ts",
+    "frontend/lib/apiProxy.ts",
+  ]) {
+    assert.equal(
+      existsSync(new URL(`../${path}`, import.meta.url)),
+      false,
+      `${path} 不應再存在`,
+    );
+  }
+
+  const routes = JSON.parse(read("frontend/public/_routes.json"));
+  assert.deepEqual(routes.include, ["/stock/*"]);
 });
 
 test("Cloudflare verifier declares the public endpoint and timeout contract without reading secrets", () => {
