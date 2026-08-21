@@ -82,7 +82,6 @@ npm run dev
 | `FINMIND_TOKEN` | 功能必要 | 取得歷史行情、基本面與法人資料 |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE 必要 | 傳送 LINE 到價通知 |
 | `LINE_TARGET_USER_ID` | LINE 必要 | LINE 通知接收者 ID |
-| `APP_ACCESS_PASSWORD` | 正式環境必要 | 限制網站存取 |
 | `HEALTH_DETAIL_TOKEN` | 正式環境必要 | 保護 `/api/health?detail=1` 的 Bearer token |
 | `APP_BASE_URL` | Worker 必要 | 網站基礎網址，也用於提醒訊息連結 |
 
@@ -100,7 +99,7 @@ npm run dev
 | `npx wrangler deploy --dry-run` | 檢查可上傳 bundle 的 gzip 大小；不會上傳或部署 |
 | `npm run cf:preview` | 以本機 workerd 啟動 Worker 預覽 |
 | `npm run cf:upload` | 上傳 Worker 預覽版本；需 Cloudflare 憑證，不綁定正式網域 |
-| `VERIFY_BASE_URL=<URL> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare` | 實打預覽版的首頁、登入、Supabase 自選股、授權健康檢查、manifest 與 service worker；三者皆由 shell 安全注入，不可寫入 git |
+| `VERIFY_BASE_URL=<URL> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare` | 實打預覽版的首頁、Supabase 自選股、授權健康檢查、manifest 與 service worker；兩者皆由 shell 安全注入，不可寫入 git |
 | `npm run start` | 啟動正式模式伺服器 |
 | `npm run smoke` | 長時間檢查證交所 MIS 行情穩定性 |
 
@@ -126,10 +125,10 @@ Cloudflare Cron 以 UTC 設定，Worker 會依 `event.cron` 分派下列工作�
 1. 本機執行完整測試與兩種 build。
 2. 執行 `npm run cf:preview`，用 workerd 實際驗收頁面與公開 API。
 3. 必要時由 GitHub Actions 手動 `workflow_dispatch`，在 `validate` 成功後才執行 `npm run cf:upload`。一般 push 與 pull request 只會驗證，不會上傳或部署。
-4. 以預覽 URL 與僅在 shell 注入的驗收憑證執行 `VERIFY_BASE_URL=<preview-url> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`，再完成 Supabase、LINE、四種 Cron、Workers Logs 與盤中 TWSE 驗收。
-5. 正式網域 `twstock.xiehnet.com` 已綁定 Worker；任何部署都必須重新驗收登入、Supabase、LINE、四種 Cron 與盤中 TWSE，再決定是否停用舊平台。
+4. 以預覽 URL 與僅在 shell 注入的驗收 token 執行 `VERIFY_BASE_URL=<preview-url> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`，再完成 Supabase、LINE、四種 Cron、Workers Logs 與盤中 TWSE 驗收。
+5. 正式網域 `twstock.xiehnet.com` 已綁定 Worker；任何部署都必須重新驗收首頁、Supabase、LINE、四種 Cron 與盤中 TWSE。
 
-`wrangler.jsonc` 只放公開設定；應用程式 secrets 只設於 Cloudflare Worker Secrets。GitHub Actions 只使用上傳所需的 `CLOUDFLARE_API_TOKEN` 與 `CLOUDFLARE_ACCOUNT_ID`，不複製 Supabase、FinMind、LINE 或登入密碼。
+`wrangler.jsonc` 只放公開設定；應用程式 secrets 只設於 Cloudflare Worker Secrets。GitHub Actions 只使用上傳所需的 `CLOUDFLARE_API_TOKEN` 與 `CLOUDFLARE_ACCOUNT_ID`，不複製 Supabase、FinMind、LINE 或健康檢查 token。
 
 ## 🛡️ 資料與安全
 

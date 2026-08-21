@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 
-const PUBLIC_ENDPOINTS = Object.freeze(["/login", "/api/health"]);
+const PUBLIC_ENDPOINTS = Object.freeze(["/api/health"]);
 
 const STATIC_ENDPOINTS = Object.freeze([
   "/manifest.webmanifest",
@@ -54,29 +54,15 @@ async function readJson(response, endpoint) {
   }
 }
 
-function authCookie(response) {
-  const setCookie = response.headers?.get?.("set-cookie") ?? "";
-  const match = setCookie.match(/(?:^|,\s*)app_auth=([^;,\s]+)/);
-  if (!match) {
-    throw new Error("/api/auth: 缺少驗證 cookie");
-  }
-  return `app_auth=${match[1]}`;
-}
-
 export async function verifyCloudflareRelease(
   baseUrl,
   {
     fetchImpl = globalThis.fetch,
     log = console.log,
-    appPassword,
     healthDetailToken,
   } = {},
 ) {
   const rootUrl = parseBaseUrl(baseUrl);
-  const verifiedAppPassword = requireVerifierSecret(
-    appPassword,
-    "VERIFY_APP_ACCESS_PASSWORD",
-  );
   const verifiedHealthToken = requireVerifierSecret(
     healthDetailToken,
     "VERIFY_HEALTH_DETAIL_TOKEN",
@@ -106,48 +92,13 @@ export async function verifyCloudflareRelease(
     return response;
   };
 
-  const protectedRoot = await rawRequest("/");
-  const rootLocation = protectedRoot.headers?.get?.("location") ?? "";
-  let loginUrl;
-  try {
-    loginUrl = new URL(rootLocation, rootUrl);
-  } catch {
-    throw new Error("/: 未導向本站登入頁");
-  }
-  const expectedOrigin = new URL(rootUrl).origin;
-  if (
-    (protectedRoot.status !== 307 && protectedRoot.status !== 308) ||
-    loginUrl.origin !== expectedOrigin ||
-    loginUrl.pathname !== "/login" ||
-    loginUrl.search !== "" ||
-    loginUrl.hash !== ""
-  ) {
-    throw new Error("/: 未導向本站登入頁");
-  }
-  log(`[通過] /: HTTP ${protectedRoot.status} → /login`);
-
-  const protectedApi = await rawRequest("/api/watchlist");
-  if (protectedApi.status !== 401) {
-    throw new Error(`/api/watchlist: 未登入時應為 HTTP 401，實際為 ${protectedApi.status}`);
-  }
-  log("[通過] /api/watchlist: 未登入 HTTP 401");
+  await request("/");
 
   for (const endpoint of PUBLIC_ENDPOINTS) {
     await request(endpoint);
   }
 
-  const loginResponse = await request("/api/auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: verifiedAppPassword }),
-  });
-  const cookie = authCookie(loginResponse);
-
-  await request("/", { headers: { Cookie: cookie } });
-
-  const watchlistResponse = await request("/api/watchlist", {
-    headers: { Cookie: cookie },
-  });
+  const watchlistResponse = await request("/api/watchlist");
   const watchlist = await readJson(watchlistResponse, "/api/watchlist");
   if (!Array.isArray(watchlist?.items) || watchlist.storage !== "supabase") {
     throw new Error("/api/watchlist: 未使用 Supabase");
@@ -169,7 +120,6 @@ export async function verifyCloudflareRelease(
 
 export async function runVerifierCli({
   baseUrl = process.env.VERIFY_BASE_URL,
-  appPassword = process.env.VERIFY_APP_ACCESS_PASSWORD,
   healthDetailToken = process.env.VERIFY_HEALTH_DETAIL_TOKEN,
   fetchImpl = globalThis.fetch,
   log = console.log,
@@ -179,7 +129,6 @@ export async function runVerifierCli({
     await verifyCloudflareRelease(baseUrl, {
       fetchImpl,
       log,
-      appPassword,
       healthDetailToken,
     });
     return 0;

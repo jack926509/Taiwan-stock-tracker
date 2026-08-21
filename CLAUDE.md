@@ -10,8 +10,8 @@
 4. `npm run cf:build`（OpenNext Worker build 成功）
 5. `npx wrangler deploy --dry-run`（確認壓縮後 bundle 小於 Cloudflare Workers Paid 限制；不會上傳）
 6. `git diff --check`（無 whitespace error）
-7. 啟動 `npm run cf:preview`，再以實際預覽網址與僅在 shell 注入的驗收憑證執行 `VERIFY_BASE_URL=<preview-url> VERIFY_APP_ACCESS_PASSWORD=<密碼> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`
-8. 用桌面與 390 × 844 手機 viewport 實際檢查 `/`、`/login`、`/search`、`/alerts`、`/stock/2330`，確認沒有白頁、console error、失效資源或無法操作的主要按鈕
+7. 啟動 `npm run cf:preview`，再以實際預覽網址與僅在 shell 注入的驗收 token 執行 `VERIFY_BASE_URL=<preview-url> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`
+8. 用桌面與 390 × 844 手機 viewport 實際檢查 `/`、`/search`、`/alerts`、`/stock/2330`，確認沒有白頁、console error、失效資源或無法操作的主要按鈕
 
 `npm run smoke` 僅測試執行節點能否穩定連上 TWSE 即時報價源，不是完整功能測試，不驗證頁面、API 回應格式或 Supabase 連線。
 
