@@ -1,6 +1,7 @@
 // @ts-ignore OpenNext 建置後才會產生此模組。
 import handler from "./.open-next/worker.js";
 import { runScheduledCron } from "./lib/scheduledJobs";
+import { authorizeWorkerRequest } from "./lib/workerAuth";
 
 interface ScheduledEvent {
   cron: string;
@@ -12,7 +13,11 @@ interface ExecutionContext {
 }
 
 type ExportedHandler<Env> = {
-  fetch: typeof handler.fetch;
+  fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response>;
   scheduled(
     event: ScheduledEvent,
     env: Env,
@@ -20,8 +25,18 @@ type ExportedHandler<Env> = {
   ): void | Promise<void>;
 };
 
+type WorkerEnv = CloudflareEnv & {
+  APP_ACCESS_PASSWORD?: string;
+};
+
 export default {
-  fetch: handler.fetch,
+  async fetch(request, env, ctx) {
+    const authResponse = await authorizeWorkerRequest(
+      request,
+      env.APP_ACCESS_PASSWORD,
+    );
+    return authResponse ?? handler.fetch(request, env, ctx);
+  },
   async scheduled(event, _env, ctx) {
     ctx.waitUntil(
       runScheduledCron(event.cron, new Date(event.scheduledTime)).catch(() => {
@@ -30,4 +45,4 @@ export default {
       })
     );
   },
-} satisfies ExportedHandler<CloudflareEnv>;
+} satisfies ExportedHandler<WorkerEnv>;

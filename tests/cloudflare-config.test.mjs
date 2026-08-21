@@ -25,6 +25,7 @@ test("wrangler serves OpenNext assets and declares the production custom domain"
   assert.match(config, /"directory":\s*"\.open-next\/assets"/);
   const parsed = JSON.parse(config);
   assert.equal(parsed.workers_dev, true);
+  assert.equal(parsed.assets?.run_worker_first, true);
   assert.equal(parsed.route, undefined);
   assert.deepEqual(parsed.routes, [
     {
@@ -36,7 +37,9 @@ test("wrangler serves OpenNext assets and declares the production custom domain"
 
 test("custom worker exposes fetch and scheduled handlers", () => {
   const worker = read("cloudflare-worker.ts");
-  assert.match(worker, /fetch:\s*handler\.fetch/);
+  assert.match(worker, /async fetch\(/);
+  assert.match(worker, /authorizeWorkerRequest\(/);
+  assert.match(worker, /handler\.fetch\(request, env, ctx\)/);
   assert.match(worker, /async scheduled\(/);
   assert.match(worker, /ctx\.waitUntil\(/);
   assert.match(
@@ -135,19 +138,55 @@ test("Cloudflare verifier declares the public endpoint and timeout contract with
   assert.match(verifier, /redirect:\s*"manual"/);
   assert.match(verifier, /process\.exitCode\s*=\s*await runVerifierCli\(\)/);
 
-  const endpoints = [
-    '"/"',
-    '"/login"',
-    '"/api/health"',
-    '"/manifest.webmanifest"',
-    '"/sw.js"',
-  ];
-  let previousIndex = -1;
-  for (const endpoint of endpoints) {
-    const index = verifier.indexOf(endpoint);
-    assert.ok(index > previousIndex, `${endpoint} 必須以指定順序出現`);
-    previousIndex = index;
+  for (const endpoint of [
+    "/",
+    "/login",
+    "/api/health",
+    "/manifest.webmanifest",
+    "/sw.js",
+  ]) {
+    assert.ok(verifier.includes(`"${endpoint}"`), `${endpoint} 必須接受驗收`);
   }
+});
+
+test("Cloudflare verifier rejects a release that exposes the protected homepage", async () => {
+  const { verifyCloudflareRelease } = await loadVerifier();
+  const requests = [];
+
+  await assert.rejects(
+    () =>
+      verifyCloudflareRelease("https://release.invalid", {
+        fetchImpl: async (url) => {
+          const endpoint = new URL(url).pathname;
+          requests.push(endpoint);
+          return { ok: true, status: 200, headers: { get: () => null } };
+        },
+        log: () => {},
+        appPassword: "app-secret",
+        healthDetailToken: "health-secret",
+      }),
+    /\/: 未導向本站登入頁/,
+  );
+  assert.deepEqual(requests, ["/"]);
+});
+
+test("Cloudflare verifier rejects a login redirect to another origin", async () => {
+  const { verifyCloudflareRelease } = await loadVerifier();
+
+  await assert.rejects(
+    () =>
+      verifyCloudflareRelease("https://release.invalid", {
+        fetchImpl: async () => ({
+          ok: false,
+          status: 307,
+          headers: { get: () => "https://evil.invalid/login" },
+        }),
+        log: () => {},
+        appPassword: "app-secret",
+        healthDetailToken: "health-secret",
+      }),
+    /\/: 未導向本站登入頁/,
+  );
 });
 
 test("Cloudflare verifier authenticates and checks Supabase-backed watchlist plus detailed health", async () => {
@@ -161,6 +200,13 @@ test("Cloudflare verifier authenticates and checks Supabase-backed watchlist plu
       const endpoint = `${parsed.pathname}${parsed.search}`;
       requests.push({ endpoint, options });
       assert.ok(options.signal instanceof AbortSignal);
+      if (endpoint === "/" && !options.headers?.Cookie) {
+        return {
+          ok: false,
+          status: 307,
+          headers: { get: (name) => name.toLowerCase() === "location" ? "/login" : null },
+        };
+      }
       if (endpoint === "/api/auth") {
         return {
           ok: true,
@@ -174,6 +220,9 @@ test("Cloudflare verifier authenticates and checks Supabase-backed watchlist plu
         };
       }
       if (endpoint === "/api/watchlist") {
+        if (!options.headers?.Cookie) {
+          return { ok: false, status: 401, headers: { get: () => null } };
+        }
         return {
           ok: true,
           status: 200,
@@ -196,26 +245,31 @@ test("Cloudflare verifier authenticates and checks Supabase-backed watchlist plu
 
   assert.deepEqual(requests.map(({ endpoint }) => endpoint), [
     "/",
+    "/api/watchlist",
     "/login",
     "/api/health",
     "/api/auth",
+    "/",
     "/api/watchlist",
     "/api/health?detail=1",
     "/manifest.webmanifest",
     "/sw.js",
+    "/offline.html",
+    "/icons/192",
+    "/icons/512",
   ]);
   const authRequest = requests.find(({ endpoint }) => endpoint === "/api/auth");
   assert.equal(authRequest.options.method, "POST");
   assert.equal(authRequest.options.body, '{"password":"app-secret"}');
   const watchlistRequest = requests.find(
-    ({ endpoint }) => endpoint === "/api/watchlist",
+    ({ endpoint, options }) => endpoint === "/api/watchlist" && options.headers?.Cookie,
   );
   assert.equal(watchlistRequest.options.headers.Cookie, "app_auth=verified-cookie");
   const detailRequest = requests.find(
     ({ endpoint }) => endpoint === "/api/health?detail=1",
   );
   assert.equal(detailRequest.options.headers.Authorization, "Bearer health-secret");
-  assert.equal(messages.length, 8);
+  assert.equal(messages.length, 13);
   assert.doesNotMatch(
     messages.join("\n"),
     /release\.invalid|private=value|app-secret|health-secret|verified-cookie/,
@@ -247,10 +301,17 @@ test("Cloudflare verifier rejects a local-storage watchlist despite HTTP 200", a
   await assert.rejects(
     () =>
       verifyCloudflareRelease("https://release.invalid", {
-        fetchImpl: async (url) => {
+        fetchImpl: async (url, options) => {
           const parsed = new URL(url);
           const endpoint = `${parsed.pathname}${parsed.search}`;
           requests.push(endpoint);
+          if (endpoint === "/" && !options.headers?.Cookie) {
+            return {
+              ok: false,
+              status: 307,
+              headers: { get: () => "/login" },
+            };
+          }
           if (endpoint === "/api/auth") {
             return {
               ok: true,
@@ -261,6 +322,9 @@ test("Cloudflare verifier rejects a local-storage watchlist despite HTTP 200", a
             };
           }
           if (endpoint === "/api/watchlist") {
+            if (!options.headers?.Cookie) {
+              return { ok: false, status: 401 };
+            }
             return {
               ok: true,
               status: 200,
@@ -277,9 +341,11 @@ test("Cloudflare verifier rejects a local-storage watchlist despite HTTP 200", a
   );
   assert.deepEqual(requests, [
     "/",
+    "/api/watchlist",
     "/login",
     "/api/health",
     "/api/auth",
+    "/",
     "/api/watchlist",
   ]);
 });
@@ -292,9 +358,19 @@ test("Cloudflare verifier stops at the first non-2xx response without leaking th
   await assert.rejects(
     () =>
       verifyCloudflareRelease(baseUrl, {
-        fetchImpl: async (url) => {
+        fetchImpl: async (url, options) => {
           const endpoint = new URL(url).pathname;
           requests.push(endpoint);
+          if (endpoint === "/" && !options.headers?.Cookie) {
+            return {
+              ok: false,
+              status: 307,
+              headers: { get: () => "/login" },
+            };
+          }
+          if (endpoint === "/api/watchlist" && !options.headers?.Cookie) {
+            return { ok: false, status: 401 };
+          }
           return {
             ok: endpoint !== "/login",
             status: endpoint === "/login" ? 503 : 200,
@@ -310,7 +386,7 @@ test("Cloudflare verifier stops at the first non-2xx response without leaking th
       return true;
     },
   );
-  assert.deepEqual(requests, ["/", "/login"]);
+  assert.deepEqual(requests, ["/", "/api/watchlist", "/login"]);
 });
 
 test("Cloudflare verifier CLI routine treats a 302 as an immediate failure without following it", async () => {
@@ -325,10 +401,17 @@ test("Cloudflare verifier CLI routine treats a 302 as an immediate failure witho
       const endpoint = new URL(url).pathname;
       requests.push(endpoint);
       redirects.push(options.redirect);
-      return {
-        ok: endpoint !== "/login",
-        status: endpoint === "/login" ? 302 : 200,
-      };
+      if (endpoint === "/") {
+        return {
+          ok: false,
+          status: 307,
+          headers: { get: () => "/login" },
+        };
+      }
+      if (endpoint === "/api/watchlist") {
+        return { ok: false, status: 401 };
+      }
+      return { ok: false, status: 302 };
     },
     log: () => {},
     errorLog: (message) => errors.push(message),
@@ -337,7 +420,7 @@ test("Cloudflare verifier CLI routine treats a 302 as an immediate failure witho
   });
 
   assert.equal(exitCode, 1);
-  assert.deepEqual(requests, ["/", "/login"]);
-  assert.deepEqual(redirects, ["manual", "manual"]);
+  assert.deepEqual(requests, ["/", "/api/watchlist", "/login"]);
+  assert.deepEqual(redirects, ["manual", "manual", "manual"]);
   assert.match(errors.join("\n"), /\/login.*HTTP 302/);
 });

@@ -1,12 +1,14 @@
 import { pathToFileURL } from "node:url";
 
-const ENDPOINTS = Object.freeze([
-  "/",
-  "/login",
-  "/api/health",
-]);
+const PUBLIC_ENDPOINTS = Object.freeze(["/login", "/api/health"]);
 
-const STATIC_ENDPOINTS = Object.freeze(["/manifest.webmanifest", "/sw.js"]);
+const STATIC_ENDPOINTS = Object.freeze([
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/offline.html",
+  "/icons/192",
+  "/icons/512",
+]);
 
 function parseBaseUrl(baseUrl) {
   if (!baseUrl) {
@@ -80,7 +82,7 @@ export async function verifyCloudflareRelease(
     "VERIFY_HEALTH_DETAIL_TOKEN",
   );
 
-  const request = async (endpoint, init = {}) => {
+  const rawRequest = async (endpoint, init = {}) => {
     let response;
     try {
       response = await fetchImpl(new URL(endpoint, rootUrl), {
@@ -92,15 +94,45 @@ export async function verifyCloudflareRelease(
       throw new Error(`${endpoint}: ${connectionResult(error)}`);
     }
 
+    return response;
+  };
+
+  const request = async (endpoint, init = {}) => {
+    const response = await rawRequest(endpoint, init);
     if (!response.ok) {
       throw new Error(`${endpoint}: HTTP ${response.status}`);
     }
-
     log(`[通過] ${endpoint}: HTTP ${response.status}`);
     return response;
   };
 
-  for (const endpoint of ENDPOINTS) {
+  const protectedRoot = await rawRequest("/");
+  const rootLocation = protectedRoot.headers?.get?.("location") ?? "";
+  let loginUrl;
+  try {
+    loginUrl = new URL(rootLocation, rootUrl);
+  } catch {
+    throw new Error("/: 未導向本站登入頁");
+  }
+  const expectedOrigin = new URL(rootUrl).origin;
+  if (
+    (protectedRoot.status !== 307 && protectedRoot.status !== 308) ||
+    loginUrl.origin !== expectedOrigin ||
+    loginUrl.pathname !== "/login" ||
+    loginUrl.search !== "" ||
+    loginUrl.hash !== ""
+  ) {
+    throw new Error("/: 未導向本站登入頁");
+  }
+  log(`[通過] /: HTTP ${protectedRoot.status} → /login`);
+
+  const protectedApi = await rawRequest("/api/watchlist");
+  if (protectedApi.status !== 401) {
+    throw new Error(`/api/watchlist: 未登入時應為 HTTP 401，實際為 ${protectedApi.status}`);
+  }
+  log("[通過] /api/watchlist: 未登入 HTTP 401");
+
+  for (const endpoint of PUBLIC_ENDPOINTS) {
     await request(endpoint);
   }
 
@@ -110,6 +142,8 @@ export async function verifyCloudflareRelease(
     body: JSON.stringify({ password: verifiedAppPassword }),
   });
   const cookie = authCookie(loginResponse);
+
+  await request("/", { headers: { Cookie: cookie } });
 
   const watchlistResponse = await request("/api/watchlist", {
     headers: { Cookie: cookie },
