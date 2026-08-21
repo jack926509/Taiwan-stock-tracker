@@ -1,12 +1,17 @@
 node_modules/
 .next/
+.open-next/
+.wrangler/
 out/
 .env*
+.dev.vars*
 !.env.local.example
 .vercel
 *.tsbuildinfo
 next-env.d.ts
 scripts/smoke-result.json
 .data/
+.worktrees/
 supabase/.temp/
+.backups/
 .DS_Store

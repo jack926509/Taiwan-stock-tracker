@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tw-stock-tracker",
+  "main": "./cloudflare-worker.ts",
+  "compatibility_date": "2026-08-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "twstock.xiehnet.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "tw-stock-tracker"
+    }
+  ],
+  "limits": { "cpu_ms": 300000 },
+  "triggers": {
+    "crons": [
+      "* * * * MON-FRI",
+      "35 5 * * MON-FRI",
+      "0 9 * * MON-FRI",
+      "30 4 * * SAT,SUN"
+    ]
+  },
+  "vars": {
+    "APP_BASE_URL": "https://twstock.xiehnet.com",
+    "CLOUDFLARE_WORKERS": "true"
+  }
+}

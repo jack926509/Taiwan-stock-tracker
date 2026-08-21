@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
   try {
     const status = await getStatus(new Date());
     return Response.json({ ...base, ...status });
-  } catch (e) {
-    console.error("[health] detail status failed", e);
+  } catch {
+    console.error("[health] detail status failed");
     return Response.json(
       { ok: false, ts: base.ts, error: "health status unavailable" },
       { status: 503 }

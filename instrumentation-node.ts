@@ -11,12 +11,25 @@ import { isMarketOpenNow, taipeiNow, isTradingDay } from "@/lib/market-hours";
 
 if (usingSupabase() && process.env.NODE_ENV === "production") {
   // 週一～五 17:00（台北）：收盤後 FinMind 日 K 已更新時補抓，並兼作 Supabase keep-alive
+  // in-flight 旗標防重疊：自選股多或 FinMind 慢時，若上一輪補資料尚未跑完就跳過本輪，
+  // 避免與下一次排程疊加執行、重複打 FinMind／重複寫入（與盤中到價提醒同一套守則）。
+  let backfillRunning = false;
   schedule(
     "0 17 * * 1-5",
-    () => {
-      backfillWatchlist()
-        .then((r) => console.log(`[backfill] 完成 ok=${r.ok} fail=${r.fail}`))
-        .catch((e) => console.error("[backfill] 失敗：", e));
+    async () => {
+      if (backfillRunning) {
+        console.log("[backfill] 上一輪尚未結束，跳過本輪");
+        return;
+      }
+      backfillRunning = true;
+      try {
+        const r = await backfillWatchlist();
+        console.log(`[backfill] 完成 ok=${r.ok} fail=${r.fail}`);
+      } catch (e) {
+        console.error("[backfill] 失敗：", e);
+      } finally {
+        backfillRunning = false;
+      }
     },
     { timezone: "Asia/Taipei" }
   );
@@ -54,15 +67,25 @@ if (usingSupabase() && process.env.NODE_ENV === "production") {
     { timezone: "Asia/Taipei" }
   );
   // 工作日 13:35（收盤後）：推自選股收盤總覽（isTradingDay 守門，跳過假日／停盤）
+  // in-flight 旗標防重疊：LINE 推播慢或自選股多時，避免上一輪總覽尚未送完就再起一輪、重複推播。
+  let summaryRunning = false;
   schedule(
     "35 13 * * 1-5",
     async () => {
       if (!(await isTradingDay(taipeiNow()))) return;
-      dailySummary()
-        .then((sent) => {
-          if (sent) console.log("[summary] 已推收盤總覽");
-        })
-        .catch((e) => console.error("[summary] 失敗：", e));
+      if (summaryRunning) {
+        console.log("[summary] 上一輪尚未結束，跳過本輪");
+        return;
+      }
+      summaryRunning = true;
+      try {
+        const sent = await dailySummary();
+        if (sent) console.log("[summary] 已推收盤總覽");
+      } catch (e) {
+        console.error("[summary] 失敗：", e);
+      } finally {
+        summaryRunning = false;
+      }
     },
     { timezone: "Asia/Taipei" }
   );

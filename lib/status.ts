@@ -3,6 +3,10 @@
 import { getSupabase } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getLineUsage, getLineLastFailure, type LineUsage } from "@/lib/notify";
+import type {
+  ScheduledJobName,
+  ScheduledJobResult,
+} from "./scheduledJobLock.ts";
 
 export interface BackfillRecord {
   ranAt: string; // ISO
@@ -46,6 +50,118 @@ export interface BackendStatus {
   misSessionAgeMin?: number | null; // MIS session cookie 距今幾分鐘
   lineUsage?: (LineUsage & { dailyCap: number }) | null; // 本月/本日 LINE 推播用量
   lineLastFailure?: { at: string; reason: string; minutesAgo: number } | null; // 最近一次推播失敗
+  scheduledJobs?: Record<ScheduledJobName, ScheduledJobStatus>;
+}
+
+export interface ScheduledJobStatus {
+  lastStartedAt: string | null;
+  lastFinishedAt: string | null;
+  status: "running" | ScheduledJobResult["status"] | null;
+  detail: ScheduledJobResult["detail"];
+}
+
+interface ScheduledJobStatusRow {
+  job_name: unknown;
+  last_started_at: string | null;
+  last_finished_at: string | null;
+  last_status: unknown;
+  last_detail: unknown;
+}
+
+const SCHEDULED_JOB_NAMES: ScheduledJobName[] = [
+  "alerts",
+  "daily-summary",
+  "backfill",
+  "keep-alive",
+];
+
+function isScheduledJobName(value: unknown): value is ScheduledJobName {
+  return (
+    typeof value === "string" &&
+    SCHEDULED_JOB_NAMES.includes(value as ScheduledJobName)
+  );
+}
+
+function safeScheduledJobStatus(
+  value: unknown
+): ScheduledJobStatus["status"] {
+  return value === "running" || value === "ok" || value === "error"
+    ? value
+    : null;
+}
+
+function isDetailRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function safeCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : undefined;
+}
+
+function sanitizeScheduledJobDetail(
+  jobName: ScheduledJobName,
+  status: ScheduledJobStatus["status"],
+  detail: unknown
+): ScheduledJobStatus["detail"] {
+  if (status === "error") return { error: "排程執行失敗" };
+  if (status !== "ok" || !isDetailRecord(detail)) return {};
+
+  switch (jobName) {
+    case "alerts": {
+      const sent = safeCount(detail.sent);
+      return sent === undefined ? {} : { sent };
+    }
+    case "daily-summary":
+      return typeof detail.sent === "boolean" ? { sent: detail.sent } : {};
+    case "backfill": {
+      const safeDetail: ScheduledJobStatus["detail"] = {};
+      const ok = safeCount(detail.ok);
+      const fail = safeCount(detail.fail);
+      if (ok !== undefined) safeDetail.ok = ok;
+      if (fail !== undefined) safeDetail.fail = fail;
+      return safeDetail;
+    }
+    case "keep-alive":
+      return typeof detail.pinged === "boolean"
+        ? { pinged: detail.pinged }
+        : {};
+  }
+}
+
+export function toScheduledJobStatus(
+  row: ScheduledJobStatusRow
+): [ScheduledJobName, ScheduledJobStatus] {
+  if (!isScheduledJobName(row.job_name)) {
+    throw new Error("scheduled job status unavailable");
+  }
+  const status = safeScheduledJobStatus(row.last_status);
+  return [
+    row.job_name,
+    {
+      lastStartedAt: row.last_started_at,
+      lastFinishedAt: row.last_finished_at,
+      status,
+      detail: sanitizeScheduledJobDetail(row.job_name, status, row.last_detail),
+    },
+  ];
+}
+
+export async function getScheduledJobStatuses(
+  db: SupabaseClient
+): Promise<Record<ScheduledJobName, ScheduledJobStatus>> {
+  const { data, error } = await db
+    .from("scheduled_job_state")
+    .select(
+      "job_name,last_started_at,last_finished_at,last_status,last_detail"
+    );
+  if (error) {
+    throw new Error("scheduled job status unavailable");
+  }
+  return Object.fromEntries(
+    ((data ?? []) as ScheduledJobStatusRow[]).map(toScheduledJobStatus)
+  ) as Record<ScheduledJobName, ScheduledJobStatus>;
 }
 
 async function rowCount(db: SupabaseClient, table: string): Promise<number> {
@@ -70,6 +186,7 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
     watchlist,
     backfill,
     sess,
+    scheduledJobs,
   ] =
     await Promise.all([
       rowCount(db, "assistant_conversations"),
@@ -90,6 +207,7 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
         .order("fetched_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      getScheduledJobStatuses(db),
     ]);
 
   if (backfill.error) throw new Error(`news_cache meta: ${backfill.error.message}`);
@@ -117,6 +235,7 @@ export async function getStatus(now: Date): Promise<BackendStatus> {
       ? Math.round((now.getTime() - Date.parse(sessAt)) / 60000)
       : null,
     lineUsage,
+    scheduledJobs,
     lineLastFailure: lineFailure
       ? {
           ...lineFailure,

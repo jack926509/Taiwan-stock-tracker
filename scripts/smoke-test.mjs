@@ -5,7 +5,7 @@
 //   本機直打 MIS（驗證台灣 IP 基準線）：
 //     node scripts/smoke-test.mjs --minutes 5
 //   實測部署節點（真正的 Gate：海外 egress IP 能否穩定打 MIS）：
-//     node scripts/smoke-test.mjs --url https://xxx.vercel.app --minutes 5 [--password <APP_ACCESS_PASSWORD>]
+//     node scripts/smoke-test.mjs --url https://twstock.xiehnet.com --minutes 5
 //
 // 判定：成功率 >= 95% → 免費路線（Vercel）；否則 → 穩定路線（Zeabur 常駐）
 
@@ -18,7 +18,6 @@ function arg(name, fallback) {
 const baseUrl = arg("url", null);
 const minutes = parseFloat(arg("minutes", "5"));
 const intervalSec = Math.max(5, parseFloat(arg("interval", "10")));
-const password = arg("password", null);
 
 const MIS_BASE = "https://mis.twse.com.tw/stock/api";
 const HEADERS = {
@@ -30,7 +29,6 @@ const HEADERS = {
 const EX_CH = "tse_2330.tw|otc_6488.tw|tse_t00.tw|otc_o00.tw";
 
 let cookie = "";
-let authCookie = "";
 
 async function createMisSession() {
   const res = await fetch(`${MIS_BASE}/getStock.jsp?ch=2330.tw&json=1&_=${Date.now()}`, {
@@ -45,21 +43,6 @@ async function createMisSession() {
   if (!cookie) throw new Error("無法取得 MIS session cookie");
 }
 
-async function loginDeployedApp() {
-  const res = await fetch(`${baseUrl}/api/auth`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`登入失敗 HTTP ${res.status}`);
-  const setCookies =
-    typeof res.headers.getSetCookie === "function"
-      ? res.headers.getSetCookie()
-      : [res.headers.get("set-cookie")].filter(Boolean);
-  authCookie = setCookies.map((c) => c.split(";")[0]).join("; ");
-}
-
 async function probeOnce() {
   const start = performance.now();
   try {
@@ -67,7 +50,6 @@ async function probeOnce() {
     let detail = "";
     if (baseUrl) {
       const res = await fetch(`${baseUrl}/api/quote?ids=2330,6488`, {
-        headers: authCookie ? { Cookie: authCookie } : {},
         signal: AbortSignal.timeout(10000),
       });
       const json = await res.json().catch(() => ({}));
@@ -99,7 +81,6 @@ const mode = baseUrl ? `部署節點 ${baseUrl}` : "本機直打 MIS";
 console.log(`=== MIS smoke test｜${mode}｜${minutes} 分鐘，每 ${intervalSec} 秒 1 次 ===\n`);
 
 if (!baseUrl) await createMisSession();
-else if (password) await loginDeployedApp();
 
 const results = [];
 const deadline = Date.now() + minutes * 60 * 1000;

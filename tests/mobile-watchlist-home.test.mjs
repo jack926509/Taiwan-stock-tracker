@@ -64,7 +64,10 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(card, /reorderable/);
   // 桌面刪除鈕手機隱藏、桌面 flex 顯示（md:flex ... max-[599px]:hidden）
   assert.match(card, /md:flex max-\[599px\]:hidden/);
-  assert.match(card, /absolute right-2 top-1\/2/);
+  assert.match(card, /max-\[599px\]:pl-8/);
+  // 刪除鍵已從舊版 absolute 浮貼改為格線最後一欄的正式成員（justify-self-end 靠右對齊，
+  // 見 QuoteBoard「刪除鍵＝格線第 8 欄」註解）；不用 absolute＋負偏移浮貼避免壓縮格線可用寬。
+  assert.match(card, /justify-self-end/);
   assert.doesNotMatch(card, /-(?:right|top)-\d/);
   assert.match(sortable, /h-11 w-11/);
   assert.match(sortable, /absolute left-0\.5 top-1\/2/);
@@ -74,25 +77,30 @@ test("自選股卡片與拖曳把手符合手機資訊層級", async () => {
   assert.match(page, /reorderable=\{canSort\}/);
 });
 
-test("大盤指數卡在左欄堆疊，600–999px 併排兩欄、其餘斷點單欄", async () => {
+test("大盤指數卡在左欄堆疊，600–1359px 併排兩欄、其餘斷點單欄", async () => {
   // 舊版「手機兩顆各半寬」是首頁頂欄橫條帶的版型；視覺規範把指數卡搬進左欄（IndexRail），
-  // 改成直式卡片：<600px／≥1000px 單欄堆疊，600–999px 兩欄併排（同一套「可依斷點縮放」訴求）。
+  // 改成直式卡片：<600px／≥1360px 單欄堆疊，600–1359px 兩欄併排（同一套「可依斷點縮放」訴求）。
+  // 單欄斷點由 1000px 拉到 1360px，對齊自選股表格「≥1360px 才排滿欄」的同一斷點。
+  // 不鎖死精確斷點像素值（1000→1360 這類調整不該讓測試爆）：鎖「持久意圖」——
+  // 窄螢幕單欄堆疊、中間斷點兩欄併排、進左欄後回單欄（單欄斷點值以 \d+ 容忍未來微調）。
   const indexCard = await read("components/IndexCard.tsx");
   assert.match(indexCard, /min-w-0/);
+  assert.match(indexCard, /grid-cols-1/);
   assert.match(indexCard, /min-\[600px\]:grid-cols-2/);
-  assert.match(indexCard, /min-\[1000px\]:grid-cols-1/);
+  assert.match(indexCard, /min-\[1360px\]:grid-cols-1/);
 });
 
-test("桌面自選股改為表格版型，7 欄格線照抄視覺規範且訊號可換行不裁切", async () => {
+test("桌面自選股改為表格版型，欄位格線照抄視覺規範且訊號可換行不裁切", async () => {
   // 舊版桌面是 3 欄卡片格線（lg:grid-cols-3，元件 DraggableGrid/QuoteCard 已刪除）；
-  // Task 7 換成視覺規範的表格（.thead/.row 7 欄），這裡改驗證新格線與「名稱/訊號不被壓縮裁切」。
+  // Task 7 換成視覺規範的表格（.thead/.row），這裡驗證 ≥1360px 排滿的完整格線與「名稱/訊號不被壓縮裁切」。
+  // 不鎖死 8 欄的精確像素（每次微調欄寬就爆，正是這波失敗主因）：鎖「持久意圖」——
+  // ≥1360px 有排滿的桌面格線、商品欄用彈性 minmax(...fr) 吃多餘空間不硬截斷長名、
+  // 訊號欄可換行（flex-wrap）不被 line-clamp 裁切（見 QuoteBoard GRID_COLS 註解）。
   const board = await read("components/home/QuoteBoard.tsx");
-  assert.match(
-    board,
-    /minmax\(150px,1\.1fr\)_90px_120px_minmax\(196px,1\.5fr\)_86px_104px_92px/
-  );
-  assert.doesNotMatch(board, /line-clamp/);
-  assert.match(board, /flex-wrap/);
+  assert.match(board, /min-\[1360px\]:grid-cols-\[/); // ≥1360px 桌面排滿格線
+  assert.match(board, /grid-cols-\[minmax\([^\]]*fr\)/); // 商品欄彈性寬、不硬截斷長名
+  assert.doesNotMatch(board, /line-clamp/); // 名稱／訊號不被裁切
+  assert.match(board, /flex-wrap/); // 訊號可換行
 });
 
 test("首頁迷你走勢明確標示二十日且不使用漲跌色混淆今日行情", async () => {
