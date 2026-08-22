@@ -3,7 +3,6 @@ name: 驗證 Cloudflare Worker
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
   validate:
@@ -29,29 +28,3 @@ jobs:
 
       - name: 建置 Cloudflare Worker
         run: npm run cf:build
-
-  upload-preview:
-    needs: validate
-    if: ${{ github.event_name == 'workflow_dispatch' && needs.validate.result == 'success' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: 安裝鎖定相依套件
-        run: npm ci
-
-      - name: 重建 Cloudflare Worker
-        run: npm run cf:build
-
-      - name: 上傳 Worker 預覽版本
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npm run cf:upload

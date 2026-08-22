@@ -16,7 +16,7 @@
 `npm run smoke` 僅測試執行節點能否穩定連上 TWSE 即時報價源，不是完整功能測試，不驗證頁面、API 回應格式或 Supabase 連線。
 
 ## 部署
-正式平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；`twstock.xiehnet.com` 已綁定同一個 Worker，頁面、API 與 Cron 都由 Worker 執行。Zeabur 不再承接正式流量；若舊服務仍存在，只能作為短期回退，不得在未取得使用者明確核准前停止或刪除。`npm run cf:upload` 與 GitHub Actions `workflow_dispatch` 只上傳預覽版本；任何正式部署或正式資料變更都必須先完成驗證並取得使用者核准。
+正式平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；`twstock.xiehnet.com` 已綁定同一個 Worker，頁面、API 與 Cron 都由 Worker 執行。Zeabur 不再承接正式流量；若舊服務仍存在，只能作為短期回退，不得在未取得使用者明確核准前停止或刪除。Cloudflare Workers Builds 連接 GitHub `jack926509/Taiwan-stock-tracker`，只有 `main` 分支推送時才會在測試、型別檢查與 OpenNext 建置成功後自動部署正式 Worker；其他分支不建立 Cloudflare 預覽版本。GitHub Actions 只負責驗證，不再上傳 Worker。
 
 ## 特殊規則
 - 本機開發的 secrets 只能放在 `.env.local`，絕對不可進 git；範本檔為 `.env.local.example`（可進 git）。Worker runtime secrets 只設於 Cloudflare Worker Secrets，同樣不可進 git。

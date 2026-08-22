@@ -59,17 +59,14 @@ test("wrangler config registers the four UTC cron triggers", () => {
   ]);
 });
 
-test("worker workflow validates every push but uploads only after a successful manual dispatch", () => {
+test("worker workflow only validates pushes and pull requests", () => {
   const workflow = read(".github/workflows/cloudflare-worker.yml");
-  const validate = workflow.match(
-    /  validate:\n[\s\S]*?(?=\n  upload-preview:)/,
-  )?.[0];
-  const upload = workflow.match(/  upload-preview:\n[\s\S]*$/)?.[0];
+  const validate = workflow.match(/  validate:\n[\s\S]*$/)?.[0];
 
   assert.ok(validate, "workflow 必須有 validate job");
-  assert.ok(upload, "workflow 必須有 upload-preview job");
   assert.match(workflow, /\n  push:/);
-  assert.match(workflow, /\n  workflow_dispatch:/);
+  assert.match(workflow, /\n  pull_request:/);
+  assert.doesNotMatch(workflow, /\n  workflow_dispatch:/);
 
   const validationCommands = [
     "npm ci",
@@ -84,34 +81,8 @@ test("worker workflow validates every push but uploads only after a successful m
     previousIndex = index;
   }
   assert.doesNotMatch(validate, /npm run cf:upload/);
-
-  assert.match(upload, /needs:\s*validate/);
-  assert.match(
-    upload,
-    /github\.event_name\s*==\s*'workflow_dispatch'\s*&&\s*needs\.validate\.result\s*==\s*'success'/,
-  );
-  assert.match(upload, /CLOUDFLARE_API_TOKEN:\s*\$\{\{\s*secrets\.CLOUDFLARE_API_TOKEN\s*\}\}/);
-  assert.match(upload, /CLOUDFLARE_ACCOUNT_ID:\s*\$\{\{\s*secrets\.CLOUDFLARE_ACCOUNT_ID\s*\}\}/);
-  assert.doesNotMatch(
-    upload,
-    /\n    env:\n/,
-    "Cloudflare secrets 不可放在 upload-preview job env",
-  );
-  const uploadStep = upload.match(
-    /      - name: 上傳 Worker 預覽版本\n[\s\S]*$/,
-  )?.[0];
-  assert.ok(uploadStep, "workflow 必須有唯一上傳 step");
-  assert.match(uploadStep, /\n        env:\n/);
-  assert.equal(upload.match(/^          CLOUDFLARE_API_TOKEN:/gm)?.length, 1);
-  assert.equal(upload.match(/^          CLOUDFLARE_ACCOUNT_ID:/gm)?.length, 1);
-  const uploadBuildIndex = upload.indexOf("run: npm run cf:build");
-  const uploadCommandIndex = upload.indexOf("run: npm run cf:upload");
-  assert.ok(uploadBuildIndex >= 0, "手動 upload job 必須在獨立 runner 重建");
-  assert.ok(
-    uploadBuildIndex < uploadCommandIndex,
-    "手動 upload job 必須在獨立 runner 重建後才上傳",
-  );
-  assert.equal(workflow.match(/npm run cf:upload/g)?.length, 1);
+  assert.doesNotMatch(workflow, /upload-preview|npm run cf:upload/);
+  assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID/);
 
   assert.doesNotMatch(workflow, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(workflow, /custom[_ -]?domain/i);
