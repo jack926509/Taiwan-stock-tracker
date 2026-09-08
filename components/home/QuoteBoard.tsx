@@ -186,7 +186,6 @@ function Row({
         <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:mt-0.5 max-[599px]:w-full max-[599px]:flex-row max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-3 max-[599px]:border-t max-[599px]:border-line max-[599px]:pt-2.5">
           <span className="whitespace-nowrap font-mono text-[11px] text-muted tabular">
             報價 {quote.time || "—"}
-            {!quote.traded && <strong className="ml-1 font-semibold text-warn">未成交</strong>}
           </span>
           <span className="hidden font-mono text-xs text-muted tabular max-[599px]:inline">
             量 {fmtVol(quote.volume)}
