@@ -7,6 +7,7 @@ import { loadKline } from "@/lib/klineStore";
 import { pushLineMessages, lineConfigured } from "@/lib/notify";
 import { isArmed, decideAlerts, hitToday } from "@/lib/alertLogic";
 import { buildAlertFlex } from "@/lib/alertFlex";
+import { isSameTaipeiDay } from "@/lib/market-hours";
 
 function hhmm(now: Date): string {
   return new Intl.DateTimeFormat("zh-TW", {
@@ -18,6 +19,15 @@ function hhmm(now: Date): string {
 }
 
 const BASE_URL = process.env.APP_BASE_URL ?? "https://twstock.xiehnet.com";
+const MAX_ALERT_QUOTE_AGE_MS = 120_000;
+
+// 取得報價成功不代表行情仍新鮮；使用來源提供的行情時間，缺漏、跨台北日期、過舊或未來時間都不通知。
+function isFreshQuoteTime(asOf: string | null | undefined, checkedAt: number): boolean {
+  const timestamp = typeof asOf === "string" ? Date.parse(asOf) : NaN;
+  return Number.isFinite(timestamp) && timestamp <= checkedAt &&
+    checkedAt - timestamp <= MAX_ALERT_QUOTE_AGE_MS &&
+    isSameTaipeiDay(new Date(timestamp), new Date(checkedAt));
+}
 
 // 近 5 日均量（張）；日 K 快取缺料或不足 5 根回 null（不誤報）
 async function avgVolume5d(stockId: string): Promise<number | null> {
@@ -39,38 +49,55 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
   const result = await fetchQuotes(
     armed.map((i) => ({ stockId: i.stock_id, market: i.market }))
   );
+  const checkedAt = Date.now();
+  // 批次日期是最舊行情或 null；每筆股票獨立判斷新鮮度，避免一檔過舊阻擋全部提醒。
+  if (result.source !== "mis" || result.complete !== true) {
+    return 0;
+  }
   const quoteOf = new Map(result.quotes.map((q) => [q.stockId, q]));
+  // 不相信錯誤標示的 complete；缺任一武裝股票時整批略過。
+  if (armed.some((row) => !quoteOf.has(row.stock_id))) return 0;
   const at = now.toISOString();
   const time = hhmm(now);
   let sent = 0;
 
   for (const row of armed) {
     const q = quoteOf.get(row.stock_id);
+    if (!q || q.market !== row.market || q.traded !== true ||
+        q.price === null || !Number.isFinite(q.price) || q.price <= 0 ||
+        !isFreshQuoteTime(q.asOf, checkedAt)) continue;
+
+    // 無效數值只略過對應提醒，不將 Infinity 等異常資料視為已達門檻。
+    const safeQuote = {
+      ...q,
+      changePct: q.changePct !== null && Number.isFinite(q.changePct) ? q.changePct : null,
+      volume: q.volume !== null && Number.isFinite(q.volume) && q.volume >= 0 ? q.volume : null,
+    };
 
     // 爆量判斷需要均量，且讀日 K 快取有成本，只在可能觸發爆量時才抓（不誤報、也不白白讀取）
     const needsVolumeCheck =
       row.alert_volume_on &&
       !hitToday(row.alert_volume_hit_at, now) &&
-      q?.volume !== null &&
-      q?.volume !== undefined;
+      safeQuote.volume !== null;
     const avg = needsVolumeCheck ? await avgVolume5d(row.stock_id) : null;
 
-    const decisions = decideAlerts(row, q, avg, now);
+    const decisions = decideAlerts(row, safeQuote, avg, now);
 
     for (const decision of decisions) {
-      if (!q) continue;
+      // 讀均量或處理前面的股票可能耗時，送出前再次確認行情仍在兩分鐘內。
+      if (!isFreshQuoteTime(q.asOf, Date.now())) break;
       const message = buildAlertFlex({
         kind: decision.kind,
         stockId: q.stockId,
         name: q.name,
         price: q.price,
-        changePct: q.changePct,
+        changePct: safeQuote.changePct,
         threshold: decision.threshold,
         time,
         open: q.open,
         high: q.high,
         low: q.low,
-        volume: q.volume,
+        volume: safeQuote.volume,
         baseUrl: BASE_URL,
       });
       if (await pushLineMessages([message])) {

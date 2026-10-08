@@ -14,12 +14,17 @@ export interface Quote {
   volume: number | null;
   traded: boolean;
   time: string;
+  /** 來源提供的行情日期時間；缺漏時不可當作即時通知依據。 */
+  asOf?: string;
 }
 
+export type QuoteSource = "mis" | "yahoo" | "stale";
+
 export interface QuoteResponse {
-  asOf: string;
+  asOf: string | null;
   marketOpen: boolean;
-  source: "mis" | "stale";
+  source: QuoteSource;
+  complete: boolean;
   indices: Quote[];
   quotes: Quote[];
 }
@@ -34,6 +39,8 @@ export interface WatchlistItem {
   alert_high_hit_at: string | null;
   alert_low_hit_at: string | null;
   alert_change_pct: number | null;
+  alert_change_hit_at: string | null;
   alert_volume_on: boolean;
+  alert_volume_hit_at: string | null;
   sort_order: number;
 }

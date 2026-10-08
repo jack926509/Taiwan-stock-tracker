@@ -15,3 +15,5 @@ scripts/smoke-result.json
 supabase/.temp/
 .backups/
 .DS_Store
+.playwright-mcp/
+.superpowers/

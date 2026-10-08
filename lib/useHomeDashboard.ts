@@ -7,12 +7,15 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import useSWR from "swr";
 import type { QuoteResponse, WatchlistItem } from "@/lib/types";
 import type { Signal } from "@/lib/signals";
-import { hitToday } from "@/lib/alertLogic";
-import { POLL_MS, STALE_STOP_THRESHOLD } from "@/lib/pollConfig";
+import { usePollGuard } from "@/hooks/usePollGuard";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
+import { hitToday } from "@/lib/alertLogic";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import { quoteRefreshFeedback } from "@/lib/quoteStatus";
+import { saveWatchlistOrder } from "@/lib/watchlistOrder";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -27,10 +30,21 @@ function formatMastheadDate(date: Date): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${get("year")} / ${get("month")} / ${get("day")}　${get("hour")}:${get("minute")} TPE`;
+}
+
+function countTodayHits(items: { alert_high_hit_at: string | null; alert_low_hit_at: string | null; alert_change_hit_at: string | null; alert_volume_hit_at: string | null; }[], now: Date): number {
+  let hits = 0;
+  for (const item of items) {
+    if (hitToday(item.alert_high_hit_at, now)) hits++;
+    if (hitToday(item.alert_low_hit_at, now)) hits++;
+    if (hitToday(item.alert_change_hit_at, now)) hits++;
+    if (hitToday(item.alert_volume_hit_at, now)) hits++;
+  }
+  return hits;
 }
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -41,12 +55,11 @@ async function fetcher<T>(url: string): Promise<T> {
 }
 
 export function useHomeDashboard() {
-  const [autoPaused, setAutoPaused] = useState(false);
+  const { autoPaused, onQuoteSuccess, refreshInterval, resumePolling } = usePollGuard();
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
-  const staleCount = useRef(0);
-  const lastTimeKey = useRef("");
+  const orderVersion = useRef(0);
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -68,35 +81,12 @@ export function useHomeDashboard() {
   );
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
-    refreshInterval: (latest) =>
-      autoPaused || (latest && !latest.marketOpen) ? 0 : POLL_MS,
+    refreshInterval,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
     refreshWhenHidden: false,
-    onSuccess: (data) => {
-      // 颱風/臨時停盤保險：盤中卻連續抓不到新報價時間，視為異常停輪詢
-      const key = [...data.indices, ...data.quotes].map((q) => q.time).join("|");
-      if (data.marketOpen && key && key === lastTimeKey.current) {
-        staleCount.current += 1;
-        if (staleCount.current >= STALE_STOP_THRESHOLD) setAutoPaused(true);
-      } else {
-        staleCount.current = 0;
-      }
-      lastTimeKey.current = key;
-    },
+    onSuccess: onQuoteSuccess,
   });
-
-  // 使用者切回分頁時解除自動暫停、重新輪詢
-  useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "visible") {
-        staleCount.current = 0;
-        setAutoPaused(false);
-      }
-    };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, []);
 
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
   // 同時保留本次拖曳結果、自動納入新增/移除的代號
@@ -114,13 +104,25 @@ export function useHomeDashboard() {
   }, [items]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([watchlist.mutate(), quote.mutate()]);
-  }, [watchlist, quote]);
+    resumePolling();
+    // 空參數 mutate 的 revalidation 會吞抓取錯誤；顯式 promise 讓手動更新可靠回報失敗。
+    const [, latest] = await Promise.all([
+      watchlist.mutate(fetcher<{ items: WatchlistItem[]; storage: string }>("/api/watchlist"), {
+        revalidate: false, throwOnError: true,
+      }),
+      quote.mutate(fetcher<QuoteResponse>("/api/quote"), {
+        revalidate: false, throwOnError: true,
+      }),
+    ]);
+    return latest;
+  }, [watchlist, quote, resumePolling]);
 
   async function handleManualRefresh() {
     try {
-      await refreshAll();
-      toast.show("報價已更新", { tone: "success" });
+      const previous = quote.data;
+      const latest = await refreshAll();
+      const feedback = quoteRefreshFeedback(latest, previous);
+      toast.show(feedback.message, { tone: feedback.tone });
     } catch {
       toast.show("更新失敗，請檢查網路後再試一次", { tone: "error" });
     }
@@ -156,24 +158,26 @@ export function useHomeDashboard() {
 
   // 拖曳結束：先在畫面即時排好（樂觀更新），再寫回後端
   const persistOrder = useCallback(
-    async (next: string[]) => {
+    async (next: string[], previous: string[], version: number) => {
       try {
-        await fetch("/api/watchlist", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: next }),
-        });
+        await saveWatchlistOrder(next);
       } catch {
-        /* 失敗時下次輪詢會以後端順序校正 */
+        if (version === orderVersion.current) setOrder(previous);
+        toast.show(version === orderVersion.current
+          ? "排序儲存失敗，已恢復原順序，請稍後再試"
+          : "先前排序儲存失敗，請確認目前順序", { tone: "error" });
+        return;
       }
-      watchlist.mutate();
+      void watchlist.mutate().catch(() => {
+        toast.show("排序已儲存，但畫面重新整理失敗，請稍後更新", { tone: "error" });
+      });
     },
-    [watchlist]
+    [watchlist, toast]
   );
 
   function handleReorder(next: string[]) {
     setOrder(next);
-    void persistOrder(next);
+    void persistOrder(next, order, ++orderVersion.current);
   }
 
   const data = quote.data;
@@ -218,7 +222,7 @@ export function useHomeDashboard() {
     () =>
       new Set(
         (items ?? [])
-          .filter((i) => i.alert_high != null || i.alert_low != null)
+          .filter(hasAnyAlert)
           .map((i) => i.stock_id)
       ),
     [items]
@@ -243,16 +247,13 @@ export function useHomeDashboard() {
     let down = 0;
     let flat = 0;
     for (const q of data?.quotes ?? []) {
-      if (q.changePct === null || q.changePct === 0) flat++;
+      if (q.changePct === null || !Number.isFinite(q.changePct)) continue;
+      if (q.changePct === 0) flat++;
       else if (q.changePct > 0) up++;
       else down++;
     }
     const nowDate = now ?? new Date();
-    let todayHits = 0;
-    for (const i of items ?? []) {
-      if (hitToday(i.alert_high_hit_at, nowDate)) todayHits++;
-      if (hitToday(i.alert_low_hit_at, nowDate)) todayHits++;
-    }
+    const todayHits = countTodayHits(items ?? [], nowDate);
     return { up, down, flat, todayHits };
   }, [data?.quotes, items, now]);
 

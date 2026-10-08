@@ -30,6 +30,7 @@ import {
 import { aggregateCandles } from "@/lib/aggregateKline";
 import { stockIdForRender } from "@/lib/stockPath";
 import { hasAnyAlert } from "@/lib/alertBadge";
+import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
 import { IconArrowLeft } from "@/components/icons";
@@ -147,6 +148,8 @@ export default function StockPage() {
 
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
+  const warnings = quote.data ? quoteWarnings(quote.data) : [];
+  const quoteAt = formatQuoteAsOf(q?.asOf);
 
   // 週 K 模式的區間鈕只開放 6月/1年/3年；切到週 K 時若目前區間不在其中，改用 1 年
   useEffect(() => {
@@ -242,9 +245,27 @@ export default function StockPage() {
 
       <main className="mx-auto max-w-[1360px] space-y-4 px-4 py-4 sm:px-[18px] sm:py-6">
         <MobileNetworkBanner
-          stale={Boolean(kline.data?.stale)}
+          stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error ?? kline.error ?? fundamental.error}
+          asOf={quote.data?.asOf}
         />
+        {quote.error && q && (
+          <p className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
+            報價更新失敗，畫面保留先前資料，稍後會自動重試。
+          </p>
+        )}
+
+        {warnings.length > 0 && (
+          <div className="space-y-1 rounded-card bg-warn-tint px-3 py-2 text-xs leading-relaxed text-warn">
+            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+          </div>
+        )}
+
+        {autoPaused && (
+          <p className="rounded-card bg-warn-tint px-3 py-2 text-xs text-warn">
+            報價久未更新，已暫停輪詢（切回分頁自動恢復）
+          </p>
+        )}
 
         {/* 即時報價列 */}
         {q ? (
@@ -273,6 +294,9 @@ export default function StockPage() {
                   <span className="whitespace-nowrap">昨收 {fmt(q.prevClose)}</span>
                   <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
                 </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  {quoteAt ? `行情時間：${quoteAt}（台北）` : "行情日期時間未知"}
+                </p>
                 {hasAlert && (
                   <div className="mt-3 flex flex-wrap gap-2 font-mono text-xs tabular">
                     {currentWatch?.alert_high != null && (
@@ -336,6 +360,10 @@ export default function StockPage() {
               </div>
             </div>
           </div>
+        ) : quote.data || quote.error ? (
+          <p className="rounded-card border border-line bg-surface p-4 text-sm text-warn shadow-card">
+            暫時無法取得這檔股票的報價，請稍後再試。
+          </p>
         ) : (
           <div className="h-24 animate-pulse rounded-card bg-surface shadow-card" />
         )}
@@ -477,7 +505,13 @@ export default function StockPage() {
         )}
 
         <footer className="pb-4 pt-1 text-center text-[11px] text-muted">
-          日 K 與基本面資料來源：FinMind（未還原價）・即時報價：MIS・僅供個人參考，非投資建議
+          日 K 與基本面資料來源：FinMind（未還原價）・
+          {quote.data?.source === "yahoo"
+            ? "備援報價：Yahoo Finance（可能延遲）"
+            : quote.data?.source === "stale"
+              ? "報價：最近一次成功快照（非即時）"
+              : "即時報價：MIS"}
+          ・僅供個人參考，非投資建議
         </footer>
       </main>
     </div>

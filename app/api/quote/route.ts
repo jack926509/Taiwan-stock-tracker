@@ -13,33 +13,35 @@ import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
 export const dynamic = "force-dynamic";
 
-// 代號 → 市場別查詢結果快取（避免重複打 getStock.jsp）
-const marketCache = new Map<string, Market>();
+// 代號 → 市場別與名稱查詢結果快取（避免重複打外部解析 API）
+const stockInfoCache = new Map<string, { market: Market; name: string }>();
 
 async function targetsFromIds(ids: string[]): Promise<QuoteTarget[]> {
-  const targets: QuoteTarget[] = [];
-  for (const stockId of ids) {
-    let market = marketCache.get(stockId);
-    if (!market) {
-      const info = await resolveStock(stockId);
-      if (!info) continue; // 查無代號，略過
-      market = info.market;
-      marketCache.set(stockId, market);
+  const targets = await Promise.all(ids.map(async (stockId) => {
+    let info = stockInfoCache.get(stockId);
+    if (!info) {
+      info = await resolveStock(stockId) ?? undefined;
+      if (!info) return null;
+      stockInfoCache.set(stockId, info);
     }
-    targets.push({ stockId, market });
-  }
-  return targets;
+    return { stockId, market: info.market, name: info.name } satisfies QuoteTarget;
+  }));
+  return targets.filter((target): target is NonNullable<typeof target> => target !== null);
 }
 
 async function targetsFromWatchlist(): Promise<QuoteTarget[]> {
   const items = await listWatchlist();
-  return items.map((row) => ({ stockId: row.stock_id, market: row.market }));
+  return items.map((row) => ({
+    stockId: row.stock_id,
+    market: row.market,
+    name: row.name,
+  }));
 }
 
 export async function GET(req: NextRequest) {
   const idsParam = req.nextUrl.searchParams.get("ids");
   const ids = idsParam
-    ? idsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 30)
+    ? [...new Set(idsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 30)
     : null;
 
   try {
@@ -60,6 +62,7 @@ export async function GET(req: NextRequest) {
       asOf: result.asOf,
       marketOpen,
       source: result.source,
+      complete: result.complete && (ids === null || stockTargets.length === ids.length),
       indices,
       quotes,
     });

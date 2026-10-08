@@ -9,6 +9,8 @@
 ### 即時行情與大盤
 
 - 串接證交所 MIS 行情，交易時段每 10 秒自動更新。
+- MIS 暫時無法連線時，改用 Yahoo Finance 備援顯示行情；畫面依來源實際報價時間標示來源、資料日期與可能延遲，兩個來源皆無法使用時顯示最近快照。
+- 報價缺漏時明確顯示不完整狀態；Yahoo 成交量在取得官方單位證據前顯示未知，不推算為「張」。
 - 集中呈現成交價、漲跌幅、成交量與更新時間，並採台股「紅漲綠跌」配色。
 - 提供加權、櫃買等市場指數、近 20 日走勢，以及自選股排序與篩選。
 
@@ -28,11 +30,14 @@
 
 - 收盤後彙整大盤表現、自選股漲跌家數、當日與近一週變化。
 - 自動整理強弱勢個股、技術訊號與已觸發提醒，減少逐檔檢查時間。
+- 摘要只採用來源日期可確認屬於當日的實際成交，畫面標示來源、行情時間及缺漏；每日 LINE 收盤總覽只接受完整 MIS 當日收盤資料。
+- 缺少完整可信的開高低收或成交量時，保留行情、漲跌家數與排名，但不合成當日 K 線或產生新技術訊號。
 
 ### 到價提醒與 LINE 通知
 
 - 可設定突破價、跌破價、漲跌幅與成交量等提醒條件。
 - 排程服務定期檢查條件，觸發後可透過 LINE Messaging API 推播。
+- 盤中到價提醒只使用完整的 MIS 報價批次，再逐檔確認當日、已實際成交、來源時間有效及不超過 120 秒；日期或時間缺漏、過舊的股票各自跳過，其他有效股票仍可觸發。13:35 的收盤總覽採完整 MIS 當日收盤資料，不套用盤中到價的 120 秒門檻；略過時記錄股票代號與原因。Yahoo 備援及舊快照僅供畫面查看，不觸發 LINE 通知。
 - 站內可管理提醒狀態並查看觸發結果。
 
 ### PWA 與行動裝置支援
@@ -47,6 +52,7 @@
 flowchart LR
     U["使用者與手機 PWA"] --> CF["Cloudflare Worker<br/>Next.js 頁面、API 與 Cron"]
     CF --> TWSE["證交所 MIS"]
+    CF --> YF["Yahoo Finance<br/>備援行情顯示"]
     CF --> FM["FinMind"]
     CF --> SB["Supabase<br/>唯一正式資料庫"]
     CF --> LINE["LINE Messaging API"]
@@ -61,12 +67,14 @@ flowchart LR
 
 正式環境只使用 Supabase 持久化資料。專案中的本機 JSON 模式僅供本機開發；Cloudflare Workers 的檔案系統不持久，不得當成正式儲存。
 
+根目錄的 `app/`、`lib/` 與 `cloudflare-worker.ts` 是正式 Worker 使用的專案。`frontend/` 保留舊 Cloudflare Pages 的靜態匯出外殼，部分頁面共用根目錄程式；目前正式流量由根目錄 Worker 承接。維護共用頁面時須確認根目錄與舊外殼的引用關係。
+
 ## 🚀 本機快速啟動
 
 需求：Node.js 22 以上版本。
 
 ```bash
-npm install
+npm ci
 cp .env.local.example .env.local
 npm run dev
 ```
@@ -98,12 +106,12 @@ npm run dev
 | `npm run cf:build` | 以 OpenNext 產生 Cloudflare Worker 與靜態資源 |
 | `npx wrangler deploy --dry-run` | 檢查可上傳 bundle 的 gzip 大小；不會上傳或部署 |
 | `npm run cf:preview` | 以本機 workerd 啟動 Worker 預覽 |
-| `npm run cf:upload` | 上傳 Worker 預覽版本；需 Cloudflare 憑證，不綁定正式網域 |
+| `npm run cf:upload` | 手動上傳 Worker 版本；需 Cloudflare 憑證及使用者授權，不是現行自動部署流程 |
 | `VERIFY_BASE_URL=<URL> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare` | 實打預覽版的首頁、Supabase 自選股、授權健康檢查、manifest 與 service worker；兩者皆由 shell 安全注入，不可寫入 git |
 | `npm run start` | 啟動正式模式伺服器 |
 | `npm run smoke` | 長時間檢查證交所 MIS 行情穩定性 |
 
-每次變更至少依序執行 `npm test`、`npx tsc --noEmit`、`npm run build`、`npm run cf:build` 與 `git diff --check`。預覽啟動後，再以實際預覽 URL 執行 `npm run verify:cloudflare` 與桌面／手機瀏覽器驗收。`npm run smoke` 僅檢查 TWSE 行情來源穩定性，不等同完整功能測試。
+每次變更至少依序執行 `npm test`、`npx tsc --noEmit`、`npm run build`、`npm run cf:build`、`npx wrangler deploy --dry-run` 與 `git diff --check`。預覽啟動後，再以實際預覽 URL 執行 `npm run verify:cloudflare` 與桌面／手機瀏覽器驗收。涉及通知、儲存或排程的測試先使用注入的假資料與隔離環境；正式 Supabase 寫入與 LINE 發送須另外取得授權。`npm run smoke` 僅檢查 TWSE 行情來源穩定性，不等同完整功能測試。
 
 ## ⏰ Worker 排程
 
@@ -122,17 +130,17 @@ Cloudflare Cron 以 UTC 設定，Worker 會依 `event.cron` 分派下列工作�
 
 目標運行環境是 **Cloudflare Workers Paid**。根目錄 Next.js 專案由 OpenNext 轉換，同一個 Worker 同時提供頁面、Static Assets、Route Handlers 與 Cron `scheduled` handler。
 
-1. 本機執行完整測試與兩種 build。
-2. 執行 `npm run cf:preview`，用 workerd 實際驗收頁面與公開 API。
-3. 必要時由 GitHub Actions 手動 `workflow_dispatch`，在 `validate` 成功後才執行 `npm run cf:upload`。一般 push 與 pull request 只會驗證，不會上傳或部署。
-4. 以預覽 URL 與僅在 shell 注入的驗收 token 執行 `VERIFY_BASE_URL=<preview-url> VERIFY_HEALTH_DETAIL_TOKEN=<token> npm run verify:cloudflare`，再完成 Supabase、LINE、四種 Cron、Workers Logs 與盤中 TWSE 驗收。
-5. 正式網域 `twstock.xiehnet.com` 已綁定 Worker；任何部署都必須重新驗收首頁、Supabase、LINE、四種 Cron 與盤中 TWSE。
+1. 在工作分支完成單元／整合測試、型別檢查、Next.js 與 OpenNext 建置、Worker dry-run 及差異檢查。
+2. 執行 `npm run cf:preview`，用本機 workerd 驗收首頁、搜尋、提醒、個股頁與公開 API，完成桌面及 390 × 844 手機畫面檢查。
+3. GitHub Actions 對 push 與 pull request 執行驗證，只負責測試與建置，不上傳或部署 Worker。
+4. Cloudflare Workers Builds 連接 GitHub `jack926509/Taiwan-stock-tracker`；取得使用者對正式發布的授權後，推送 `main` 才會在測試、型別檢查與 OpenNext 建置成功後自動部署正式 Worker。其他分支不建立 Cloudflare 預覽版本。
+5. 正式網域 `twstock.xiehnet.com` 已綁定 Worker。部署後以正式網址及僅在 shell 注入的健康檢查 token 執行 `npm run verify:cloudflare`，另完成 Supabase、LINE、四種 Cron、Workers Logs 與盤中 TWSE 驗收；須區分部署成功及功能驗收結果。
 
-`wrangler.jsonc` 只放公開設定；應用程式 secrets 只設於 Cloudflare Worker Secrets。GitHub Actions 只使用上傳所需的 `CLOUDFLARE_API_TOKEN` 與 `CLOUDFLARE_ACCOUNT_ID`，不複製 Supabase、FinMind、LINE 或健康檢查 token。
+`wrangler.jsonc` 只放公開設定；應用程式 secrets 只設於 Cloudflare Worker Secrets，建置所需變數設於 Cloudflare Workers Builds。GitHub Actions 不需要部署用的 Cloudflare 憑證，也不複製 Supabase、FinMind、LINE 或健康檢查 token。
 
 ## 🛡️ 資料與安全
 
-- 即時行情主要取自證交所 MIS；歷史與基本面資料由 FinMind 補充。
+- 即時行情主要取自證交所 MIS；Yahoo Finance 是可能延遲的顯示備援，不能作為 LINE 通知依據；歷史與基本面資料由 FinMind 補充。
 - Supabase 使用 `service_role` 從後端存取，不將私密金鑰暴露給瀏覽器。
 - 詳細健康資訊需使用 `HEALTH_DETAIL_TOKEN`；API 錯誤回應避免回傳內部例外內容。
 - 本專案提供資料整理與追蹤功能，資訊可能因來源延遲或中斷而不完整，不構成投資建議。

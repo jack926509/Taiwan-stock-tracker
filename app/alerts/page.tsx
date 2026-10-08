@@ -12,6 +12,8 @@ import EmptyState from "@/components/EmptyState";
 import { fmt, fmtPct, trendOf, arrowOf, chipColor } from "@/lib/format";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
+import { formatQuoteAsOf, quoteWarnings, quoteRefreshFeedback } from "@/lib/quoteStatus";
+import { useToast } from "@/components/Toast";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
 import {
@@ -19,7 +21,6 @@ import {
   IconChevronDown,
   IconX,
   IconChartBar,
-  IconAlertTriangle,
 } from "@/components/icons";
 
 interface AlertRow {
@@ -32,31 +33,11 @@ interface AlertRow {
   alert_volume_on: boolean;
 }
 
-interface HealthDetail {
-  lineLastFailure?: { at: string; reason: string; minutesAgo: number } | null;
-}
-
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
   return json as T;
-}
-
-// LINE 推播異常橫幅：健康檢查回報「有失敗紀錄且距今不到 3 小時」就提醒——
-// 簡化判斷（不做連續失敗次數計數），失敗後成功推播一次即會清掉紀錄，橫幅自然消失。
-const LINE_FAILURE_STALE_MIN = 180;
-
-function LineFailureBanner({ minutesAgo }: { minutesAgo: number }) {
-  return (
-    <div className="flex items-start gap-2 rounded-xl border border-warn/20 bg-warn-tint px-4 py-3 text-sm font-medium text-warn">
-      <IconAlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <span>
-        LINE 推播可能異常（最近一次失敗約 {minutesAgo}{" "}
-        分鐘前），提醒可能未送達，請檢查。
-      </span>
-    </div>
-  );
 }
 
 // 單列提醒（2026-07-19 重設計）：捨棄大字報價卡片牆——報價是首頁的事，本頁重點是「管理提醒」。
@@ -84,6 +65,7 @@ function AlertListRow({
     price != null && row.alert_high != null && price >= row.alert_high;
   const lowHit =
     price != null && row.alert_low != null && price <= row.alert_low;
+  const quoteAt = formatQuoteAsOf(quote?.asOf);
 
   return (
     <button
@@ -129,6 +111,9 @@ function AlertListRow({
           />
         </span>
       </div>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted">
+        {quote ? (quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知") : "暫時未取得報價"}
+      </p>
 
       {/* 第二行：門檻標籤（已觸及＝實色、監控中＝淡底；漲跌幅／爆量走中性色，不與紅漲綠跌混淆） */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -254,15 +239,8 @@ export default function AlertsPage() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
-  // 每 5 分鐘查一次健康檢查，顯示 LINE 推播異常橫幅；未登入（401）時靜默失敗，不影響頁面其餘功能
-  const health = useSWR<HealthDetail>("/api/health?detail=1", fetcher, {
-    refreshInterval: 5 * 60_000,
-    shouldRetryOnError: false,
-  });
-  const lineFailure = health.data?.lineLastFailure;
-  const showLineFailureBanner =
-    !!lineFailure && lineFailure.minutesAgo < LINE_FAILURE_STALE_MIN;
-  const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
+  const { autoPaused, onQuoteSuccess, refreshInterval, resumePolling } = usePollGuard();
+  const toast = useToast();
   const [now, setNow] = useState<Date | null>(null);
 
   // 頂部時段文字每 30 秒更新一次即可，不需隨報價輪詢頻率跳動
@@ -279,6 +257,7 @@ export default function AlertsPage() {
   });
 
   const [editing, setEditing] = useState<string | null>(null);
+  const warnings = quote.data ? quoteWarnings(quote.data) : [];
 
   const priceOf = new Map(
     (quote.data?.quotes ?? []).map((q) => [q.stockId, q])
@@ -297,8 +276,23 @@ export default function AlertsPage() {
   }
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([watchlist.mutate(), quote.mutate()]);
-  }, [watchlist, quote]);
+    resumePolling();
+    try {
+      const previous = quote.data;
+      const [, latest] = await Promise.all([
+        watchlist.mutate(fetcher<{ items: AlertRow[] }>("/api/watchlist"), {
+          revalidate: false, throwOnError: true,
+        }),
+        quote.mutate(fetcher<QuoteResponse>("/api/quote"), {
+          revalidate: false, throwOnError: true,
+        }),
+      ]);
+      const feedback = quoteRefreshFeedback(latest, previous);
+      toast.show(feedback.message, { tone: feedback.tone });
+    } catch {
+      toast.show("更新失敗，請檢查網路後再試一次", { tone: "error" });
+    }
+  }, [watchlist, quote, resumePolling, toast]);
 
   const editingRow = items.find((a) => a.stock_id === editing) ?? null;
   // 分兩區呈現：已設提醒（管理重點）在前，尚未設定在後
@@ -354,13 +348,32 @@ export default function AlertsPage() {
         <MobileNetworkBanner
           stale={quote.data?.source === "stale" || autoPaused}
           error={quote.error || watchlist.error}
+          asOf={quote.data?.asOf}
         />
 
-        {showLineFailureBanner && lineFailure && (
-          <LineFailureBanner minutesAgo={lineFailure.minutesAgo} />
+        {warnings.length > 0 && (
+          <div className="space-y-1 rounded-card bg-warn-tint px-3 py-2 text-xs leading-relaxed text-warn">
+            {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+          </div>
         )}
 
-        {!watchlist.data ? (
+        {autoPaused && (
+          <p className="rounded-card bg-warn-tint px-3 py-2 text-xs text-warn">
+            報價久未更新，已暫停輪詢（切回分頁或下拉更新即可恢復）
+          </p>
+        )}
+
+        {(quote.error || watchlist.error) && (
+          <p className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
+            資料更新失敗，稍後會自動重試。
+          </p>
+        )}
+
+        {!watchlist.data && watchlist.error ? (
+          <p className="rounded-card border border-line bg-surface p-4 text-sm text-warn shadow-card">
+            暫時無法取得提醒清單，請稍後再試。
+          </p>
+        ) : !watchlist.data ? (
           <div className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-[72px] animate-pulse bg-surface" />

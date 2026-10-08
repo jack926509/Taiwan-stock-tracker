@@ -11,6 +11,8 @@ import SwipeToDelete from "@/components/SwipeToDelete";
 import EmptyState from "@/components/EmptyState";
 import SortableQuoteRows, { SortableRow } from "@/components/home/SortableQuoteRows";
 import { fmt, fmtVol, fmtPct, trendOf, limitOf } from "@/lib/format";
+import { hasAnyAlert } from "@/lib/alertBadge";
+import { formatQuoteAsOf } from "@/lib/quoteStatus";
 
 export const SORTS = [
   { key: "default", label: "預設" },
@@ -83,6 +85,7 @@ function Row({
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
   const upDown = limit ?? (t === "flat" ? null : t);
+  const quoteDate = formatQuoteAsOf(quote.asOf)?.split(" ")[0];
 
   const badges: { key: string; label: string; cls: string }[] = [];
   if (limit === "up") badges.push({ key: "limit", label: "漲停", cls: "bg-up text-white dark:text-app" });
@@ -183,9 +186,10 @@ function Row({
           {spark && spark.length > 1 ? <Sparkline points={spark} /> : <span className="text-xs text-faint">—</span>}
         </div>
 
-        <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:mt-0.5 max-[599px]:w-full max-[599px]:flex-row max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-3 max-[599px]:border-t max-[599px]:border-line max-[599px]:pt-2.5">
-          <span className="whitespace-nowrap font-mono text-[11px] text-muted tabular">
-            報價 {quote.time || "—"}
+        <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:mt-0.5 max-[599px]:w-full max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-3 max-[599px]:border-t max-[599px]:border-line max-[599px]:pt-2.5">
+          <span className="inline-flex flex-col font-mono text-[11px] text-muted tabular max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:gap-x-1">
+            <span>{quoteDate ?? "日期未知"}</span>
+            <span className="whitespace-nowrap">報價 {quote.time || "—"}</span>
           </span>
           <span className="hidden font-mono text-xs text-muted tabular max-[599px]:inline">
             量 {fmtVol(quote.volume)}
@@ -218,6 +222,7 @@ export default function QuoteBoard({
   items,
   onDelete,
   sparkData,
+  incomplete = false,
   reorderable = false,
   onReorder,
 }: {
@@ -227,12 +232,13 @@ export default function QuoteBoard({
   // 額外資料（超出 task-7-brief 最小契約，皆為可選＋向下相容，見 task-7-report.md）：
   // 既有訊號／20 日走勢資料（來自 /api/sparklines，本元件不重新打 API）
   sparkData?: Record<string, { spark: number[]; signals: Signal[] }>;
+  incomplete?: boolean;
   // 拖曳排序：僅「預設排序＋無篩選＋≥2 檔」時 shell 會傳入，保留舊版可拖曳排序功能
   reorderable?: boolean;
   onReorder?: (next: string[]) => void;
 }) {
   const alertedIds = new Set(
-    items.filter((i) => i.alert_high != null || i.alert_low != null).map((i) => i.stock_id)
+    items.filter(hasAnyAlert).map((i) => i.stock_id)
   );
 
   if (items.length === 0) {
@@ -245,7 +251,9 @@ export default function QuoteBoard({
   }
 
   if (quotes.length === 0) {
-    return <EmptyState description="此篩選條件下沒有自選股" />;
+    return <EmptyState description={incomplete
+      ? "暫時未取得符合條件的報價，稍後會重新嘗試"
+      : "此篩選條件下沒有自選股"} />;
   }
 
   const canDrag = reorderable && !!onReorder && quotes.length > 1;

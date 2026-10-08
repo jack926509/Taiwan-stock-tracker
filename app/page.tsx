@@ -7,13 +7,13 @@ import AddStockForm from "@/components/AddStockForm";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
-import RelativeTime from "@/components/RelativeTime";
 import TopBar from "@/components/home/TopBar";
 import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
 import ClosingSummary from "@/components/ClosingSummary";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
+import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 
 export default function Dashboard() {
   const {
@@ -43,11 +43,13 @@ export default function Dashboard() {
     confirmDelete,
     handleReorder,
   } = useHomeDashboard();
+  const warnings = data ? quoteWarnings(data) : [];
+  const quoteAt = formatQuoteAsOf(data?.asOf);
 
   const statusText = data ? (
     <>
-      {filteredQuotes.length} / {data.quotes.length} 檔・盤中每 10 秒更新・
-      <RelativeTime iso={data.asOf} />
+      {filteredQuotes.length} / {items?.length ?? data.quotes.length} 檔・
+      {quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知"}
     </>
   ) : (
     "載入中…"
@@ -55,7 +57,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
-      <PullToRefresh onRefresh={refreshAll} />
+      <PullToRefresh onRefresh={handleManualRefresh} />
 
       <TopBar
         sessionLabel={sessionLabel}
@@ -66,38 +68,25 @@ export default function Dashboard() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 sm:px-[18px]">
-        {/* 左欄 1360px 起才並排：1000–1359 併排會把主欄壓到 8 欄表格的最小寬以下，
-            表格橫向溢出→觸控板捲動被鎖在表格上（2026-07-19 滑不到底根因之一） */}
-        <div className="grid grid-cols-1 gap-4 pt-4 min-[1360px]:grid-cols-[336px_1fr] min-[1360px]:items-start min-[1360px]:gap-5">
-          <IndexRail
-            indices={data?.indices ?? []}
-            watchStats={watchStats}
-            alertItems={alertItems}
-          />
-
-          <main className="grid min-w-0 grid-cols-1 gap-4 pb-6">
+        {(warnings.length > 0 || autoPaused || storage === "local" || quote.error || watchlist.error) && (
+          <div className="space-y-2 pt-4">
             <MobileNetworkBanner
               stale={data?.source === "stale" || autoPaused}
               error={quote.error || watchlist.error}
               asOf={data?.asOf}
             />
-
-            <div className="flex flex-wrap items-stretch gap-3">
-              <div className="min-w-0 flex-1">
-                <StockSearch />
-              </div>
-              <div className="hidden md:block">
-                <AddStockForm onAdded={refreshAll} />
-              </div>
-            </div>
-
-            {(data?.source === "stale" || autoPaused || storage === "local") && (
+            {(quote.error || watchlist.error) && data && (
+              <p className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
+                資料更新失敗，畫面保留先前資料，稍後會自動重試。
+              </p>
+            )}
+            {(warnings.length > 0 || autoPaused || storage === "local") && (
               <div className="flex flex-wrap gap-2 text-xs">
-                {data?.source === "stale" && (
-                  <span className="rounded-pill bg-warn-tint px-2.5 py-1 text-warn">
-                    資料來源暫時異常，顯示最近快照
+                {warnings.map((warning) => (
+                  <span key={warning} className="rounded-card bg-warn-tint px-2.5 py-1 leading-relaxed text-warn">
+                    {warning}
                   </span>
-                )}
+                ))}
                 {autoPaused && (
                   <span className="rounded-pill bg-warn-tint px-2.5 py-1 text-warn">
                     報價久未更新，已暫停輪詢（切回分頁自動恢復）
@@ -110,6 +99,26 @@ export default function Dashboard() {
                 )}
               </div>
             )}
+          </div>
+        )}
+        {/* 左欄 1360px 起才並排：1000–1359 併排會把主欄壓到 8 欄表格的最小寬以下，
+            表格橫向溢出→觸控板捲動被鎖在表格上（2026-07-19 滑不到底根因之一） */}
+        <div className="grid grid-cols-1 gap-4 pt-4 min-[1360px]:grid-cols-[336px_1fr] min-[1360px]:items-start min-[1360px]:gap-5">
+          <IndexRail
+            indices={data?.indices ?? []}
+            watchStats={watchStats}
+            alertItems={alertItems}
+          />
+
+          <main className="grid min-w-0 grid-cols-1 gap-4 pb-6">
+            <div className="flex flex-wrap items-stretch gap-3">
+              <div className="min-w-0 flex-1">
+                <StockSearch />
+              </div>
+              <div className="hidden md:block">
+                <AddStockForm onAdded={refreshAll} />
+              </div>
+            </div>
 
             <WatchlistToolbar
               sort={sortKey}
@@ -127,6 +136,7 @@ export default function Dashboard() {
                 items={items ?? []}
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
+                incomplete={data.complete !== true}
                 reorderable={canSort}
                 onReorder={handleReorder}
               />
@@ -148,10 +158,18 @@ export default function Dashboard() {
             )}
 
             <footer className="pt-2 text-center text-[11px] leading-relaxed text-muted">
-              資料來源：台灣證券交易所・證券櫃檯買賣中心（MIS 即時行情）
+              {data?.source === "yahoo"
+                ? "報價來源：Yahoo Finance 備援"
+                : data?.source === "stale"
+                  ? "報價來源：最近一次成功快照"
+                  : "資料來源：台灣證券交易所・證券櫃檯買賣中心（MIS 即時行情）"}
               <br className="sm:hidden" />
               <span className="hidden sm:inline">・</span>
-              報價約延遲 10 秒，僅供個人參考，非投資建議
+              {data?.source === "yahoo"
+                ? "備援報價可能延遲，僅供個人參考，非投資建議"
+                : data?.source === "stale"
+                  ? "快照不是即時報價，僅供個人參考，非投資建議"
+                  : "報價約延遲 10 秒，僅供個人參考，非投資建議"}
             </footer>
           </main>
         </div>

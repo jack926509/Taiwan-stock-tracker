@@ -86,19 +86,48 @@ export async function weekChangePct(
 
 // 訊號差集邏輯在 lib/summarySignals.ts（獨立小模組，node --test 可直接載入測試）
 
-// 以當日 MIS 報價合成一根收盤 candle；報價無現價時回 null（跳過該檔訊號計算，不誤報）
+// 摘要必須以每筆來源時間證明當日成交，不能把舊快照或缺日期的參考價當成今天。
+function summaryQuoteIssue(
+  q: { price: number | null; traded?: boolean; asOf?: string },
+  isoDate: string,
+  now?: Date
+): string | null {
+  if (q.traded !== true) return "未實際成交";
+  if (q.price === null || !Number.isFinite(q.price) || q.price <= 0) return "價格無效";
+  if (!q.asOf) return "缺少來源時間";
+  const at = Date.parse(q.asOf);
+  if (!Number.isFinite(at)) return "來源時間無效";
+  if (now !== undefined && at > now.getTime()) return "來源時間在未來";
+  if (taipeiNow(new Date(at)).isoDate !== isoDate) return "來源日期不是當日";
+  return null;
+}
+
+export function isQuoteForSummaryDate(
+  q: { price: number | null; traded?: boolean; asOf?: string },
+  isoDate: string,
+  now?: Date
+): boolean {
+  return summaryQuoteIssue(q, isoDate, now) === null;
+}
+
+// 只以當日實際成交的完整欄位合成 candle；缺資料不能補價格或零。
 export function todayCandleFromQuote(
-  q: { price: number | null; open: number | null; high: number | null; low: number | null; volume: number | null },
+  q: { price: number | null; open: number | null; high: number | null; low: number | null; volume: number | null; traded?: boolean; asOf?: string },
   isoDate: string
 ): Candle | null {
-  if (q.price === null) return null;
+  if (!isQuoteForSummaryDate(q, isoDate) || q.price === null) return null;
+  if (q.open === null || !Number.isFinite(q.open) || q.open <= 0
+    || q.high === null || !Number.isFinite(q.high) || q.high <= 0
+    || q.low === null || !Number.isFinite(q.low) || q.low <= 0
+    || q.volume === null || !Number.isFinite(q.volume) || q.volume < 0) return null;
+  if (q.high < q.low || q.high < Math.max(q.open, q.price) || q.low > Math.min(q.open, q.price)) return null;
   return {
     date: isoDate,
-    open: q.open ?? q.price,
-    high: q.high ?? q.price,
-    low: q.low ?? q.price,
+    open: q.open,
+    high: q.high,
+    low: q.low,
     close: q.price,
-    volume: q.volume ?? 0,
+    volume: q.volume,
   };
 }
 
@@ -379,13 +408,39 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
     ...INDEX_TARGETS,
   ]);
 
-  const weightedIndex = result.quotes.find((q) => q.stockId === "t00") ?? null;
-  const otcIndex = result.quotes.find((q) => q.stockId === "o00") ?? null;
-  const rows = result.quotes
+  // 收盤總覽使用當日收盤成交；13:35 的正常收盤價可早於盤中到價提醒的 120 秒門檻。
+  const t = taipeiNow(now);
+  const targets = [...items.map((i) => ({ stockId: i.stock_id, market: i.market })), ...INDEX_TARGETS];
+  const stockIssues = targets.flatMap((target) => {
+    const quote = result.quotes.find((q) => q.stockId === target.stockId && q.market === target.market);
+    const reason = quote
+      ? summaryQuoteIssue(quote, t.isoDate, now)
+      : result.quotes.some((q) => q.stockId === target.stockId) ? "市場不符" : "缺少報價";
+    return reason ? [{
+      stockId: /^(?:[0-9A-Z]{4,6}|t00|o00)$/.test(target.stockId) ? target.stockId : "代號格式不符",
+      reason,
+    }] : [];
+  });
+  const skipReason = result.source !== "mis"
+    ? "報價來源不是 MIS"
+    : result.complete !== true ? "報價批次不完整" : stockIssues.length > 0 ? "當日收盤行情未符合條件" : null;
+  if (skipReason) {
+    // 僅記代號及固定原因，不記名稱、原始行情、來源原文或例外內容。
+    console.warn("[daily-summary] 略過收盤總覽", { date: t.isoDate, reason: skipReason, stocks: stockIssues });
+    return false;
+  }
+  const datedQuotes = result.quotes.filter((q) => isQuoteForSummaryDate(q, t.isoDate, now));
+
+  const weightedIndex = datedQuotes.find((q) => q.stockId === "t00") ?? null;
+  const otcIndex = datedQuotes.find((q) => q.stockId === "o00") ?? null;
+  const rows = datedQuotes
     .filter((q) => ids.has(q.stockId))
+    .map((q) => ({
+      ...q,
+      changePct: q.changePct !== null && Number.isFinite(q.changePct) ? q.changePct : null,
+    }))
     .sort((a, b) => (b.changePct ?? -Infinity) - (a.changePct ?? -Infinity));
 
-  const t = taipeiNow(now);
   const mondayIso = thisMondayIso(t);
   const weekPct = new Map<string, number | null>(
     await Promise.all(
@@ -402,7 +457,8 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
   let flat = 0;
   for (const q of rows) {
     const c = q.changePct;
-    if (c === null || c === 0) flat++;
+    if (c === null) continue;
+    if (c === 0) flat++;
     else if (c > 0) up++;
     else down++;
   }
@@ -435,7 +491,7 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
     }
   }
 
-  const ranked = rows.filter((q) => q.changePct !== null);
+  const ranked = rows.filter((q) => q.changePct !== null && Number.isFinite(q.changePct));
   const best = ranked.length > 0 ? ranked[0] : null;
   const worst = ranked.length > 0 ? ranked[ranked.length - 1] : null;
 
@@ -448,7 +504,7 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
     flat,
     upRows: rows.filter((q) => (q.changePct ?? 0) > 0).map(toRow),
     downRows: rows.filter((q) => (q.changePct ?? 0) < 0).map(toRow),
-    flatRows: rows.filter((q) => (q.changePct ?? 0) === 0).map(toRow),
+    flatRows: rows.filter((q) => q.changePct === 0).map(toRow),
     signalRows,
     best: best ? { stockId: best.stockId, name: best.name, changePct: best.changePct } : null,
     worst: worst ? { stockId: worst.stockId, name: worst.name, changePct: worst.changePct } : null,

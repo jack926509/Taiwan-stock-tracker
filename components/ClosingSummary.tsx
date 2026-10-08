@@ -4,6 +4,7 @@ import useSWR from "swr";
 import type { DailySummaryData } from "@/lib/summaryData";
 import type { Signal } from "@/lib/signals";
 import { fmt, fmtPct, trendOf, arrowOf, textColor } from "@/lib/format";
+import { formatQuoteAsOf } from "@/lib/quoteStatus";
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -32,6 +33,10 @@ export default function ClosingSummary() {
 
   const signalRows = s.rows.filter((r) => r.newSignals.length > 0);
   const dateLabel = `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`;
+  const quoteDateLabel = formatQuoteAsOf(s.asOf);
+  const sourceLabel = s.source === "yahoo"
+    ? "Yahoo 備援（可能延遲）"
+    : s.source === "stale" ? "當日舊快照（非即時）" : "MIS";
 
   return (
     <section
@@ -49,6 +54,15 @@ export default function ClosingSummary() {
           漲 {s.counts.up}・跌 {s.counts.down}・平 {s.counts.flat}
         </span>
       </div>
+
+      <p className="mt-2 text-[11px] leading-relaxed text-muted">
+        來源：{sourceLabel}・{quoteDateLabel ? `行情時間：${quoteDateLabel}（台北）` : "行情日期時間未知"}
+      </p>
+      {s.complete !== true && (
+        <p role="status" className="mt-2 rounded bg-warn-tint px-2 py-1.5 text-xs leading-relaxed text-warn">
+          部分股票或指數缺少當日有效行情；漲跌、排名及訊號僅依已取得資料計算。
+        </p>
+      )}
 
       {/* 指數列 */}
       {s.indices.length > 0 && (

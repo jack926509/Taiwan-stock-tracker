@@ -65,7 +65,7 @@ export default function WatchSummaryCard({
           </dd>
         </div>
       </dl>
-      {!hasData && <p className="mt-2 text-xs text-muted">尚無自選股資料</p>}
+      {!hasData && <p className="mt-2 text-xs text-muted">尚無可判斷漲跌的行情</p>}
     </div>
   );
 }

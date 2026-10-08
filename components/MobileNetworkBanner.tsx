@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatQuoteAsOf } from "@/lib/quoteStatus";
 
 interface MobileNetworkBannerProps {
   stale?: boolean;
   error?: unknown;
-  asOf?: string;
+  asOf?: string | null;
 }
 
 export default function MobileNetworkBanner({
@@ -29,14 +30,7 @@ export default function MobileNetworkBanner({
   const hasError = Boolean(error);
   if (online && !stale && !hasError) return null;
 
-  const cachedAt = asOf
-    ? new Intl.DateTimeFormat("zh-TW", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-        timeZone: "Asia/Taipei",
-      }).format(new Date(asOf))
-    : null;
+  const cachedAt = formatQuoteAsOf(asOf);
 
   const message = !online
     ? `目前離線，正在顯示最後一次快取資料${cachedAt ? `（${cachedAt}）` : ""}；恢復連線後將自動更新。`
