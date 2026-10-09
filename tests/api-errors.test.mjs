@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
-import { publicErrorBody } from "../lib/apiErrors.ts";
+import { publicErrorBody, logApiError } from "../lib/apiErrors.ts";
+
+test("正式診斷日誌只記錯誤分類，不輸出原始例外或秘密", () => {
+  const originalError = console.error;
+  const logs = [];
+  console.error = (...args) => logs.push(args);
+  try { logApiError("quote", new TypeError("SECRET upstream response")); }
+  finally { console.error = originalError; }
+  assert.deepEqual(logs, [["[quote]", { kind: "TypeError" }]]);
+  assert.doesNotMatch(JSON.stringify(logs), /SECRET|upstream/);
+});
 
 const ORIGINAL_ENV = { ...process.env };
 

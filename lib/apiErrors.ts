@@ -9,5 +9,7 @@ export function publicErrorBody(
 }
 
 export function logApiError(scope: string, err: unknown): void {
-  console.error(`[${scope}]`, err);
+  const name = err instanceof Error ? err.name : "unknown";
+  const kind = ["Error", "TypeError", "TimeoutError", "AbortError", "SyntaxError"].includes(name) ? name : "unknown";
+  console.error(`[${scope}]`, { kind });
 }

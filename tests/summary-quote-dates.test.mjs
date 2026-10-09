@@ -82,6 +82,24 @@ async function summaryData() {
   return buildSummaryData(NOW);
 }
 
+test("摘要快取區分市場，自選名稱與今日提醒變更後立即更新", async () => {
+  fixture();
+  importSequence++;
+  const { buildSummaryData } = await import(`../lib/summaryData.ts?summary-date-test=${importSequence}`);
+  const first = await buildSummaryData(NOW);
+  assert.equal(first.complete, true);
+  items[0].market = "otc";
+  result.quotes[0].market = "otc";
+  await buildSummaryData(NOW);
+  assert.equal(fetchCount, 2, "市場變更應重新查詢行情");
+  items[0].name = "更新的台積電名稱";
+  items[0].alert_high_hit_at = "2026-10-09T05:34:00.000Z";
+  const updated = await buildSummaryData(NOW);
+  assert.equal(updated.rows[0].name, "更新的台積電名稱");
+  assert.equal(updated.alertHits, 1);
+  assert.equal(fetchCount, 2, "名稱與提醒變更可沿用行情快取");
+});
+
 afterEach(() => { Date.now = originalDateNow; console.warn = originalConsoleWarn; });
 
 test("當日實際收盤 MIS 在 13:35 仍保留完整 LINE 摘要", async () => {
@@ -156,7 +174,7 @@ test("站內摘要排除舊股票及舊指數，當日資料仍參與漲跌與�
   assert.deepEqual(data.rows.map((row) => row.stockId), ["2330"]);
   assert.deepEqual(data.indices.map((row) => row.name), ["加權"]);
   assert.deepEqual(data.counts, { up: 1, down: 0, flat: 0 });
-  assert.equal(data.best.name, "2330");
+  assert.equal(data.best.name, "台積電");
   assert.equal(data.complete, false);
   assert.equal(data.source, "mis");
   assert.equal(data.asOf, CLOSED_AT);

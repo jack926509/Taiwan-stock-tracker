@@ -45,6 +45,7 @@ export default function Dashboard() {
   } = useHomeDashboard();
   const warnings = data ? quoteWarnings(data) : [];
   const quoteAt = formatQuoteAsOf(data?.asOf);
+  const initialError = !data && Boolean(quote.error || watchlist.error);
 
   const statusText = data ? (
     <>
@@ -52,7 +53,7 @@ export default function Dashboard() {
       {quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知"}
     </>
   ) : (
-    "載入中…"
+    initialError ? "載入失敗，稍後會自動重試" : "載入中…"
   );
 
   return (
@@ -75,9 +76,9 @@ export default function Dashboard() {
               error={quote.error || watchlist.error}
               asOf={data?.asOf}
             />
-            {(quote.error || watchlist.error) && data && (
-              <p className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
-                資料更新失敗，畫面保留先前資料，稍後會自動重試。
+            {(quote.error || watchlist.error) && (
+              <p role="alert" className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
+                {data ? "資料更新失敗，畫面保留先前資料，稍後會自動重試。" : "行情或自選清單暫時無法載入，稍後會自動重試，也可按立即更新。"}
               </p>
             )}
             {(warnings.length > 0 || autoPaused || storage === "local") && (
@@ -140,6 +141,14 @@ export default function Dashboard() {
                 reorderable={canSort}
                 onReorder={handleReorder}
               />
+            ) : initialError ? (
+              <div className="rounded-card bg-surface p-4 text-sm text-muted shadow-card ring-1 ring-line">
+                尚未取得行情資料。
+                <button type="button" onClick={handleManualRefresh} disabled={quote.isValidating || watchlist.isValidating}
+                  className="ml-3 rounded-pill bg-primary px-4 py-2 text-white focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 dark:text-app">
+                  立即重試
+                </button>
+              </div>
             ) : (
               <div className="grid gap-3">
                 {[0, 1, 2].map((i) => (
@@ -150,12 +159,6 @@ export default function Dashboard() {
 
             {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
             {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
-
-            {quote.error && !data && (
-              <div className="rounded-card bg-surface p-4 text-sm text-warn shadow-card ring-1 ring-line">
-                報價來源暫時無法使用，稍後會自動重試。
-              </div>
-            )}
 
             <footer className="pt-2 text-center text-[11px] leading-relaxed text-muted">
               {data?.source === "yahoo"

@@ -67,6 +67,11 @@ const defaultDependencies: ScheduledJobDependencies = {
   },
 };
 
+function logFailure(job: ScheduledJobName, stage: "calendar" | "claim" | "business" | "finish", now: Date) {
+  // 只記固定分類，不儲存第三方例外、股票名稱或密鑰。
+  console.error("[scheduled:failure]", { job, stage, scheduledAt: now.toISOString() });
+}
+
 async function runJob(
   job: ScheduledJobName,
   now: Date,
@@ -95,37 +100,53 @@ export async function runScheduledCron(
     return { job: "unknown", status: "skipped", reason: "unknown-cron" };
   }
 
-  if (job === "alerts" && !(await deps.isMarketOpenNow(now))) {
-    return { job, status: "skipped", reason: "market-closed" };
-  }
-  if (job === "daily-summary" && !(await deps.isTradingDay(taipeiNow(now)))) {
-    return { job, status: "skipped", reason: "non-trading-day" };
+  try {
+    if (job === "alerts" && !(await deps.isMarketOpenNow(now))) {
+      return { job, status: "skipped", reason: "market-closed" };
+    }
+    if (job === "daily-summary" && !(await deps.isTradingDay(taipeiNow(now)))) {
+      return { job, status: "skipped", reason: "non-trading-day" };
+    }
+  } catch (error) {
+    logFailure(job, "calendar", now);
+    throw error;
   }
 
   const runId = crypto.randomUUID();
-  if (!(await deps.claim(job, runId, LEASE_SECONDS[job]))) {
-    return { job, status: "skipped", reason: "locked" };
+  try {
+    if (!(await deps.claim(job, runId, LEASE_SECONDS[job]))) {
+      return { job, status: "skipped", reason: "locked" };
+    }
+  } catch (error) {
+    logFailure(job, "claim", now);
+    throw error;
   }
 
   let detail: Record<string, string | number | boolean | null>;
   try {
     detail = await runJob(job, now, deps);
   } catch (error) {
+    logFailure(job, "business", now);
     const result: ScheduledJobResult = {
       status: "error",
       detail: {
-        error: error instanceof Error ? error.message.slice(0, 300) : "unknown",
+        error: "排程執行失敗",
+        stage: "business",
       },
     };
     try {
       await deps.finish(job, runId, result);
     } catch {
-      // 不輸出 finish 錯誤內容，避免將資料庫密鑰寫入日誌。
-      console.error(`[scheduled:${job}] 無法記錄業務失敗狀態`);
+      logFailure(job, "finish", now);
     }
     throw error;
   }
 
-  await deps.finish(job, runId, { status: "ok", detail });
+  try {
+    await deps.finish(job, runId, { status: "ok", detail });
+  } catch (error) {
+    logFailure(job, "finish", now);
+    throw error;
+  }
   return { job, status: "ok", detail };
 }

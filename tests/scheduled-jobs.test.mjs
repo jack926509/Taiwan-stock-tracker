@@ -160,8 +160,8 @@ test("收盤總覽以 UTC 時間轉換的台北日期判斷交易日", async () 
   assert.deepEqual(calls, []);
 });
 
-test("業務函式失敗後記錄精簡錯誤並重新拋出原錯誤", async () => {
-  const failure = new Error(`測試錯誤${"x".repeat(400)}`);
+test("業務函式失敗只記固定原因與階段，仍重新拋出原錯誤", async () => {
+  const failure = new Error(`測試錯誤 SECRET-LINE-TOKEN ${"x".repeat(400)}`);
   const finishes = [];
 
   await assert.rejects(
@@ -185,8 +185,9 @@ test("業務函式失敗後記錄精簡錯誤並重新拋出原錯誤", async ()
   assert.match(finishes[0][1], /^[0-9a-f-]{36}$/i);
   assert.deepEqual(finishes[0][2], {
     status: "error",
-    detail: { error: failure.message.slice(0, 300) },
+    detail: { error: "排程執行失敗", stage: "business" },
   });
+  assert.doesNotMatch(JSON.stringify(finishes), /SECRET-LINE-TOKEN/);
 });
 
 test("業務與完成記錄同時失敗時仍拋出原業務錯誤", async () => {
@@ -218,7 +219,8 @@ test("業務與完成記錄同時失敗時仍拋出原業務錯誤", async () =>
     console.error = originalConsoleError;
   }
 
-  assert.equal(logCalls.length, 1);
+  assert.equal(logCalls.length, 2);
+  assert.deepEqual(logCalls.map((call) => call[1].stage), ["business", "finish"]);
   assert.doesNotMatch(JSON.stringify(logCalls), new RegExp(finishSecret));
 });
 
@@ -243,7 +245,7 @@ test("非 Error 型別的失敗不寫入原始內容", async () => {
 
   assert.deepEqual(finishes[0][2], {
     status: "error",
-    detail: { error: "unknown" },
+    detail: { error: "排程執行失敗", stage: "business" },
   });
 });
 
@@ -295,6 +297,26 @@ test("未知 cron 安全跳過且不執行任何依賴", async () => {
   });
   assert.deepEqual(calls, []);
 });
+
+for (const stage of ["calendar", "claim", "finish"]) {
+  test(`排程 ${stage} 失敗保留階段與排程時間，不輸出原始例外`, async () => {
+    const logs = [];
+    const originalError = console.error;
+    console.error = (...args) => logs.push(args);
+    const failure = new Error("SECRET-stage-failure");
+    const calls = [];
+    const overrides = {
+      checkAlerts: async () => { calls.push("business"); return 0; },
+      [stage === "calendar" ? "isMarketOpenNow" : stage]: async () => { throw failure; },
+    };
+    try {
+      await assert.rejects(runScheduledCron("* * * * MON-FRI", NOW, deps(overrides)), (error) => error === failure);
+    } finally { console.error = originalError; }
+    assert.deepEqual(logs, [["[scheduled:failure]", { job: "alerts", stage, scheduledAt: "2026-08-17T05:35:00.000Z" }]]);
+    assert.deepEqual(calls, stage === "finish" ? ["business"] : []);
+    assert.doesNotMatch(JSON.stringify(logs), /SECRET/);
+  });
+}
 
 test("Next.js 啟動鉤子不再載入常駐排程", async () => {
   const source = await readFile(

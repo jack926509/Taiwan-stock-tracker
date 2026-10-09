@@ -106,7 +106,10 @@ export async function getLineLastFailure(): Promise<LineFailure | null> {
     .select("payload")
     .eq("cache_key", LINE_FAILURE_KEY)
     .maybeSingle();
-  return (data?.payload as LineFailure) ?? null;
+  const record = data?.payload as LineFailure | undefined;
+  if (!record || typeof record.at !== "string" || !Number.isFinite(Date.parse(record.at))) return null;
+  const http = typeof record.reason === "string" ? record.reason.match(/^HTTP ([45]\d{2})(?:$|：)/) : null;
+  return { at: new Date(record.at).toISOString(), reason: http ? `HTTP ${http[1]}` : "推播處理失敗" };
 }
 
 // 任意一則 LINE message 物件（text／flex 皆可，型別由呼叫端負責組對）
@@ -142,7 +145,7 @@ export async function pushLineMessages(messages: LineMessage[]): Promise<boolean
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
-      const reason = `HTTP ${res.status}：${await res.text()}`;
+      const reason = `HTTP ${res.status}`;
       console.error(`[line] push 失敗 ${reason}`);
       if (db) await recordFailure(db, now, reason);
       return false;
@@ -154,9 +157,9 @@ export async function pushLineMessages(messages: LineMessage[]): Promise<boolean
       await clearFailure(db);
     }
     return true;
-  } catch (e) {
-    console.error("[line] push 例外：", e);
-    if (db) await recordFailure(db, now, String(e));
+  } catch {
+    console.error("[line] 推播處理失敗");
+    if (db) await recordFailure(db, now, "推播處理失敗");
     return false;
   }
 }

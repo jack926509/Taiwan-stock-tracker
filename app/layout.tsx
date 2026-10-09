@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
@@ -44,7 +45,7 @@ export default function RootLayout({
         <ToastProvider>
           {/* 手機底部導覽高度的緩衝，避免內容被導覽列遮住（桌機無導覽列） */}
           <div className="pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
-            {children}
+            <Suspense fallback={null}>{children}</Suspense>
           </div>
           <PWAInstallPrompt />
           <BottomNav />

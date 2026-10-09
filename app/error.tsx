@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { reportClientError } from "@/lib/clientDiagnostics";
 
 // 繁中錯誤頁：Next.js App Router 慣例的 client component，套用「晨間財經誌」設計系統。
 export default function ErrorPage({
@@ -10,6 +12,7 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => { reportClientError("render", error); }, [error]);
   return (
     <div className="flex min-h-screen items-center justify-center bg-app px-6">
       <div className="w-full max-w-sm rounded-card bg-surface p-8 text-center shadow-card ring-1 ring-line">

@@ -10,6 +10,9 @@ afterEach(() => {
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier === "@/lib/supabase") return {
+      url: "data:text/javascript,export const getSupabase = () => globalThis.__statusFakeDb;", shortCircuit: true,
+    };
     if (specifier.startsWith("@/")) {
       return nextResolve(
         new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href,
@@ -20,9 +23,18 @@ registerHooks({
   },
 });
 
-const { getScheduledJobStatuses, toScheduledJobStatus } = await import(
+const { getScheduledJobStatuses, toScheduledJobStatus, keepAlive, recordBackfill } = await import(
   "../lib/status.ts"
 );
+
+test("keep-alive 與 backfill 狀態儲存失敗不能被記成成功，也不曝露資料庫原文", async () => {
+  globalThis.__statusFakeDb = { from() { return {
+    select() { return { limit: async () => ({ error: { message: "SECRET-db-token" } }) }; },
+    upsert: async () => ({ error: { message: "SECRET-db-token" } }),
+  }; } };
+  await assert.rejects(keepAlive(), { message: "資料庫存活檢查失敗" });
+  await assert.rejects(recordBackfill(9, 0, new Date()), { message: "補齊狀態記錄失敗" });
+});
 
 test("toScheduledJobStatus only exposes the safe scheduled-job fields", () => {
   assert.deepEqual(

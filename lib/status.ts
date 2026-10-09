@@ -27,12 +27,13 @@ export async function recordBackfill(
   const db = getSupabase();
   if (!db) return;
   const rec: BackfillRecord = { ranAt: now.toISOString(), ok, fail };
-  await db.from("news_cache").upsert({
+  const { error } = await db.from("news_cache").upsert({
     cache_key: BACKFILL_KEY,
     payload: rec,
     fetched_at: rec.ranAt,
     expires_at: NEVER_EXPIRE,
   });
+  if (error) throw new Error("補齊狀態記錄失敗");
 }
 
 // 週末輕量 ping：保險用，避免 Supabase 免費專案 7 天無活動被暫停
@@ -40,7 +41,8 @@ export async function recordBackfill(
 export async function keepAlive(): Promise<void> {
   const db = getSupabase();
   if (!db) return;
-  await db.from("watchlist").select("stock_id").limit(1);
+  const { error } = await db.from("watchlist").select("stock_id").limit(1);
+  if (error) throw new Error("資料庫存活檢查失敗");
 }
 
 export interface BackendStatus {
@@ -105,7 +107,11 @@ function sanitizeScheduledJobDetail(
   status: ScheduledJobStatus["status"],
   detail: unknown
 ): ScheduledJobStatus["detail"] {
-  if (status === "error") return { error: "排程執行失敗" };
+  if (status === "error") {
+    const safeDetail: ScheduledJobStatus["detail"] = { error: "排程執行失敗" };
+    if (isDetailRecord(detail) && detail.stage === "business") safeDetail.stage = "business";
+    return safeDetail;
+  }
   if (status !== "ok" || !isDetailRecord(detail)) return {};
 
   switch (jobName) {

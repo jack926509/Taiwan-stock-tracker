@@ -34,6 +34,10 @@
 正式平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；`twstock.xiehnet.com` 已綁定同一個 Worker，頁面、API 與 Cron 都由 Worker 執行。Zeabur 不再承接正式流量；若舊服務仍存在，只能作為短期回退，不得在未取得使用者明確核准前停止或刪除。Cloudflare Workers Builds 連接 GitHub `jack926509/Taiwan-stock-tracker`，只有 `main` 分支推送時才會在測試、型別檢查與 OpenNext 建置成功後自動部署正式 Worker；其他分支不建立 Cloudflare 預覽版本。GitHub Actions 只負責驗證，不再上傳 Worker。推送 `main` 等同啟動正式發布，必須先取得使用者明確授權；本地優化或工作分支提交不代表已授權正式發布。
 
 ## 特殊規則
+- 根版面以 React `Suspense` 包住各頁內容，將頁面 hydration 與共用版面分成邊界，保留 SSR。原始 Worker 曾出現頁面預期 `div`、hydration 游標卻落到內層 `header` 的 React 418；修改後以快取 JavaScript／新 HTML 連續 100 次本機手機驗收無錯誤。完整 HTML 傳送的嘗試無效，未納入；底層 React／OpenNext 原因仍未完全證實，不宣稱所有 hydration 問題已根治。
+- `instrumentation-client.ts` 在 hydration 前建立最小錯誤監聽，`/api/client-diagnostics` 只接受同源、1024 bytes 內的白名單欄位；正常頁面不回報，單頁最多 5 種、單 Worker 每分鐘最多 30 筆。僅記頁面分類、錯誤分類、數字 digest、React 418 與連線／viewport／SW 狀態，不存原始錯誤、堆疊、完整網址或使用者內容；不得消音原有 console 或停用 SSR。Workers Logs 已啟用，invocation logs 關閉。
+- 排程診斷以 `calendar`、`claim`、`business`、`finish` 分類；資料庫失敗狀態只存固定訊息與 `business`。API／LINE 診斷不儲存例外或 LINE 回應原文。Supabase keep-alive 與 backfill 紀錄失敗須拋出固定例外，不能假報成功。
+- 摘要行情快取識別包含台北日期、股票代號與市場；名稱、最強最弱名稱及今日提醒數每次套用最新自選資料。`postcss-selector-parser` 固定覆寫為 7.1.6，保留 Tailwind 3；完整 audit 尚有 `braces` 相依鏈，不能聲稱全部安全通報已排除。
 - 本機開發的 secrets 只能放在 `.env.local`，絕對不可進 git；範本檔為 `.env.local.example`（可進 git）。Worker runtime secrets 只設於 Cloudflare Worker Secrets，同樣不可進 git。
 - Supabase 是唯一正式資料庫；本機 JSON 只供開發。Cloudflare Workers filesystem 不持久，禁止當作正式儲存。
 - Worker Cron 與業務工作的分派見 `lib/scheduledJobs.ts`；四個 UTC Cron 以 `wrangler.jsonc` 為準。`instrumentation-node.ts` 只保留為遷移歷史，production 不得 import。

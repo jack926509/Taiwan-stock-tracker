@@ -2,7 +2,7 @@
 // 差別在回傳結構化 JSON 供 /api/summary → 首頁面板使用，而非組字串推播。
 // 完整 MIS 摘要快取 10 分鐘；備援與無資料短快取 30 秒（同日＋同一自選清單才命中）。
 
-import { listWatchlist } from "@/lib/store";
+import { listWatchlist, type WatchItem } from "@/lib/store";
 import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
 import { taipeiNow } from "@/lib/market-hours";
@@ -49,6 +49,22 @@ const TTL_MS = 10 * 60_000;
 const SHORT_TTL_MS = 30_000;
 let cache: { key: string; expiresAt: number; data: DailySummaryData | null } | null = null;
 
+function withCurrentWatchlist(data: DailySummaryData | null, items: WatchItem[], now: Date): DailySummaryData | null {
+  if (!data) return null;
+  const names = new Map(items.map((item) => [item.stock_id, item.name]));
+  const rows = data.rows.map((row) => ({ ...row, name: names.get(row.stockId) ?? row.name }));
+  const ranked = rows.filter((row) => row.changePct !== null && Number.isFinite(row.changePct));
+  const best = ranked[0];
+  const worst = ranked.length > 1 ? ranked[ranked.length - 1] : undefined;
+  return {
+    ...data,
+    rows,
+    best: best ? { name: best.name, changePct: best.changePct! } : null,
+    worst: worst ? { name: worst.name, changePct: worst.changePct! } : null,
+    alertHits: countTodayHits(items, now),
+  };
+}
+
 export async function buildSummaryData(
   now: Date = new Date()
 ): Promise<DailySummaryData | null> {
@@ -56,9 +72,9 @@ export async function buildSummaryData(
   if (items.length === 0) return null;
 
   const t = taipeiNow(now);
-  const key = `${t.isoDate}|${items.map((i) => i.stock_id).sort().join(",")}`;
+  const key = `${t.isoDate}|${JSON.stringify(items.map((i) => [i.market, i.stock_id]).sort())}`;
   if (cache && cache.key === key && Date.now() < cache.expiresAt) {
-    return cache.data;
+    return withCurrentWatchlist(cache.data, items, now);
   }
 
   const ids = new Set(items.map((i) => i.stock_id));
@@ -151,5 +167,5 @@ export async function buildSummaryData(
     const ttl = data.source === "mis" ? TTL_MS : SHORT_TTL_MS;
     cache = { key, expiresAt: Date.now() + ttl, data };
   }
-  return data;
+  return withCurrentWatchlist(data, items, now);
 }

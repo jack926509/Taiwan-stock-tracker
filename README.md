@@ -115,6 +115,8 @@ npm run dev
 
 ## ⏰ Worker 排程
 
+排程失敗以固定階段分類記錄，API 與 LINE 錯誤不保存原始例外或回應內容。Workers Logs 已啟用且關閉每次請求的 invocation logs；可在 Cloudflare Worker 的 Observability 查詢 `[scheduled:failure]` 與 `[client:diagnostic]`。瀏覽器只在發生錯誤時回報必要的分類、數字 digest 與執行環境，正常頁面不傳診斷，單頁與單 Worker 均有限量。這些資料用於追查，不能單憑客戶端回報認定有真實錯誤。
+
 Cloudflare Cron 以 UTC 設定，Worker 會依 `event.cron` 分派下列工作：
 
 | 工作 | Cron（UTC） | 台北時間（UTC+8） | 守門條件 |
