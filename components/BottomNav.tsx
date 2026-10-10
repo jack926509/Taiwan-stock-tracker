@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { hasAnyAlert, type AlertFields } from "@/lib/alertBadge";
+import { countTouchedAlerts, type TouchableAlert } from "@/lib/alertTouched";
 
-type AlertRow = AlertFields;
+type AlertRow = TouchableAlert & { stock_id: string };
+type QuoteLite = { quotes: { stockId: string; price: number | null }[] };
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -51,7 +52,10 @@ export default function BottomNav() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
-  const activeAlerts = watchlist.data?.items.filter(hasAnyAlert).length ?? 0;
+  // 與 /api/quote 共用同一個 SWR key，不多打 API；紅點數字＝已觸及的提醒則數（與提醒頁、首頁同一套判斷）
+  const quote = useSWR<QuoteLite>("/api/quote", fetcher, { revalidateOnFocus: true });
+  const priceById = new Map((quote.data?.quotes ?? []).map((q) => [q.stockId, q.price]));
+  const activeAlerts = countTouchedAlerts(watchlist.data?.items ?? [], (id) => priceById.get(id));
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">

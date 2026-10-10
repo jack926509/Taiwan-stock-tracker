@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import { fmt, fmtPct, trendOf, arrowOf, chipColor } from "@/lib/format";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
+import { isHighTouched, isLowTouched } from "@/lib/alertTouched";
 import { formatQuoteAsOf, quoteWarnings, quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { useToast } from "@/components/Toast";
 import useDialogFocus from "@/hooks/useDialogFocus";
@@ -61,10 +62,8 @@ function AlertListRow({
     row.alert_low != null ||
     row.alert_change_pct != null ||
     row.alert_volume_on;
-  const highHit =
-    price != null && row.alert_high != null && price >= row.alert_high;
-  const lowHit =
-    price != null && row.alert_low != null && price <= row.alert_low;
+  const highHit = isHighTouched(price, row.alert_high);
+  const lowHit = isLowTouched(price, row.alert_low);
   const quoteAt = formatQuoteAsOf(quote?.asOf);
 
   return (

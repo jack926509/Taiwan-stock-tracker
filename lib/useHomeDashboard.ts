@@ -12,7 +12,7 @@ import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
-import { hitToday } from "@/lib/alertLogic";
+import { countTouchedAlerts } from "@/lib/alertTouched";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
@@ -34,17 +34,6 @@ function formatMastheadDate(date: Date): string {
   }).formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${get("year")} / ${get("month")} / ${get("day")}　${get("hour")}:${get("minute")} TPE`;
-}
-
-function countTodayHits(items: { alert_high_hit_at: string | null; alert_low_hit_at: string | null; alert_change_hit_at: string | null; alert_volume_hit_at: string | null; }[], now: Date): number {
-  let hits = 0;
-  for (const item of items) {
-    if (hitToday(item.alert_high_hit_at, now)) hits++;
-    if (hitToday(item.alert_low_hit_at, now)) hits++;
-    if (hitToday(item.alert_change_hit_at, now)) hits++;
-    if (hitToday(item.alert_volume_hit_at, now)) hits++;
-  }
-  return hits;
 }
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -252,10 +241,11 @@ export function useHomeDashboard() {
       else if (q.changePct > 0) up++;
       else down++;
     }
-    const nowDate = now ?? new Date();
-    const todayHits = countTodayHits(items ?? [], nowDate);
+    // 今日觸發＝目前行情已越過提醒價的則數，與提醒頁「已觸及」同一套判斷（lib/alertTouched.ts）
+    const priceById = new Map((data?.quotes ?? []).map((q) => [q.stockId, q.price]));
+    const todayHits = countTouchedAlerts(items ?? [], (id) => priceById.get(id));
     return { up, down, flat, todayHits };
-  }, [data?.quotes, items, now]);
+  }, [data?.quotes, items]);
 
   // 左欄「提醒摘要」：已設到價提醒的自選股，補上現價供算「距觸價 %」（不新增 API，沿用既有 quotes）
   const alertItems: AlertRailItem[] = useMemo(() => {

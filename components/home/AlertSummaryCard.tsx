@@ -1,5 +1,6 @@
 import type { WatchlistItem } from "@/lib/types";
 import { fmt, fmtPct } from "@/lib/format";
+import { isHighTouched, isLowTouched } from "@/lib/alertTouched";
 
 // 供 IndexRail／app/page.tsx 共用：AlertSummaryCard 需要「條件價 vs 現價」算距觸價 %，
 // 這比純 WatchlistItem 多一個現價欄位，故在既有型別上疊加，不改動 lib/types.ts 的共用契約。
@@ -16,9 +17,9 @@ function BellIcon() {
 function AlertRow({ item }: { item: AlertRailItem }) {
   const { price } = item;
   // 一檔可能同時設高低價提醒；各自算一行距觸價（以現價為分母）
-  const rows: { label: string; target: number; tone: "up" | "down" }[] = [];
-  if (item.alert_high != null) rows.push({ label: "≥", target: item.alert_high, tone: "up" });
-  if (item.alert_low != null) rows.push({ label: "≤", target: item.alert_low, tone: "down" });
+  const rows: { label: string; target: number; tone: "up" | "down"; hit: boolean }[] = [];
+  if (item.alert_high != null) rows.push({ label: "≥", target: item.alert_high, tone: "up", hit: isHighTouched(price, item.alert_high) });
+  if (item.alert_low != null) rows.push({ label: "≤", target: item.alert_low, tone: "down", hit: isLowTouched(price, item.alert_low) });
 
   return (
     <div className="flex items-start gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0">
@@ -37,8 +38,8 @@ function AlertRow({ item }: { item: AlertRailItem }) {
               <div className={`font-mono text-xs font-bold tabular ${r.tone === "up" ? "text-up" : "text-down"}`}>
                 {r.label} {fmt(r.target)}
               </div>
-              <div className="text-[10px] text-muted">
-                {dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`}
+              <div className={`text-[10px] ${r.hit ? "font-semibold text-ink" : "text-muted"}`}>
+                {r.hit ? "已觸及" : dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`}
               </div>
             </div>
           );
