@@ -86,12 +86,12 @@ function AlertListRow({
       />
       {/* 第一行：代號＋股名＋市場別｜現價＋漲跌幅＋展開箭頭 */}
       <div className="flex items-center gap-2.5">
-        <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-muted">
+        <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-xs text-muted">
           {row.stock_id}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold text-ink">{row.name}</span>
-          <span className="mt-0.5 block font-mono text-[10px] text-faint">
+          <span className="mt-0.5 block font-mono text-xs text-faint">
             {row.market === "tse" ? "上市" : "上櫃"}
           </span>
         </span>
@@ -110,7 +110,7 @@ function AlertListRow({
           />
         </span>
       </div>
-      <p className="mt-1 text-[11px] leading-relaxed text-muted">
+      <p className="mt-1 text-xs leading-relaxed text-muted">
         {quote ? (quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知") : "暫時未取得報價"}
       </p>
 
@@ -120,7 +120,7 @@ function AlertListRow({
           <>
             {row.alert_high != null && (
               <span
-                className={`rounded-pill px-2 py-0.5 font-mono text-[11px] font-semibold tabular ${
+                className={`rounded-pill px-2 py-0.5 font-mono text-xs font-semibold tabular ${
                   highHit ? "bg-up text-white" : "bg-up-tint text-up"
                 }`}
               >
@@ -134,7 +134,7 @@ function AlertListRow({
             )}
             {row.alert_low != null && (
               <span
-                className={`rounded-pill px-2 py-0.5 font-mono text-[11px] font-semibold tabular ${
+                className={`rounded-pill px-2 py-0.5 font-mono text-xs font-semibold tabular ${
                   lowHit ? "bg-down text-white" : "bg-down-tint text-down"
                 }`}
               >
@@ -147,18 +147,18 @@ function AlertListRow({
               </span>
             )}
             {row.alert_change_pct != null && (
-              <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-semibold tabular text-ink ring-1 ring-line">
+              <span className="rounded-pill bg-surface-2 px-2 py-0.5 font-mono text-xs font-semibold tabular text-ink ring-1 ring-line">
                 漲跌幅 ±{row.alert_change_pct}%
               </span>
             )}
             {row.alert_volume_on && (
-              <span className="flex items-center gap-1 rounded-pill bg-surface-2 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-line">
+              <span className="flex items-center gap-1 rounded-pill bg-surface-2 px-2 py-0.5 text-xs font-semibold text-ink ring-1 ring-line">
                 <IconChartBar className="h-3 w-3" aria-hidden="true" /> 爆量
               </span>
             )}
           </>
         ) : (
-          <span className="inline-flex items-center rounded-pill border border-dashed border-line-strong px-2.5 py-0.5 text-[11px] font-medium text-muted transition-colors group-hover:border-primary group-hover:text-primary">
+          <span className="inline-flex items-center rounded-pill border border-dashed border-line-strong px-2.5 py-0.5 text-xs font-medium text-muted transition-colors group-hover:border-primary group-hover:text-primary">
             ＋ 設定提醒
           </span>
         )}
@@ -398,7 +398,7 @@ export default function AlertsPage() {
                     aria-hidden="true"
                     className="h-1.5 w-1.5 rounded-full bg-primary pulse-dot"
                   />
-                  <h2 className="font-mono text-[10px] tracking-[2px] text-muted">
+                  <h2 className="font-mono text-xs tracking-[2px] text-muted">
                     已設提醒
                   </h2>
                   <b className="font-mono text-xs font-bold tabular text-ink">
@@ -424,7 +424,7 @@ export default function AlertsPage() {
             {unset.length > 0 && (
               <section className="space-y-2.5">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-mono text-[10px] tracking-[2px] text-muted">
+                  <h2 className="font-mono text-xs tracking-[2px] text-muted">
                     尚未設定
                   </h2>
                   <b className="font-mono text-xs font-bold tabular text-muted">

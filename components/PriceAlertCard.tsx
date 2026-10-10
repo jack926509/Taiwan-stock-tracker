@@ -39,11 +39,11 @@ function mmdd(iso: string): string {
 function StatusNote({ set, hitAt }: { set: boolean; hitAt: string | null }) {
   if (!set) return null;
   return hitAt ? (
-    <span className="whitespace-nowrap font-mono text-[10px] tabular text-warn">
+    <span className="whitespace-nowrap font-mono text-xs tabular text-warn">
       已於 {mmdd(hitAt)} 觸發
     </span>
   ) : (
-    <span className="whitespace-nowrap font-mono text-[10px] tabular text-muted">監控中</span>
+    <span className="whitespace-nowrap font-mono text-xs tabular text-muted">監控中</span>
   );
 }
 
@@ -195,7 +195,7 @@ export default function PriceAlertCard({
         {/* 漲到（紅） */}
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2">
-            <span className="w-12 shrink-0 text-[11px] font-medium text-up">漲到 ▲</span>
+            <span className="w-12 shrink-0 text-xs font-medium text-up">漲到 ▲</span>
             <input
               value={high}
               onChange={(e) => setHigh(e.target.value)}
@@ -209,7 +209,7 @@ export default function PriceAlertCard({
               type="button"
               onClick={() => quickFill("high", 0.05)}
               disabled={currentPrice == null}
-              className="w-fit rounded-pill bg-up-tint px-2.5 py-1 text-[11px] font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-fit rounded-pill bg-up-tint px-2.5 py-1 text-xs font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               現價 +5%
             </button>
@@ -219,7 +219,7 @@ export default function PriceAlertCard({
         {/* 跌到（綠） */}
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2">
-            <span className="w-12 shrink-0 text-[11px] font-medium text-down">跌到 ▼</span>
+            <span className="w-12 shrink-0 text-xs font-medium text-down">跌到 ▼</span>
             <input
               value={low}
               onChange={(e) => setLow(e.target.value)}
@@ -233,7 +233,7 @@ export default function PriceAlertCard({
               type="button"
               onClick={() => quickFill("low", -0.05)}
               disabled={currentPrice == null}
-              className="w-fit rounded-pill bg-down-tint px-2.5 py-1 text-[11px] font-medium text-down transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-fit rounded-pill bg-down-tint px-2.5 py-1 text-xs font-medium text-down transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               現價 −5%
             </button>
@@ -244,7 +244,7 @@ export default function PriceAlertCard({
         {/* 漲跌幅提醒（每日一次性，隔日自動重新啟用，不需手動重設） */}
         <div className="flex flex-col gap-1.5">
           <label className="flex items-center gap-2">
-            <span className="w-12 shrink-0 text-[11px] font-medium text-ink">漲跌幅</span>
+            <span className="w-12 shrink-0 text-xs font-medium text-ink">漲跌幅</span>
             <div className="flex min-w-0 flex-1 items-center gap-1 rounded-card border border-line bg-app px-2.5 py-1.5 focus-within:border-primary">
               <span className="shrink-0 font-mono text-sm text-muted">±</span>
               <input
@@ -265,7 +265,7 @@ export default function PriceAlertCard({
         </div>
         {/* 爆量提醒：現量達近 5 日均量 2 倍即推播；同樣每日一次性 */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] leading-relaxed text-ink">
+          <span className="text-xs leading-relaxed text-ink">
             爆量提醒
             <span className="ml-1 text-muted">（現量達近 5 日均量 2 倍）</span>
           </span>
@@ -293,7 +293,7 @@ export default function PriceAlertCard({
         >
           {busy ? "儲存中…" : "儲存"}
         </button>
-        <p className="text-[10px] leading-relaxed text-muted">
+        <p className="text-xs leading-relaxed text-muted">
           {msg ??
             "到價／漲跌幅：留空＝取消；漲跌幅與爆量觸發後隔日自動重新啟用，到價需重設門檻"}
         </p>

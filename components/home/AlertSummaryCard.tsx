@@ -28,7 +28,7 @@ function AlertRow({ item }: { item: AlertRailItem }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-semibold text-ink">{item.name}</div>
-        <div className="font-mono text-[10px] tracking-wide text-faint">{item.stock_id}</div>
+        <div className="font-mono text-xs tracking-wide text-faint">{item.stock_id}</div>
       </div>
       <div className="shrink-0 text-right">
         {rows.map((r) => {
@@ -38,7 +38,7 @@ function AlertRow({ item }: { item: AlertRailItem }) {
               <div className={`font-mono text-xs font-bold tabular ${r.tone === "up" ? "text-up" : "text-down"}`}>
                 {r.label} {fmt(r.target)}
               </div>
-              <div className={`text-[10px] ${r.hit ? "font-semibold text-ink" : "text-muted"}`}>
+              <div className={`text-xs ${r.hit ? "font-semibold text-ink" : "text-muted"}`}>
                 {r.hit ? "已觸及" : dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`}
               </div>
             </div>
@@ -54,7 +54,7 @@ export default function AlertSummaryCard({ items }: { items: AlertRailItem[] }) 
     <div className="rounded-card border border-line bg-surface p-4 shadow-card">
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-sm font-bold tracking-wide text-ink">提醒摘要</span>
-        <span className="ml-auto font-mono text-[10px] tracking-wide text-faint">
+        <span className="ml-auto font-mono text-xs tracking-wide text-faint">
           {items.length} 檔監控中
         </span>
       </div>

@@ -99,7 +99,7 @@ export default function FundamentalSection({
   return (
     <>
       {asOf && (
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted tabular">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-muted tabular">
           <span>
             基本面更新於{" "}
             {new Date(asOf).toLocaleString("zh-TW", {
@@ -137,7 +137,7 @@ export default function FundamentalSection({
               }
             />
           </div>
-          <span className="font-mono text-[11px] text-muted tabular">
+          <span className="font-mono text-xs text-muted tabular">
             估值日期 {valuation.date}
           </span>
         </div>
@@ -155,7 +155,7 @@ export default function FundamentalSection({
             style={{ animationDelay: "200ms" }}
           >
             <h3 className="font-serif text-sm font-semibold">三大法人買賣超</h3>
-            <p className="mt-0.5 text-[11px] text-muted">單位：張，正為買超</p>
+            <p className="mt-0.5 text-xs text-muted">單位：張，正為買超</p>
             <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[300px] font-mono text-xs tabular">
               <thead>
@@ -208,7 +208,7 @@ export default function FundamentalSection({
             style={{ animationDelay: "260ms" }}
           >
             <h3 className="font-serif text-sm font-semibold">月營收</h3>
-            <p className="mt-0.5 text-[11px] text-muted">
+            <p className="mt-0.5 text-xs text-muted">
               單位：億元，YoY 為與去年同月相比
             </p>
             <div className="mt-3 space-y-1.5 font-mono text-xs tabular">
@@ -252,9 +252,9 @@ export default function FundamentalSection({
           <div className="flex items-end justify-between gap-4">
             <div>
               <h3 className="font-serif text-sm font-semibold">每股盈餘 EPS</h3>
-              <p className="mt-0.5 text-[11px] text-muted">單位：元，單季</p>
+              <p className="mt-0.5 text-xs text-muted">單位：元，單季</p>
               {latestEps && (qoq !== null || yoy !== null) && (
-                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
                   <span className="text-muted">
                     最新 {latestEps.year} Q{latestEps.quarter}
                   </span>
@@ -265,12 +265,12 @@ export default function FundamentalSection({
             </div>
             {eps.length >= 4 && (
               <div className="text-right">
-                <div className="text-[11px] text-muted">近四季合計 EPS</div>
+                <div className="text-xs text-muted">近四季合計 EPS</div>
                 <div className={`font-mono text-xl font-bold tabular ${netColor(ttmEps)}`}>
                   {fmt(ttmEps)}
                 </div>
                 {dynPer !== null && (
-                  <div className="mt-0.5 font-mono text-[11px] text-muted tabular">
+                  <div className="mt-0.5 font-mono text-xs text-muted tabular">
                     本益比 {fmt(dynPer, 1)} 倍
                   </div>
                 )}
@@ -309,13 +309,13 @@ export default function FundamentalSection({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="font-serif text-sm font-semibold">股利政策</h3>
-              <p className="mt-0.5 text-[11px] text-muted">
+              <p className="mt-0.5 text-xs text-muted">
                 近 5 年，單位：元／股
               </p>
             </div>
             {cashYield !== null && yieldBase && (
               <div className="text-right">
-                <div className="text-[11px] text-muted">
+                <div className="text-xs text-muted">
                   現金殖利率（{yieldBase.year} 年）
                 </div>
                 <div className="font-mono text-xl font-bold tabular text-ink">

@@ -71,7 +71,7 @@ export default function BottomNav() {
               href={tab.href}
               aria-label={tab.label}
               aria-current={active ? "page" : undefined}
-              className={`relative flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+              className={`relative flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors ${
                 active ? "text-primary" : "text-muted"
               }`}
             >
@@ -94,7 +94,7 @@ export default function BottomNav() {
                   {tab.icon}
                 </svg>
                 {tab.href === "/alerts" && activeAlerts > 0 && (
-                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-[10px] font-bold leading-4 text-white dark:text-app">
+                  <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-xs font-bold leading-4 text-white dark:text-app">
                     {activeAlerts > 9 ? "9+" : activeAlerts}
                   </span>
                 )}

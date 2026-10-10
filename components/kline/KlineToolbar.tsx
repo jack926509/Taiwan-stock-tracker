@@ -38,7 +38,7 @@ export function OverlayToggleRow({
   primaryColor: string;
 }) {
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+    <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
       {maDefs.map((def) => (
         <button
           key={def.label}

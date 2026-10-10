@@ -55,7 +55,7 @@ export default function ClosingSummary() {
         </span>
       </div>
 
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">
+      <p className="mt-2 text-xs leading-relaxed text-muted">
         來源：{sourceLabel}・{quoteDateLabel ? `行情時間：${quoteDateLabel}（台北）` : "行情日期時間未知"}
       </p>
       {s.complete !== true && (
@@ -93,7 +93,7 @@ export default function ClosingSummary() {
             >
               <span className="min-w-0 truncate">
                 <span className="font-serif font-medium text-ink">{r.name}</span>
-                <span className="ml-1.5 font-mono text-[11px] text-muted tabular">
+                <span className="ml-1.5 font-mono text-xs text-muted tabular">
                   {r.stockId}
                 </span>
               </span>
@@ -120,14 +120,14 @@ export default function ClosingSummary() {
               <li key={r.stockId} className="flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="font-serif text-ink">
                   {r.name}
-                  <span className="ml-1 font-mono text-[11px] text-muted tabular">
+                  <span className="ml-1 font-mono text-xs text-muted tabular">
                     {r.stockId}
                   </span>
                 </span>
                 {r.newSignals.map((sig) => (
                   <span
                     key={sig.kind}
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${signalToneClass[sig.tone]}`}
+                    className={`rounded px-1.5 py-0.5 text-xs font-medium ${signalToneClass[sig.tone]}`}
                   >
                     {sig.label}
                   </span>

@@ -164,7 +164,7 @@ export default function Dashboard() {
             {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
             {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
 
-            <footer className="pt-2 text-center text-[11px] leading-relaxed text-muted">
+            <footer className="pt-2 text-center text-xs leading-relaxed text-muted">
               {data?.source === "yahoo"
                 ? "報價來源：Yahoo Finance 備援"
                 : data?.source === "stale"

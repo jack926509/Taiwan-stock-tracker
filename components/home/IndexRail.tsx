@@ -22,7 +22,7 @@ export default function IndexRail({
     // 自選概況／提醒摘要用 order-last 排到自選股清單之後，讓第一個畫面就看得到自選股。
     <aside className="min-w-0 max-[599px]:contents">
       <div className="mb-2.5 flex items-center gap-2 max-[599px]:hidden">
-        <span className="font-mono text-[10px] uppercase tracking-[2px] text-muted">
+        <span className="font-mono text-xs uppercase tracking-[2px] text-muted">
           大盤指數
         </span>
         <span className="h-px flex-1 bg-line" aria-hidden="true" />

@@ -30,13 +30,13 @@ export default function WatchlistToolbar({
         <p className="text-xs text-muted">{statusText}</p>
       </div>
       {reorderHint && (
-        <p className="mt-1 text-[11px] text-muted md:hidden">長按拖曳把手可調整排序</p>
+        <p className="mt-1 text-xs text-muted md:hidden">長按拖曳把手可調整排序</p>
       )}
 
       {showChips && (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex shrink-0 items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-[2px] text-muted">排序</span>
+            <span className="font-mono text-xs uppercase tracking-[2px] text-muted">排序</span>
             <div className="flex gap-1.5">
               {SORTS.map((s) => (
                 <button
@@ -57,7 +57,7 @@ export default function WatchlistToolbar({
           </div>
           <span className="hidden h-5 w-px bg-line-strong sm:block" aria-hidden="true" />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[10px] uppercase tracking-[2px] text-muted">篩選</span>
+            <span className="font-mono text-xs uppercase tracking-[2px] text-muted">篩選</span>
             <div className="flex flex-wrap gap-1.5">
               {FILTERS.map((f) => (
                 <button

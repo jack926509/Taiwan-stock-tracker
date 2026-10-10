@@ -18,7 +18,7 @@ export default function WatchSummaryCard({
     <div className="rounded-card border border-line bg-surface p-4 shadow-card">
       <div className="mb-3 flex items-center gap-2">
         <span className="text-sm font-bold tracking-wide text-ink">自選概況</span>
-        <span className="ml-auto font-mono text-[10px] tracking-wide text-faint">WATCHLIST</span>
+        <span className="ml-auto font-mono text-xs tracking-wide text-faint">WATCHLIST</span>
       </div>
 
       <div className="mb-3 flex h-2 overflow-hidden rounded-pill bg-surface-2" aria-hidden="true">
@@ -34,7 +34,7 @@ export default function WatchSummaryCard({
             上漲家數
           </dt>
           <dd className="font-mono font-bold tabular text-up">
-            {up} <span className="text-[11px] font-semibold text-faint">家</span>
+            {up} <span className="text-xs font-semibold text-faint">家</span>
           </dd>
         </div>
         <div className="flex items-center justify-between py-1.5">
@@ -43,7 +43,7 @@ export default function WatchSummaryCard({
             下跌家數
           </dt>
           <dd className="font-mono font-bold tabular text-down">
-            {down} <span className="text-[11px] font-semibold text-faint">家</span>
+            {down} <span className="text-xs font-semibold text-faint">家</span>
           </dd>
         </div>
         <div className="flex items-center justify-between py-1.5">
@@ -52,7 +52,7 @@ export default function WatchSummaryCard({
             平盤家數
           </dt>
           <dd className="font-mono font-bold tabular text-ink">
-            {flat} <span className="text-[11px] font-semibold text-faint">家</span>
+            {flat} <span className="text-xs font-semibold text-faint">家</span>
           </dd>
         </div>
         <div className="flex items-center justify-between py-1.5">
@@ -61,7 +61,7 @@ export default function WatchSummaryCard({
             今日觸發提醒
           </dt>
           <dd className="font-mono font-bold tabular text-ink">
-            {todayHits} <span className="text-[11px] font-semibold text-faint">則</span>
+            {todayHits} <span className="text-xs font-semibold text-faint">則</span>
           </dd>
         </div>
       </dl>

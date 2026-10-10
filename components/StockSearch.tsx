@@ -145,7 +145,7 @@ export default function StockSearch() {
                 <span className="min-w-0 flex-1 truncate font-serif text-ink">
                   {r.name}
                 </span>
-                <span className="shrink-0 rounded-pill bg-app px-2 py-0.5 text-[10px] text-muted ring-1 ring-line">
+                <span className="shrink-0 rounded-pill bg-app px-2 py-0.5 text-xs text-muted ring-1 ring-line">
                   {r.market === "tse" ? "上市" : "上櫃"}
                 </span>
               </button>

@@ -124,7 +124,7 @@ function Row({
           href={`/stock/${quote.stockId}`}
           className="flex min-w-0 items-center gap-2.5 max-[599px]:[grid-area:sym] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-muted">
+          <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-xs text-muted">
             {quote.stockId}
           </span>
           <span className="min-w-0">
@@ -132,7 +132,7 @@ function Row({
               <span className="truncate">{quote.name}</span>
               {hasAlert && <BellIcon className="h-3.5 w-3.5 shrink-0 text-warn" />}
             </span>
-            <span className="mt-0.5 block font-mono text-[10px] text-faint max-[599px]:hidden">
+            <span className="mt-0.5 block font-mono text-xs text-faint max-[599px]:hidden">
               {quote.market === "tse" ? "上市" : "上櫃"}
             </span>
           </span>
@@ -162,7 +162,7 @@ function Row({
             badges
               .slice(0, 3)
               .map((b) => (
-                <span key={b.key} className={`truncate rounded px-1.5 py-0.5 text-[11px] font-semibold ${b.cls}`}>
+                <span key={b.key} className={`truncate rounded px-1.5 py-0.5 text-xs font-semibold ${b.cls}`}>
                   {b.label}
                 </span>
               ))
@@ -190,21 +190,21 @@ function Row({
         </div>
 
         <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:w-full max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-x-3 max-[599px]:gap-y-0">
-          <span className="hidden font-mono text-[11px] text-muted max-[599px]:inline">
+          <span className="hidden font-mono text-xs text-muted max-[599px]:inline">
             {quote.market === "tse" ? "上市" : "上櫃"}
           </span>
           <span className="hidden font-mono text-xs text-muted tabular max-[599px]:inline">
             量 {fmtVol(quote.volume)}
           </span>
           {delay && (
-            <span className="whitespace-nowrap font-mono text-[11px] font-semibold text-warn tabular">{delay}</span>
+            <span className="whitespace-nowrap font-mono text-xs font-semibold text-warn tabular">{delay}</span>
           )}
           {hasAlert ? (
-            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-pill bg-warn-tint px-2 py-0.5 text-[10px] font-semibold text-warn">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-pill bg-warn-tint px-2 py-0.5 text-xs font-semibold text-warn">
               <BellIcon className="h-3 w-3" />已設
             </span>
           ) : (
-            <span className="text-[11px] text-faint max-[599px]:hidden">—</span>
+            <span className="text-xs text-faint max-[599px]:hidden">—</span>
           )}
         </div>
 
@@ -304,7 +304,7 @@ export default function QuoteBoard({
     <div className="max-[599px]:overflow-visible overflow-x-auto">
       <div className="rounded-card border border-line bg-surface shadow-card max-[599px]:border-0 max-[599px]:bg-transparent max-[599px]:shadow-none">
         <div
-          className={`grid items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 font-mono text-[10px] uppercase tracking-wide text-muted max-[599px]:hidden ${GRID_COLS} ${canDrag ? "min-[600px]:pl-9" : ""}`}
+          className={`grid items-center gap-3 border-b border-line bg-surface-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wide text-muted max-[599px]:hidden ${GRID_COLS} ${canDrag ? "min-[600px]:pl-9" : ""}`}
         >
           <span>商品</span>
           <span className="text-right">現價</span>

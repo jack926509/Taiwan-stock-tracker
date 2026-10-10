@@ -212,7 +212,7 @@ export default function StockPage() {
                   <span className="truncate font-serif font-semibold">
                     {q?.name ?? id}
                   </span>
-                  <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-[11px] text-muted">
+                  <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-xs text-muted">
                     {id}
                     {q && `・${q.market === "tse" ? "上市" : "上櫃"}`}
                   </span>
@@ -478,10 +478,10 @@ export default function StockPage() {
                 href={`/stock/${prevWatch.stock_id}`}
                 className="rounded-card border border-line bg-surface px-3 py-2 text-muted shadow-card transition-colors hover:text-ink"
               >
-                <span className="block text-[11px]">上一檔</span>
+                <span className="block text-xs">上一檔</span>
                 <span className="mt-0.5 block truncate font-serif font-semibold text-ink">
                   ← {prevWatch.name}
-                  <span className="ml-1 font-mono text-[11px] font-normal text-muted">
+                  <span className="ml-1 font-mono text-xs font-normal text-muted">
                     {prevWatch.stock_id}
                   </span>
                 </span>
@@ -494,9 +494,9 @@ export default function StockPage() {
                 href={`/stock/${nextWatch.stock_id}`}
                 className="rounded-card border border-line bg-surface px-3 py-2 text-right text-muted shadow-card transition-colors hover:text-ink"
               >
-                <span className="block text-[11px]">下一檔</span>
+                <span className="block text-xs">下一檔</span>
                 <span className="mt-0.5 block truncate font-serif font-semibold text-ink">
-                  <span className="mr-1 font-mono text-[11px] font-normal text-muted">
+                  <span className="mr-1 font-mono text-xs font-normal text-muted">
                     {nextWatch.stock_id}
                   </span>
                   {nextWatch.name} →
@@ -508,7 +508,7 @@ export default function StockPage() {
           </div>
         )}
 
-        <footer className="pb-4 pt-1 text-center text-[11px] text-muted">
+        <footer className="pb-4 pt-1 text-center text-xs text-muted">
           日 K 與基本面資料來源：FinMind（未還原價）・
           {quote.data?.source === "yahoo"
             ? "備援報價：Yahoo Finance（可能延遲）"

@@ -29,7 +29,7 @@ export default function TopBar({
           </span>
           <div>
             <h1 className="font-serif text-base font-bold tracking-tight text-ink">台股追蹤</h1>
-            <div className="hidden font-mono text-[9px] uppercase tracking-[2.5px] text-faint sm:block">
+            <div className="hidden font-mono text-xs uppercase tracking-[2.5px] text-faint sm:block">
               Terminal
             </div>
           </div>

@@ -17,7 +17,7 @@ function IndexBlock({ q }: { q: Quote }) {
     <div className="min-w-0 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card max-[599px]:px-3 max-[599px]:py-2.5">
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-xs font-semibold text-ink">{label}</span>
-        <span className="shrink-0 font-mono text-[10px] tracking-wide text-faint">{mkt}</span>
+        <span className="shrink-0 font-mono text-xs tracking-wide text-faint">{mkt}</span>
       </div>
       <div className={`mt-2 whitespace-nowrap font-mono text-2xl font-bold tabular max-[599px]:mt-1 max-[599px]:text-xl ${color}`}>
         {fmt(q.price)}
