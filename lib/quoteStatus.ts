@@ -51,3 +51,28 @@ export function quoteRefreshFeedback(
   }
   return { message: "報價已更新", tone: "success" };
 }
+
+// 單檔報價是否落後同批最新行情：不同台北日期一律算落後；同日則落後超過 10 分鐘才算。
+// 畫面只在落後時才在該列標「延遲 …」，正常列不再重複印時間（整批時間顯示在標題一次）。
+// 回傳要顯示的字串（例「延遲 13:20」「延遲 10/08 13:30」），沒落後或無法判斷回 null。
+export function quoteDelayLabel(
+  rowAsOf: string | null | undefined,
+  latestAsOf: string | null | undefined
+): string | null {
+  const row = typeof rowAsOf === "string" ? Date.parse(rowAsOf) : NaN;
+  const latest = typeof latestAsOf === "string" ? Date.parse(latestAsOf) : NaN;
+  if (!Number.isFinite(row) || !Number.isFinite(latest)) return null;
+  const parts = (ms: number) => {
+    const p = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(ms);
+    const get = (type: string) => p.find((x) => x.type === type)?.value ?? "";
+    return { md: `${get("month")}/${get("day")}`, hm: `${get("hour")}:${get("minute")}` };
+  };
+  const r = parts(row);
+  const l = parts(latest);
+  if (r.md !== l.md) return `延遲 ${r.md} ${r.hm}`;
+  if (latest - row > 10 * 60_000) return `延遲 ${r.hm}`;
+  return null;
+}

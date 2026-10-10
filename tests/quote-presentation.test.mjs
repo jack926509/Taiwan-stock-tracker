@@ -92,3 +92,14 @@ test("已設提醒的篩選判斷包含漲跌幅及爆量", () => {
   assert.equal(hasAnyAlert({ ...empty, alert_change_pct: 5 }), true);
   assert.equal(hasAnyAlert({ ...empty, alert_volume_on: true }), true);
 });
+
+test("quoteDelayLabel：只在落後時回傳延遲字串", async () => {
+  const { quoteDelayLabel } = await import("../lib/quoteStatus.ts");
+  const latest = "2026-10-08T05:30:00.000Z"; // 台北 13:30
+  assert.equal(quoteDelayLabel("2026-10-08T05:30:00.000Z", latest), null);
+  assert.equal(quoteDelayLabel("2026-10-08T05:25:00.000Z", latest), null); // 5 分鐘內不算
+  assert.equal(quoteDelayLabel("2026-10-08T05:10:00.000Z", latest), "延遲 13:10");
+  assert.equal(quoteDelayLabel("2026-10-07T05:30:00.000Z", latest), "延遲 10/07 13:30");
+  assert.equal(quoteDelayLabel(undefined, latest), null);
+  assert.equal(quoteDelayLabel(latest, null), null);
+});

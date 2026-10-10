@@ -85,8 +85,9 @@ test("大盤指數卡在左欄堆疊，600–1359px 併排兩欄、其餘斷點�
   // 窄螢幕單欄堆疊、中間斷點兩欄併排、進左欄後回單欄（單欄斷點值以 \d+ 容忍未來微調）。
   const indexCard = await read("components/IndexCard.tsx");
   assert.match(indexCard, /min-w-0/);
-  assert.match(indexCard, /grid-cols-1/);
-  assert.match(indexCard, /min-\[600px\]:grid-cols-2/);
+  // 2026-10 UX 改版（第 1 項）：手機兩顆指數卡併成一行（grid-cols-2 全斷點），僅 ≥1360px 左欄單欄堆疊
+  assert.match(indexCard, /grid-cols-2/);
+  assert.match(indexCard, /max-\[599px\]:py-2\.5/);
   assert.match(indexCard, /min-\[1360px\]:grid-cols-1/);
 });
 
@@ -103,12 +104,15 @@ test("桌面自選股改為表格版型，欄位格線照抄視覺規範且訊�
   assert.match(board, /flex-wrap/); // 訊號可換行
 });
 
-test("首頁迷你走勢明確標示二十日且不使用漲跌色混淆今日行情", async () => {
+test("首頁迷你走勢明確標示二十日，並以降透明度的淡紅／淡綠表示頭尾方向", async () => {
+  // 2026-10 UX 改版（第 12 項）：原本固定單色（全黑看不出方向）；改依頭尾漲跌用淡色（/60 透明度），
+  // 與列上「今日漲跌」的實色區隔，紅漲綠跌不反轉。
   const sparkline = await read("components/Sparkline.tsx");
 
   assert.match(sparkline, /20 日/);
-  assert.match(sparkline, /stroke-primary/);
-  assert.doesNotMatch(sparkline, /stroke-up|stroke-down/);
+  assert.match(sparkline, /"stroke-up\/60"/);
+  assert.match(sparkline, /"stroke-down\/60"/);
+  assert.match(sparkline, /last > first \? "up"/);
 });
 
 test("首頁工具列清楚區分排序與篩選且頂部操作尺寸一致", async () => {

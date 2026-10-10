@@ -112,11 +112,14 @@ export default function Dashboard() {
           />
 
           <main className="grid min-w-0 grid-cols-1 gap-4 pb-6">
-            <div className="flex flex-wrap items-stretch gap-3">
+            {/* 桌面兩個輸入框用途不同，各加標題避免混淆：左＝查看個股走勢、右＝加入自選清單 */}
+            <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-0 flex-1">
+                <p className="mb-1 hidden text-xs font-semibold text-muted md:block">搜尋個股（查看走勢）</p>
                 <StockSearch />
               </div>
               <div className="hidden md:block">
+                <p className="mb-1 text-xs font-semibold text-muted">加入自選股</p>
                 <AddStockForm onAdded={refreshAll} />
               </div>
             </div>
@@ -138,6 +141,7 @@ export default function Dashboard() {
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
                 incomplete={data.complete !== true}
+                sparkLoading={!sparks.data && !sparks.error}
                 reorderable={canSort}
                 onReorder={handleReorder}
               />

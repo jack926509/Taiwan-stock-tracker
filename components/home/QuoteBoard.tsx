@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import SortableQuoteRows, { SortableRow } from "@/components/home/SortableQuoteRows";
 import { fmt, fmtVol, fmtPct, trendOf, limitOf } from "@/lib/format";
 import { hasAnyAlert } from "@/lib/alertBadge";
-import { formatQuoteAsOf } from "@/lib/quoteStatus";
+import { quoteDelayLabel } from "@/lib/quoteStatus";
 
 export const SORTS = [
   { key: "default", label: "預設" },
@@ -49,9 +49,15 @@ export type FilterKey = (typeof FILTERS)[number]["key"];
 const GRID_COLS =
   "grid-cols-[minmax(210px,1.8fr)_84px_100px_minmax(126px,0.9fr)_120px_32px] " +
   "min-[1360px]:grid-cols-[minmax(210px,1.8fr)_84px_100px_minmax(126px,0.9fr)_64px_72px_120px_32px]";
-// 手機把同一組欄位改用具名區域堆成卡片，照抄規範 .row（max-width:599px）
+// 手機把同一組欄位改用具名區域堆成精簡卡（約 100px 高，原 206px）：
+// 第 1 行 商品｜現價，第 2 行 訊號｜漲跌，第 3 行 市場別・量・延遲・提醒。
+// 手機不排 20 日走勢（桌面表格版維持原樣）。
 const MOBILE_AREAS =
-  "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'pill_change'_'sig_sig'_'trend_trend'_'foot_foot']";
+  "max-[599px]:grid-cols-[1fr_auto] max-[599px]:[grid-template-areas:'sym_price'_'sig_change'_'foot_foot']";
+
+function Skeleton({ className }: { className: string }) {
+  return <span aria-hidden="true" className={`inline-block animate-pulse rounded bg-line/70 ${className}`} />;
+}
 
 function BellIcon({ className }: { className?: string }) {
   return (
@@ -72,6 +78,8 @@ function Row({
   hasAlert,
   spark,
   signals,
+  sparkLoading,
+  latestAsOf,
   onDelete,
   reorderable,
 }: {
@@ -79,13 +87,17 @@ function Row({
   hasAlert: boolean;
   spark?: number[];
   signals?: Signal[];
+  sparkLoading: boolean;
+  latestAsOf: string | null;
   onDelete: (stockId: string, name: string) => void;
   reorderable: boolean;
 }) {
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
   const upDown = limit ?? (t === "flat" ? null : t);
-  const quoteDate = formatQuoteAsOf(quote.asOf)?.split(" ")[0];
+  // 報價時間整批只在標題顯示一次；這一列只有落後同批最新行情時才標「延遲」
+  // 沒有來源時間的列照契約仍須呈現缺漏，標「時間未知」
+  const delay = quote.asOf ? quoteDelayLabel(quote.asOf, latestAsOf) : "時間未知";
 
   const badges: { key: string; label: string; cls: string }[] = [];
   if (limit === "up") badges.push({ key: "limit", label: "漲停", cls: "bg-up text-white dark:text-app" });
@@ -98,7 +110,7 @@ function Row({
     <SwipeToDelete onDelete={() => onDelete(quote.stockId, quote.name)}>
       <div
         id={`stock-${quote.stockId}`}
-        className={`group relative scroll-mt-24 grid items-center gap-3 border-line bg-surface px-4 py-3 hover:bg-surface-2 rise-in max-[599px]:gap-y-2.5 max-[599px]:rounded-card max-[599px]:border max-[599px]:border-line max-[599px]:bg-surface max-[599px]:px-4 max-[599px]:py-3.5 max-[599px]:shadow-card ${GRID_COLS} ${MOBILE_AREAS} ${reorderable ? "max-[599px]:pl-8 min-[600px]:pl-9" : ""}`}
+        className={`group relative scroll-mt-24 grid items-center gap-3 border-line bg-surface px-4 py-3 hover:bg-surface-2 rise-in max-[599px]:gap-y-1.5 max-[599px]:rounded-card max-[599px]:border max-[599px]:border-line max-[599px]:bg-surface max-[599px]:px-4 max-[599px]:py-2.5 max-[599px]:shadow-card ${GRID_COLS} ${MOBILE_AREAS} ${reorderable ? "max-[599px]:pl-8 min-[600px]:pl-9" : ""}`}
       >
         {/* 左緣 3px 漲跌色條 */}
         <span
@@ -120,32 +132,15 @@ function Row({
               <span className="truncate">{quote.name}</span>
               {hasAlert && <BellIcon className="h-3.5 w-3.5 shrink-0 text-warn" />}
             </span>
-            <span className="mt-0.5 block font-mono text-[10px] text-faint">
+            <span className="mt-0.5 block font-mono text-[10px] text-faint max-[599px]:hidden">
               {quote.market === "tse" ? "上市" : "上櫃"}
             </span>
           </span>
         </Link>
 
-        <div className="text-right font-mono text-base font-bold tabular text-ink max-[599px]:[grid-area:price]">
+        <div className="text-right font-mono text-base font-bold tabular text-ink max-[599px]:text-lg max-[599px]:[grid-area:price]">
           {fmt(quote.price)}
         </div>
-
-        {/* 手機專用狀態 pill，桌面隱藏（不佔欄位） */}
-        <span
-          className={`hidden max-[599px]:inline-flex max-[599px]:[grid-area:pill] items-center rounded-pill px-2.5 py-1 text-[11px] font-bold ${
-            limit
-              ? limit === "up"
-                ? "bg-up text-white dark:text-app"
-                : "bg-down text-white dark:text-app"
-              : t === "up"
-                ? "bg-up-tint text-up"
-                : t === "down"
-                  ? "bg-down-tint text-down"
-                  : "bg-surface-2 text-muted"
-          }`}
-        >
-          {limit ? (limit === "up" ? "漲停" : "跌停") : t === "up" ? "▲ 上漲" : t === "down" ? "▼ 下跌" : "持平"}
-        </span>
 
         <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:change] max-[599px]:flex-row max-[599px]:items-center max-[599px]:gap-2">
           <span className={`font-mono text-[13px] font-bold tabular ${t === "up" ? "text-up" : t === "down" ? "text-down" : "text-flat"}`}>
@@ -162,7 +157,7 @@ function Row({
           </span>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5 max-[599px]:[grid-area:sig]">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 max-[599px]:[grid-area:sig] max-[599px]:flex-nowrap max-[599px]:overflow-hidden">
           {badges.length > 0 ? (
             badges
               .slice(0, 3)
@@ -171,8 +166,10 @@ function Row({
                   {b.label}
                 </span>
               ))
+          ) : sparkLoading ? (
+            <Skeleton className="h-5 w-16" />
           ) : (
-            <span className="text-xs text-faint">—</span>
+            <span className="text-xs text-faint max-[599px]:hidden">—</span>
           )}
         </div>
 
@@ -182,24 +179,32 @@ function Row({
           {fmtVol(quote.volume)}
         </div>
 
-        <div className="flex justify-center max-[599px]:[grid-area:trend] min-[600px]:max-[1359px]:hidden">
-          {spark && spark.length > 1 ? <Sparkline points={spark} /> : <span className="text-xs text-faint">—</span>}
+        <div className="flex justify-center max-[599px]:hidden min-[600px]:max-[1359px]:hidden">
+          {spark && spark.length > 1 ? (
+            <Sparkline points={spark} />
+          ) : sparkLoading ? (
+            <Skeleton className="h-5 w-16" />
+          ) : (
+            <span className="text-xs text-faint">—</span>
+          )}
         </div>
 
-        <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:mt-0.5 max-[599px]:w-full max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-3 max-[599px]:border-t max-[599px]:border-line max-[599px]:pt-2.5">
-          <span className="inline-flex flex-col font-mono text-[11px] text-muted tabular max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:gap-x-1">
-            <span>{quoteDate ?? "日期未知"}</span>
-            <span className="whitespace-nowrap">報價 {quote.time || "—"}</span>
+        <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:w-full max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-x-3 max-[599px]:gap-y-0">
+          <span className="hidden font-mono text-[11px] text-muted max-[599px]:inline">
+            {quote.market === "tse" ? "上市" : "上櫃"}
           </span>
           <span className="hidden font-mono text-xs text-muted tabular max-[599px]:inline">
             量 {fmtVol(quote.volume)}
           </span>
+          {delay && (
+            <span className="whitespace-nowrap font-mono text-[11px] font-semibold text-warn tabular">{delay}</span>
+          )}
           {hasAlert ? (
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-pill bg-warn-tint px-2 py-0.5 text-[10px] font-semibold text-warn">
               <BellIcon className="h-3 w-3" />已設
             </span>
           ) : (
-            <span className="text-[11px] text-faint">—</span>
+            <span className="text-[11px] text-faint max-[599px]:hidden">—</span>
           )}
         </div>
 
@@ -223,6 +228,7 @@ export default function QuoteBoard({
   onDelete,
   sparkData,
   incomplete = false,
+  sparkLoading = false,
   reorderable = false,
   onReorder,
 }: {
@@ -233,6 +239,8 @@ export default function QuoteBoard({
   // 既有訊號／20 日走勢資料（來自 /api/sparklines，本元件不重新打 API）
   sparkData?: Record<string, { spark: number[]; signals: Signal[] }>;
   incomplete?: boolean;
+  // 訊號／20 日走勢資料載入中：顯示骨架條，載入完成（或失敗）才顯示「—」
+  sparkLoading?: boolean;
   // 拖曳排序：僅「預設排序＋無篩選＋≥2 檔」時 shell 會傳入，保留舊版可拖曳排序功能
   reorderable?: boolean;
   onReorder?: (next: string[]) => void;
@@ -257,6 +265,12 @@ export default function QuoteBoard({
   }
 
   const canDrag = reorderable && !!onReorder && quotes.length > 1;
+  // 同批最新的行情時間：個別股票落後它才標「延遲」
+  const latestAsOf = quotes.reduce<string | null>((latest, q) => {
+    const t = q.asOf ? Date.parse(q.asOf) : NaN;
+    if (!Number.isFinite(t)) return latest;
+    return latest === null || t > Date.parse(latest) ? (q.asOf ?? null) : latest;
+  }, null);
   const ids = quotes.map((q) => q.stockId);
 
   const rows = quotes.map((q, i) => {
@@ -267,6 +281,8 @@ export default function QuoteBoard({
           hasAlert={alertedIds.has(q.stockId)}
           spark={sparkData?.[q.stockId]?.spark}
           signals={sparkData?.[q.stockId]?.signals}
+          sparkLoading={sparkLoading}
+          latestAsOf={latestAsOf}
           onDelete={onDelete}
           reorderable={canDrag}
         />
@@ -297,7 +313,7 @@ export default function QuoteBoard({
           {/* 量、日內走勢兩欄與列一致：只在 ≥1360px 排入 */}
           <span className="hidden text-right min-[1360px]:block">量</span>
           <span className="hidden text-center min-[1360px]:block">20 日走勢</span>
-          <span className="text-right">報價 / 提醒</span>
+          <span className="text-right">提醒</span>
           {/* 末欄＝刪除鍵欄，表頭留空對齊 */}
           <span aria-hidden="true" />
         </div>

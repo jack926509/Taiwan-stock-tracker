@@ -14,15 +14,15 @@ function IndexBlock({ q }: { q: Quote }) {
   const pctTint = t === "up" ? "bg-up-tint" : t === "down" ? "bg-down-tint" : "bg-surface-2";
 
   return (
-    <div className="min-w-0 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card">
+    <div className="min-w-0 rounded-card border border-line bg-surface px-4 py-3.5 shadow-card max-[599px]:px-3 max-[599px]:py-2.5">
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-xs font-semibold text-ink">{label}</span>
         <span className="shrink-0 font-mono text-[10px] tracking-wide text-faint">{mkt}</span>
       </div>
-      <div className={`mt-2 whitespace-nowrap font-mono text-2xl font-bold tabular ${color}`}>
+      <div className={`mt-2 whitespace-nowrap font-mono text-2xl font-bold tabular max-[599px]:mt-1 max-[599px]:text-xl ${color}`}>
         {fmt(q.price)}
       </div>
-      <div className={`mt-1 flex items-center gap-2 font-mono text-sm tabular ${color}`}>
+      <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-sm tabular max-[599px]:text-xs ${color}`}>
         <span className="whitespace-nowrap">
           {arrowOf(t)}
           {q.change !== null && (
@@ -46,7 +46,7 @@ export default function IndexCards({ indices }: { indices: Quote[] }) {
     <div
       role="list"
       aria-label="大盤指數"
-      className="grid min-w-0 grid-cols-1 gap-3 min-[600px]:grid-cols-2 min-[1360px]:grid-cols-1"
+      className="grid min-w-0 grid-cols-2 gap-3 max-[599px]:gap-2 min-[1360px]:grid-cols-1"
     >
       {indices.map((q) => (
         <div key={q.stockId} role="listitem" className="min-w-0">
