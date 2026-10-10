@@ -85,3 +85,23 @@ export function decideAlerts(
 
   return decisions;
 }
+
+// 「今日觸發提醒」則數：伺服端記錄的 *_hit_at 落在今天台北日期（到價高／低、漲跌幅、爆量四種）。
+// 收盤總覽（lib/daily-summary.ts）與站內畫面共用這一個函式，避免兩份規則日後分歧。
+export interface HitStampItem {
+  alert_high_hit_at: string | null;
+  alert_low_hit_at: string | null;
+  alert_change_hit_at: string | null;
+  alert_volume_hit_at: string | null;
+}
+
+export function countTodayHitStamps(items: readonly HitStampItem[], now: Date): number {
+  let n = 0;
+  for (const i of items) {
+    if (hitToday(i.alert_high_hit_at, now)) n++;
+    if (hitToday(i.alert_low_hit_at, now)) n++;
+    if (hitToday(i.alert_change_hit_at, now)) n++;
+    if (hitToday(i.alert_volume_hit_at, now)) n++;
+  }
+  return n;
+}

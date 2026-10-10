@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { isHighTouched, isLowTouched, isLiveTodayQuote, highTouchState, lowTouchState } from "../lib/alertTouched.ts";
-import { countTodayHitStamps } from "../lib/alertHitCount.ts";
+import { countTodayHitStamps } from "../lib/alertLogic.ts";
 import { readFileSync } from "node:fs";
 
 const NOW = new Date("2026-10-08T05:40:00.000Z"); // 台北 2026-10-08 13:40
@@ -52,11 +52,9 @@ test("站內今日觸發則數與收盤總覽 countTodayHits 同結果", () => {
     stamp(null, null, null, null),
   ];
   assert.equal(countTodayHitStamps(items, NOW), 4);
-  // daily-summary.ts 載入伺服端模組，測試不直接匯入；改為確認它的 countTodayHits 仍是同樣四種 hit_at 判斷
+  // 收盤總覽的 countTodayHits 必須直接委派同一個函式，不得另寫一份規則
   const ref = readFileSync(new URL("../lib/daily-summary.ts", import.meta.url), "utf8");
   const body = ref.slice(ref.indexOf("export function countTodayHits"));
-  for (const k of ["high", "low", "change", "volume"]) {
-    assert.match(body.slice(0, 600), new RegExp(`hitToday\\(i\\.alert_${k}_hit_at, now\\)`));
-  }
+  assert.match(body.slice(0, 200), /return countTodayHitStamps\(items, now\);/);
   assert.equal(countTodayHitStamps(items, new Date("2026-10-10T02:00:00.000Z")), 0);
 });

@@ -12,7 +12,7 @@ import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
-import { countTodayHitStamps } from "@/lib/alertHitCount";
+import { countTodayHitStamps } from "@/lib/alertLogic";
 import { highTouchState, lowTouchState, type TouchState } from "@/lib/alertTouched";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
@@ -242,7 +242,7 @@ export function useHomeDashboard() {
       else if (q.changePct > 0) up++;
       else down++;
     }
-    // 今日觸發＝伺服端記錄的當日觸發（含到價、漲跌幅、爆量），與收盤總覽同一套（lib/alertHitCount.ts）
+    // 今日觸發＝伺服端記錄的當日觸發（含到價、漲跌幅、爆量），與收盤總覽同一套（lib/alertLogic.ts 的 countTodayHitStamps）
     const todayHits = countTodayHitStamps(items ?? [], now ?? new Date());
     return { up, down, flat, todayHits };
   }, [data?.quotes, items, now]);

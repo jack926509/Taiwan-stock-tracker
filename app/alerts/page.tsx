@@ -66,7 +66,7 @@ function AlertListRow({
     row.alert_low != null ||
     row.alert_change_pct != null ||
     row.alert_volume_on;
-  // 已觸及＝今日 MIS 成交價越過；價格雖越過但非今日成交價（休市、未成交、備援）只標「上次收盤已越過」
+  // 已觸及＝今日 MIS 成交價越過；價格雖越過但非今日成交價（休市、未成交、備援）只標「參考價已越過（非即時成交）」
   const highState = highTouchState(row.alert_high, quote, source, now);
   const lowState = lowTouchState(row.alert_low, quote, source, now);
   const quoteAt = formatQuoteAsOf(quote?.asOf);
@@ -137,7 +137,7 @@ function AlertListRow({
                 {highState === "hit"
                   ? "・已觸及"
                   : highState === "past"
-                    ? "・上次收盤已越過"
+                    ? "・參考價已越過（非即時成交）"
                     : price != null
                       ? `・差 ${fmtPct((row.alert_high - price) / price)}`
                       : ""}
@@ -157,7 +157,7 @@ function AlertListRow({
                 {lowState === "hit"
                   ? "・已觸及"
                   : lowState === "past"
-                    ? "・上次收盤已越過"
+                    ? "・參考價已越過（非即時成交）"
                     : price != null
                       ? `・差 ${fmtPct((price - row.alert_low) / price)}`
                       : ""}

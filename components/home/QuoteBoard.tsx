@@ -170,7 +170,7 @@ function Row({
               ))}
               {/* 手機最多顯示 2 個訊號，其餘以「+N」表示（不裁切標籤） */}
               {badges.length > 2 && (
-                <span className="hidden rounded bg-line/35 px-1.5 py-0.5 text-xs font-semibold text-muted max-[599px]:inline">
+                <span className="hidden shrink-0 rounded bg-line/35 px-1.5 py-0.5 text-xs font-semibold text-muted max-[599px]:inline">
                   +{badges.length - 2}
                 </span>
               )}
@@ -222,7 +222,7 @@ function Row({
           type="button"
           onClick={() => onDelete(quote.stockId, quote.name)}
           aria-label={`刪除 ${quote.name}`}
-          className="hidden h-8 w-8 items-center justify-center justify-self-end rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-up-tint hover:text-up focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97] md:flex max-[599px]:hidden"
+          className="hidden h-8 w-8 items-center justify-center justify-self-end rounded-lg border border-line bg-surface text-xs text-muted opacity-0 shadow-card transition-[transform,color,opacity] hover:scale-105 hover:bg-up-tint hover:text-up-strong focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100 active:scale-[0.97] md:flex max-[599px]:hidden"
         >
           ✕
         </button>

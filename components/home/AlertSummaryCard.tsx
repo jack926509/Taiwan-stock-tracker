@@ -40,7 +40,7 @@ function AlertRow({ item }: { item: AlertRailItem }) {
           const dist = price != null && price !== 0 ? Math.abs((r.target - price) / price) : null;
           const note =
             r.state === "hit" ? "已觸及"
-            : r.state === "past" ? "上次收盤已越過"
+            : r.state === "past" ? "參考價已越過（非即時成交）"
             : dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`;
           return (
             <div key={r.label} className="leading-tight">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { countTodayHitStamps, type HitStampItem } from "@/lib/alertHitCount";
+import { countTodayHitStamps, type HitStampItem } from "@/lib/alertLogic";
 
 type AlertRow = HitStampItem;
 

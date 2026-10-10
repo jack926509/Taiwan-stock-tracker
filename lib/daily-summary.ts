@@ -7,7 +7,7 @@ import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
 import { pushLineMessages, lineConfigured, type LineMessage } from "@/lib/notify";
 import { taipeiNow, type TaipeiTime } from "@/lib/market-hours";
-import { hitToday } from "@/lib/alertLogic";
+import { countTodayHitStamps } from "@/lib/alertLogic";
 import { newSignalsToday } from "@/lib/summarySignals";
 import type { Signal, SignalKind } from "@/lib/signals";
 import type { Candle } from "@/lib/providers/klineProvider";
@@ -131,16 +131,9 @@ export function todayCandleFromQuote(
   };
 }
 
-// 供 lib/summaryData.ts 的站內收盤總覽計數用；沿用 alertLogic.hitToday 單一實作（台北日期比對）
+// 供 lib/summaryData.ts 的站內收盤總覽計數用；與站內畫面共用 alertLogic.countTodayHitStamps 單一實作
 export function countTodayHits(items: WatchItem[], now: Date): number {
-  let n = 0;
-  for (const i of items) {
-    if (hitToday(i.alert_high_hit_at, now)) n++;
-    if (hitToday(i.alert_low_hit_at, now)) n++;
-    if (hitToday(i.alert_change_hit_at, now)) n++;
-    if (hitToday(i.alert_volume_hit_at, now)) n++;
-  }
-  return n;
+  return countTodayHitStamps(items, now);
 }
 
 // ── Flex 卡片組裝（版本 A · 完整卡，見 line-card-mockup.html）──────────────────
