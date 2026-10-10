@@ -381,14 +381,14 @@ export default function StockPage() {
             <span className="font-serif text-sm font-semibold text-ink">
               {periodLabel} K
             </span>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap rounded-pill bg-app p-0.5">
+            <div className="flex max-w-full items-center gap-1.5 overflow-x-auto">
+              <div className="flex shrink-0 rounded-pill bg-app p-0.5">
                 {PERIOD_OPTIONS.map((p) => (
                   <button
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
                     aria-pressed={period === p.key}
-                    className={`min-h-[44px] rounded-pill px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
+                    className={`h-8 whitespace-nowrap rounded-pill px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                       period === p.key
                         ? "bg-surface text-ink shadow-card"
                         : "text-muted hover:text-ink"
@@ -399,13 +399,13 @@ export default function StockPage() {
                 ))}
               </div>
               {period !== "month" && (
-                <div className="flex flex-wrap rounded-pill bg-app p-0.5">
+                <div className="flex shrink-0 rounded-pill bg-app p-0.5">
                   {visibleRangeOptions.map((r) => (
                     <button
                       key={r.key}
                       onClick={() => setRange(r.key)}
                       aria-pressed={range === r.key}
-                      className={`min-h-[44px] rounded-pill px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
+                      className={`h-8 whitespace-nowrap rounded-pill px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                         range === r.key
                           ? "bg-surface text-ink shadow-card"
                           : "text-muted hover:text-ink"
