@@ -7,7 +7,26 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-const DISMISSED_KEY = "tw-stock-pwa-install-dismissed";
+// 「稍後」記 7 天：localStorage 存「到期時間（毫秒）」，過期後才會再出現；讀寫都包 try/catch（無痕模式可能擲錯）
+const SNOOZE_KEY = "tw-stock-pwa-install-snooze-until";
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isSnoozed(): boolean {
+  try {
+    const until = Number(window.localStorage.getItem(SNOOZE_KEY));
+    return Number.isFinite(until) && until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function snoozeSevenDays() {
+  try {
+    window.localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_MS));
+  } catch {
+    // 無法寫入時只關閉本次提示
+  }
+}
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
@@ -37,7 +56,7 @@ export default function PWAInstallPrompt() {
 
   useEffect(() => {
     if (isStandalone()) return;
-    if (window.localStorage.getItem(DISMISSED_KEY) === "1") return;
+    if (isSnoozed()) return;
 
     if (isIosSafari()) {
       setShowIosGuide(true);
@@ -67,7 +86,7 @@ export default function PWAInstallPrompt() {
   }
 
   function dismiss() {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
+    snoozeSevenDays();
     setVisible(false);
   }
 
@@ -87,14 +106,14 @@ export default function PWAInstallPrompt() {
             <button
               type="button"
               onClick={dismiss}
-              className="rounded-lg px-2 py-1 text-xs text-white/70"
+              className="min-h-[44px] rounded-lg px-3 text-xs text-white/70"
             >
               稍後
             </button>
             {!showIosGuide && <button
               type="button"
               onClick={install}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-ink"
+              className="min-h-[44px] rounded-lg bg-white px-4 text-xs font-semibold text-ink"
             >
               安裝
             </button>}

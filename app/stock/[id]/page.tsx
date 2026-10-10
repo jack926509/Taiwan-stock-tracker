@@ -384,7 +384,7 @@ export default function StockPage() {
                     key={p.key}
                     onClick={() => setPeriod(p.key)}
                     aria-pressed={period === p.key}
-                    className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
+                    className={`min-h-[44px] rounded-pill px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                       period === p.key
                         ? "bg-surface text-ink shadow-card"
                         : "text-muted hover:text-ink"
@@ -401,7 +401,7 @@ export default function StockPage() {
                       key={r.key}
                       onClick={() => setRange(r.key)}
                       aria-pressed={range === r.key}
-                      className={`rounded-pill px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
+                      className={`min-h-[44px] rounded-pill px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3 ${
                         range === r.key
                           ? "bg-surface text-ink shadow-card"
                           : "text-muted hover:text-ink"
