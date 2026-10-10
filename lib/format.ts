@@ -76,7 +76,7 @@ export const textColor: Record<Trend, string> = {
 
 // 標籤膠囊（tint 底）
 export const chipColor: Record<Trend, string> = {
-  up: "bg-up-tint text-up",
+  up: "bg-up-tint text-up-strong",
   down: "bg-down-tint text-down",
   flat: "bg-app text-flat",
 };

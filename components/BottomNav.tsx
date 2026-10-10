@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { countTouchedAlerts, type TouchableAlert } from "@/lib/alertTouched";
+import { countTodayHitStamps, type HitStampItem } from "@/lib/alertHitCount";
 
-type AlertRow = TouchableAlert & { stock_id: string };
-type QuoteLite = { quotes: { stockId: string; price: number | null }[] };
+type AlertRow = HitStampItem;
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -52,10 +51,8 @@ export default function BottomNav() {
   const watchlist = useSWR<{ items: AlertRow[] }>("/api/watchlist", fetcher, {
     revalidateOnFocus: true,
   });
-  // 與 /api/quote 共用同一個 SWR key，不多打 API；紅點數字＝已觸及的提醒則數（與提醒頁、首頁同一套判斷）
-  const quote = useSWR<QuoteLite>("/api/quote", fetcher, { revalidateOnFocus: true });
-  const priceById = new Map((quote.data?.quotes ?? []).map((q) => [q.stockId, q.price]));
-  const activeAlerts = countTouchedAlerts(watchlist.data?.items ?? [], (id) => priceById.get(id));
+  // 紅點＝今日觸發提醒則數（與首頁自選概況、收盤總覽同一套），只用自選清單內的觸發紀錄，不另外打報價 API
+  const activeAlerts = countTodayHitStamps(watchlist.data?.items ?? [], new Date());
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-line/70 bg-app/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
@@ -95,7 +92,7 @@ export default function BottomNav() {
                 </svg>
                 {tab.href === "/alerts" && activeAlerts > 0 && (
                   <span className="absolute -right-2 -top-1 min-w-4 rounded-full bg-up px-1 text-center text-xs font-bold leading-4 text-white dark:text-app">
-                    {activeAlerts > 9 ? "9+" : activeAlerts}
+                    {activeAlerts > 99 ? "99+" : activeAlerts}
                   </span>
                 )}
               </span>

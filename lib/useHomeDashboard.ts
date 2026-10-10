@@ -12,7 +12,8 @@ import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
-import { countTouchedAlerts } from "@/lib/alertTouched";
+import { countTodayHitStamps } from "@/lib/alertHitCount";
+import { highTouchState, lowTouchState, type TouchState } from "@/lib/alertTouched";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
@@ -241,19 +242,24 @@ export function useHomeDashboard() {
       else if (q.changePct > 0) up++;
       else down++;
     }
-    // 今日觸發＝目前行情已越過提醒價的則數，與提醒頁「已觸及」同一套判斷（lib/alertTouched.ts）
-    const priceById = new Map((data?.quotes ?? []).map((q) => [q.stockId, q.price]));
-    const todayHits = countTouchedAlerts(items ?? [], (id) => priceById.get(id));
+    // 今日觸發＝伺服端記錄的當日觸發（含到價、漲跌幅、爆量），與收盤總覽同一套（lib/alertHitCount.ts）
+    const todayHits = countTodayHitStamps(items ?? [], now ?? new Date());
     return { up, down, flat, todayHits };
-  }, [data?.quotes, items]);
+  }, [data?.quotes, items, now]);
 
   // 左欄「提醒摘要」：已設到價提醒的自選股，補上現價供算「距觸價 %」（不新增 API，沿用既有 quotes）
   const alertItems: AlertRailItem[] = useMemo(() => {
-    const priceById = new Map((data?.quotes ?? []).map((q) => [q.stockId, q.price]));
+    const quoteById = new Map((data?.quotes ?? []).map((q) => [q.stockId, q]));
+    const nowDate = now ?? new Date();
     return (items ?? [])
       .filter((i) => i.alert_high != null || i.alert_low != null)
-      .map((i) => ({ ...i, price: priceById.get(i.stock_id) ?? null }));
-  }, [items, data?.quotes]);
+      .map((i) => {
+        const q = quoteById.get(i.stock_id);
+        const highState: TouchState = highTouchState(i.alert_high, q, data?.source, nowDate);
+        const lowState: TouchState = lowTouchState(i.alert_low, q, data?.source, nowDate);
+        return { ...i, price: q?.price ?? null, highState, lowState };
+      });
+  }, [items, data?.quotes, data?.source, now]);
 
   const sessionLabel = now ? getMarketSessionLabel(now) : "載入中";
   const sessionDetail = now ? formatMastheadDate(now) : "---- / -- / --　--:-- TPE";

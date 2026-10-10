@@ -1,10 +1,15 @@
 import type { WatchlistItem } from "@/lib/types";
 import { fmt, fmtPct } from "@/lib/format";
-import { isHighTouched, isLowTouched } from "@/lib/alertTouched";
+import type { TouchState } from "@/lib/alertTouched";
 
 // 供 IndexRail／app/page.tsx 共用：AlertSummaryCard 需要「條件價 vs 現價」算距觸價 %，
 // 這比純 WatchlistItem 多一個現價欄位，故在既有型別上疊加，不改動 lib/types.ts 的共用契約。
-export type AlertRailItem = WatchlistItem & { price: number | null };
+export type AlertRailItem = WatchlistItem & {
+  price: number | null;
+  // 已觸及狀態由首頁資料層依「今日 MIS 成交價」算好：hit＝已觸及、past＝價格雖越過但非今日成交價
+  highState: TouchState;
+  lowState: TouchState;
+};
 
 function BellIcon() {
   return (
@@ -17,9 +22,9 @@ function BellIcon() {
 function AlertRow({ item }: { item: AlertRailItem }) {
   const { price } = item;
   // 一檔可能同時設高低價提醒；各自算一行距觸價（以現價為分母）
-  const rows: { label: string; target: number; tone: "up" | "down"; hit: boolean }[] = [];
-  if (item.alert_high != null) rows.push({ label: "≥", target: item.alert_high, tone: "up", hit: isHighTouched(price, item.alert_high) });
-  if (item.alert_low != null) rows.push({ label: "≤", target: item.alert_low, tone: "down", hit: isLowTouched(price, item.alert_low) });
+  const rows: { label: string; target: number; tone: "up" | "down"; state: TouchState }[] = [];
+  if (item.alert_high != null) rows.push({ label: "≥", target: item.alert_high, tone: "up", state: item.highState });
+  if (item.alert_low != null) rows.push({ label: "≤", target: item.alert_low, tone: "down", state: item.lowState });
 
   return (
     <div className="flex items-start gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0">
@@ -33,13 +38,17 @@ function AlertRow({ item }: { item: AlertRailItem }) {
       <div className="shrink-0 text-right">
         {rows.map((r) => {
           const dist = price != null && price !== 0 ? Math.abs((r.target - price) / price) : null;
+          const note =
+            r.state === "hit" ? "已觸及"
+            : r.state === "past" ? "上次收盤已越過"
+            : dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`;
           return (
             <div key={r.label} className="leading-tight">
               <div className={`font-mono text-xs font-bold tabular ${r.tone === "up" ? "text-up" : "text-down"}`}>
                 {r.label} {fmt(r.target)}
               </div>
-              <div className={`text-xs ${r.hit ? "font-semibold text-ink" : "text-muted"}`}>
-                {r.hit ? "已觸及" : dist === null ? "距觸價 —" : `距觸價 ${fmtPct(dist)}`}
+              <div className={`text-xs ${r.state === "hit" ? "font-semibold text-ink" : "text-muted"}`}>
+                {note}
               </div>
             </div>
           );

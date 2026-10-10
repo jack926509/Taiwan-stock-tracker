@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import { fmt, fmtPct, trendOf, arrowOf, chipColor } from "@/lib/format";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
-import { isHighTouched, isLowTouched } from "@/lib/alertTouched";
+import { highTouchState, lowTouchState } from "@/lib/alertTouched";
 import { formatQuoteAsOf, quoteWarnings, quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { useToast } from "@/components/Toast";
 import useDialogFocus from "@/hooks/useDialogFocus";
@@ -47,11 +47,15 @@ async function fetcher<T>(url: string): Promise<T> {
 function AlertListRow({
   row,
   quote,
+  source,
+  now,
   isEditing,
   onToggle,
 }: {
   row: AlertRow;
   quote: Quote | undefined;
+  source: string | undefined;
+  now: Date;
   isEditing: boolean;
   onToggle: () => void;
 }) {
@@ -62,8 +66,9 @@ function AlertListRow({
     row.alert_low != null ||
     row.alert_change_pct != null ||
     row.alert_volume_on;
-  const highHit = isHighTouched(price, row.alert_high);
-  const lowHit = isLowTouched(price, row.alert_low);
+  // 已觸及＝今日 MIS 成交價越過；價格雖越過但非今日成交價（休市、未成交、備援）只標「上次收盤已越過」
+  const highState = highTouchState(row.alert_high, quote, source, now);
+  const lowState = lowTouchState(row.alert_low, quote, source, now);
   const quoteAt = formatQuoteAsOf(quote?.asOf);
 
   return (
@@ -121,29 +126,41 @@ function AlertListRow({
             {row.alert_high != null && (
               <span
                 className={`rounded-pill px-2 py-0.5 font-mono text-xs font-semibold tabular ${
-                  highHit ? "bg-up text-white" : "bg-up-tint text-up"
+                  highState === "hit"
+                    ? "bg-up text-white"
+                    : highState === "past"
+                      ? "bg-surface-2 text-muted ring-1 ring-line"
+                      : "bg-up-tint text-up-strong"
                 }`}
               >
                 漲到 {fmt(row.alert_high)}
-                {highHit
+                {highState === "hit"
                   ? "・已觸及"
-                  : price != null
-                    ? `・差 ${fmtPct((row.alert_high - price) / price)}`
-                    : ""}
+                  : highState === "past"
+                    ? "・上次收盤已越過"
+                    : price != null
+                      ? `・差 ${fmtPct((row.alert_high - price) / price)}`
+                      : ""}
               </span>
             )}
             {row.alert_low != null && (
               <span
                 className={`rounded-pill px-2 py-0.5 font-mono text-xs font-semibold tabular ${
-                  lowHit ? "bg-down text-white" : "bg-down-tint text-down"
+                  lowState === "hit"
+                    ? "bg-down text-white"
+                    : lowState === "past"
+                      ? "bg-surface-2 text-muted ring-1 ring-line"
+                      : "bg-down-tint text-down"
                 }`}
               >
                 跌到 {fmt(row.alert_low)}
-                {lowHit
+                {lowState === "hit"
                   ? "・已觸及"
-                  : price != null
-                    ? `・差 ${fmtPct((price - row.alert_low) / price)}`
-                    : ""}
+                  : lowState === "past"
+                    ? "・上次收盤已越過"
+                    : price != null
+                      ? `・差 ${fmtPct((price - row.alert_low) / price)}`
+                      : ""}
               </span>
             )}
             {row.alert_change_pct != null && (
@@ -412,6 +429,8 @@ export default function AlertsPage() {
                       key={a.stock_id}
                       row={a}
                       quote={priceOf.get(a.stock_id)}
+                      source={quote.data?.source}
+                      now={now ?? new Date()}
                       isEditing={editing === a.stock_id}
                       onToggle={() =>
                         setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
@@ -438,6 +457,8 @@ export default function AlertsPage() {
                       key={a.stock_id}
                       row={a}
                       quote={priceOf.get(a.stock_id)}
+                      source={quote.data?.source}
+                      now={now ?? new Date()}
                       isEditing={editing === a.stock_id}
                       onToggle={() =>
                         setEditing((cur) => (cur === a.stock_id ? null : a.stock_id))
