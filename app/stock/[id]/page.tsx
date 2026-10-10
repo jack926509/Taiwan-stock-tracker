@@ -148,6 +148,19 @@ export default function StockPage() {
 
   const q = quote.data?.quotes[0];
   const t = trendOf(q?.change ?? null);
+
+  // 大價格卡是否還在畫面內（扣掉 sticky 標題列約 64px）；預設 true＝標題列先不顯示股價
+  const [priceCard, setPriceCard] = useState<HTMLDivElement | null>(null);
+  const [bigPriceVisible, setBigPriceVisible] = useState(true);
+  useEffect(() => {
+    if (!priceCard || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setBigPriceVisible(entry.isIntersecting),
+      { rootMargin: "-64px 0px 0px 0px" }
+    );
+    io.observe(priceCard);
+    return () => io.disconnect();
+  }, [priceCard]);
   const warnings = quote.data ? quoteWarnings(quote.data) : [];
   const quoteAt = formatQuoteAsOf(q?.asOf);
 
@@ -206,40 +219,31 @@ export default function StockPage() {
                 </div>
               </div>
             </div>
-            {quote.data && (
-              <span
-                className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-medium ${
-                  quote.data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
-                }`}
-              >
-                {quote.data.marketOpen ? (
-                  <>
-                    <span className="pulse-dot">●</span> 盤中
-                  </>
-                ) : (
-                  "○ 已收盤"
-                )}
-              </span>
-            )}
-          </div>
-          {/* 頂部價格摘要（sticky，毛玻璃樣式沿用 header bg-app/95）：滾動時仍能看到即時股價 */}
-          {q && (
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-[3.25rem]">
-              <span className={`font-mono text-xl font-bold tabular ${textColor[t]}`}>
-                {fmt(q.price)}
-              </span>
-              <span className={`font-mono text-xs font-semibold tabular ${textColor[t]}`}>
-                {q.change === null
-                  ? ""
-                  : `${q.change > 0 ? "+" : ""}${fmt(q.change)}`}
-              </span>
-              <span
-                className={`rounded-pill px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular ${chipColor[t]}`}
-              >
-                {arrowOf(t)} {fmtPct(q.changePct)}
-              </span>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* 大價格卡滑出畫面後，標題列才顯示精簡股價（避免同頁重複兩次） */}
+              {q && !bigPriceVisible && (
+                <span className="flex items-baseline gap-1.5 font-mono tabular">
+                  <span className={`text-base font-bold ${textColor[t]}`}>{fmt(q.price)}</span>
+                  <span className={`text-xs font-semibold ${textColor[t]}`}>{fmtPct(q.changePct)}</span>
+                </span>
+              )}
+              {quote.data && (
+                <span
+                  className={`rounded-pill px-2.5 py-1 text-xs font-medium ${
+                    quote.data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
+                  }`}
+                >
+                  {quote.data.marketOpen ? (
+                    <>
+                      <span className="pulse-dot">●</span> 盤中
+                    </>
+                  ) : (
+                    "○ 已收盤"
+                  )}
+                </span>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </header>
 
@@ -269,7 +273,7 @@ export default function StockPage() {
 
         {/* 即時報價列 */}
         {q ? (
-          <div className="rise-in relative z-20 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5">
+          <div ref={setPriceCard} className="rise-in relative z-20 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

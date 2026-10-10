@@ -432,7 +432,7 @@ export default function KlineChart({
 
       <div className="relative">
         {legend && (
-          <div className="pointer-events-none absolute left-2 top-2 z-10 rounded-card bg-surface/85 px-2.5 py-1.5 text-[11px] font-mono tabular shadow-card ring-1 ring-line backdrop-blur">
+          <div className="pointer-events-none z-10 mb-2 rounded-card bg-surface/85 px-2.5 py-1.5 text-xs font-mono tabular shadow-card ring-1 ring-line backdrop-blur sm:absolute sm:left-2 sm:top-2 sm:mb-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span className="font-semibold text-ink">{legend.date}</span>
               <span className="text-muted">開 {fmt(legend.open)}</span>
@@ -470,7 +470,7 @@ export default function KlineChart({
         )}
         <div
           ref={containerRef}
-          className="h-[clamp(240px,45dvh,460px)] w-full"
+          className="h-[320px] w-full sm:h-[clamp(240px,45dvh,460px)]"
         />
       </div>
 
