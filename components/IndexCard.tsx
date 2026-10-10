@@ -32,7 +32,7 @@ function IndexBlock({ q }: { q: Quote }) {
             </span>
           )}
         </span>
-        <span className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xs font-bold ${pctTint}`}>
+        <span className={`whitespace-nowrap rounded-pill px-2 py-0.5 text-xs font-bold ${pctTint} ${t === "up" ? "text-up-strong" : ""}`}>
           {fmtPct(q.changePct)}
         </span>
       </div>

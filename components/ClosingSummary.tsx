@@ -15,7 +15,7 @@ async function fetcher<T>(url: string): Promise<T> {
 
 const signalToneClass: Record<Signal["tone"], string> = {
   neutral: "bg-line/35 text-muted",
-  up: "bg-up-tint text-up",
+  up: "bg-up-tint text-up-strong",
   down: "bg-down-tint text-down",
 };
 

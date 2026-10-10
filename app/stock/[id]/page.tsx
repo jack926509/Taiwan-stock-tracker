@@ -230,7 +230,7 @@ export default function StockPage() {
               {quote.data && (
                 <span
                   className={`rounded-pill px-2.5 py-1 text-xs font-medium ${
-                    quote.data.marketOpen ? "bg-up-tint text-up" : "bg-app text-muted"
+                    quote.data.marketOpen ? "bg-up-tint text-up-strong" : "bg-app text-muted"
                   }`}
                 >
                   {quote.data.marketOpen ? (
@@ -304,7 +304,7 @@ export default function StockPage() {
                 {hasAlert && (
                   <div className="mt-3 flex flex-wrap gap-2 font-mono text-xs tabular">
                     {currentWatch?.alert_high != null && (
-                      <span className="rounded-pill bg-up-tint px-2.5 py-1 font-medium text-up">
+                      <span className="rounded-pill bg-up-tint px-2.5 py-1 font-medium text-up-strong">
                         提醒 ▲ {fmt(currentWatch.alert_high)}
                       </span>
                     )}

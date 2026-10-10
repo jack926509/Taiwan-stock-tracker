@@ -68,7 +68,7 @@ function BellIcon({ className }: { className?: string }) {
 }
 
 function signalToneClass(tone: Signal["tone"]): string {
-  if (tone === "up") return "bg-up-tint text-up";
+  if (tone === "up") return "bg-up-tint text-up-strong";
   if (tone === "down") return "bg-down-tint text-down";
   return "bg-line/35 text-muted";
 }
@@ -149,7 +149,7 @@ function Row({
           </span>
           <span
             className={`rounded-pill px-2 py-0.5 font-mono text-xs font-bold tabular ${
-              t === "up" ? "bg-up-tint text-up" : t === "down" ? "bg-down-tint text-down" : "bg-surface-2 text-flat"
+              t === "up" ? "bg-up-tint text-up-strong" : t === "down" ? "bg-down-tint text-down" : "bg-surface-2 text-flat"
             }`}
           >
             {quote.changePct !== null && quote.changePct > 0 ? "+" : ""}
@@ -157,15 +157,24 @@ function Row({
           </span>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5 max-[599px]:[grid-area:sig] max-[599px]:flex-nowrap max-[599px]:overflow-hidden">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5 max-[599px]:[grid-area:sig]">
           {badges.length > 0 ? (
-            badges
-              .slice(0, 3)
-              .map((b) => (
-                <span key={b.key} className={`truncate rounded px-1.5 py-0.5 text-xs font-semibold ${b.cls}`}>
+            <>
+              {badges.slice(0, 3).map((b, i) => (
+                <span
+                  key={b.key}
+                  className={`truncate rounded px-1.5 py-0.5 text-xs font-semibold ${b.cls} ${i >= 2 ? "max-[599px]:hidden" : ""}`}
+                >
                   {b.label}
                 </span>
-              ))
+              ))}
+              {/* 手機最多顯示 2 個訊號，其餘以「+N」表示（不裁切標籤） */}
+              {badges.length > 2 && (
+                <span className="hidden rounded bg-line/35 px-1.5 py-0.5 text-xs font-semibold text-muted max-[599px]:inline">
+                  +{badges.length - 2}
+                </span>
+              )}
+            </>
           ) : sparkLoading ? (
             <Skeleton className="h-5 w-16" />
           ) : (
@@ -229,6 +238,7 @@ export default function QuoteBoard({
   sparkData,
   incomplete = false,
   sparkLoading = false,
+  allQuotes,
   reorderable = false,
   onReorder,
 }: {
@@ -241,6 +251,8 @@ export default function QuoteBoard({
   incomplete?: boolean;
   // 訊號／20 日走勢資料載入中：顯示骨架條，載入完成（或失敗）才顯示「—」
   sparkLoading?: boolean;
+  // 未經篩選的全部報價：「延遲」基準時間用它算，切換篩選時同一檔的標記才不會忽有忽無
+  allQuotes?: Quote[];
   // 拖曳排序：僅「預設排序＋無篩選＋≥2 檔」時 shell 會傳入，保留舊版可拖曳排序功能
   reorderable?: boolean;
   onReorder?: (next: string[]) => void;
@@ -266,7 +278,7 @@ export default function QuoteBoard({
 
   const canDrag = reorderable && !!onReorder && quotes.length > 1;
   // 同批最新的行情時間：個別股票落後它才標「延遲」
-  const latestAsOf = quotes.reduce<string | null>((latest, q) => {
+  const latestAsOf = (allQuotes ?? quotes).reduce<string | null>((latest, q) => {
     const t = q.asOf ? Date.parse(q.asOf) : NaN;
     if (!Number.isFinite(t)) return latest;
     return latest === null || t > Date.parse(latest) ? (q.asOf ?? null) : latest;

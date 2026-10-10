@@ -29,7 +29,7 @@ function pctChange(cur: number, base: number): number | null {
 
 // QoQ/YoY 小徽章（紅漲綠跌）
 function DeltaBadge({ label, v }: { label: string; v: number }) {
-  const cls = v >= 0 ? "bg-up-tint text-up" : "bg-down-tint text-down";
+  const cls = v >= 0 ? "bg-up-tint text-up-strong" : "bg-down-tint text-down";
   return (
     <span className={`rounded-pill px-1.5 py-0.5 font-mono ${cls}`}>
       {label} {v > 0 ? "+" : ""}

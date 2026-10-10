@@ -142,6 +142,7 @@ export default function Dashboard() {
                 sparkData={sparks.data?.data}
                 incomplete={data.complete !== true}
                 sparkLoading={!sparks.data && !sparks.error}
+                allQuotes={data.quotes}
                 reorderable={canSort}
                 onReorder={handleReorder}
               />

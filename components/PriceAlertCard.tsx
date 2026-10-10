@@ -209,7 +209,7 @@ export default function PriceAlertCard({
               type="button"
               onClick={() => quickFill("high", 0.05)}
               disabled={currentPrice == null}
-              className="w-fit rounded-pill bg-up-tint px-2.5 py-1 text-xs font-medium text-up transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-fit rounded-pill bg-up-tint px-2.5 py-1 text-xs font-medium text-up-strong transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
             >
               現價 +5%
             </button>
