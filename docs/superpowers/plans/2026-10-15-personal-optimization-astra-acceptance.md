@@ -50,3 +50,23 @@ Astra 提出疑慮後，以隔離瀏覽器模擬後端觸發 0050。未手動更
 - 依使用者全域 AGENTS.md 的正式資料規則，已提出套用必要新增 migration 的確認；另已詢問沿用公開或限本人存取，目前都尚未收到答覆。未將 async 選項的預選或經過時間當作同意。
 - 在上述確認完成前，不合併 main、不啟用新正式寫入；使用者已授權 GitHub 推送與合併，確認後不用再重問相同 GitHub 操作。
 - Supabase CLI dry-run 長時間無輸出，已明確終止本次程序；未把它當作已通過或已套 migration。正式能力與七筆既有 migration 已由已連線的 Supabase 工具唯讀查核。
+
+## 使用者正式授權與 migration 套用（2026-10-15 14:09，台北）
+
+- 使用者明確回覆「資料庫更新：同意套用；存取方式：僅本人使用」。先前兩項決策已獲答覆，僅本人登入信箱另待確認。
+- 更新前重新備份 10 筆 watchlist 與 2 筆狀態，檔案位於 gitignored 的 .backups，權限 0600；SHA-256 為 7e99b6f36304b2a79e98d2bc3554f2a9a9c1d1cc55fa4e84962f38b9d887ce1a。
+- 已透過 Supabase apply_migration 成功套用 personal_alert_events；正式版本 20261015060931。為使後續 CLI 不會誤判重複未套用，將原檔 20261015040817 重新命名對齊正式版本，SQL 完全一致，SHA-256 為 56e00c6041f70a5429d883666893d52453faee24b56fc95214032e8b35c17c34。
+- 套用後以備份逐欄位比對，10 筆既有清單原值全部保留；10 筆各具 high/low/change/volume 版本，5 個事件／通知函式存在，preserve_alert_versions trigger 啟用。匿名角色對事件函式的 EXECUTE 權限為 0。
+- 安全 advisors 無新增警告；維持 8 項既有 RLS 無 policy 的 INFO，後端以 service role 存取，未加匿名 policy。[官方說明](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)。
+- 目前仍未合併或部署。下一步為只對 tw-stock-tracker 的全部網址設本人 Access 保護、獨立驗收，再沿已授權的 GitHub 流程發布。
+
+### 套用後獨立複驗
+
+- Astra 親自驗證 SQL 原文 byte-identical、13／13 SQL 與 migration 測試通過、diffcheck 通過，結論為本輪 migration 紀錄修正可合併，0 Critical／Important／Nit。
+- Astra 直接查正式系統目錄：第八筆 migration 版本正確；alert_versions 為 JSONB NOT NULL 且四種 UUID default；preserve_alert_versions 為啟用的 BEFORE UPDATE FOR EACH ROW trigger。
+- 5 個業務函式及 trigger 函式皆 SECURITY INVOKER、search_path=public,pg_temp；anon/authenticated 無 EXECUTE，service_role 有 EXECUTE；watchlist/news_cache 維持 RLS 啟用及 0 policy。
+- 主代理再次實跑完整測試 349／349、TypeScript 通過。npm audit 仍有 5 項既有 high 通報，集中於 Tailwind 3 的 braces／micromatch／chokidar／fast-glob 建置相依鏈；未因本輪增加，既有風險未宣稱消除。升級 Tailwind 4 屬另一項介面與建置變更，本輪不混入。
+- Access 尚未設定或驗收，不能把本輪通過解讀為已可正式發布。
+
+- 本輪 Next.js build、OpenNext build 均通過；Worker dry-run gzip 2047.47 KiB，未上傳。最初沙箱 listen EPERM 以相同指令在可綁定 localhost 的環境重跑通過。
+- 本輪未修改應用程式執行碼；前輪 9 個 HTTP 與桌面／手機互動證據繼續涵蓋相同功能。正式 Access 的匿名拒絕及本人登入驗收另待實施，未以本機結果代替。

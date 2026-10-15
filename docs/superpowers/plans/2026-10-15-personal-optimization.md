@@ -41,10 +41,10 @@
 ## B2 儲存決策
 
 - 沿用受 RLS 保護、僅後端可寫的 `news_cache` 保存事件；事件用遠期到期日保存，現有設定與歷史不清除。
-- 新增 `watchlist.alert_versions` 與四個後端函式；事件和觸發時間以同一筆交易寫入，設定變更時換版本，避免舊檢查結果污染新條件。
+- 新增 `watchlist.alert_versions`、版本觸發器及五個事件／通知函式；事件和觸發時間以同一筆交易寫入，設定變更時換版本，避免舊檢查結果污染新條件。
 - 通知認領有 60 秒期限，每個事件固定重試識別，最多三次、十五分鐘內重試。LINE HTTP 接受與實際送達分開描述。
 - LINE 配額以交易保留，同一重試識別只計一次；已保留但尚未確認送達的請求仍占每日 15 則上限，採保守用量保護。
-- Migration：`supabase/migrations/20261015040817_personal_alert_events.sql`，由 Supabase CLI 產生；只在隔離 PostgreSQL 引擎測試，尚未套用正式環境。
+- Migration：原由 Supabase CLI 產生，經隔離 PostgreSQL 引擎測試及 Astra 驗收；2026-10-15 取得使用者授權後正式套用，檔名對齊正式紀錄為 `supabase/migrations/20261015060931_personal_alert_events.sql`，SQL 內容不變。
 - `@electric-sql/pglite@0.5.10` 僅為測試相依，不加入 Worker 執行程式。測試直接執行 migration、交易回復、重複捕捉、通知認領、重試與角色權限。
 
 ## B1–B2 實跑與審查紀錄

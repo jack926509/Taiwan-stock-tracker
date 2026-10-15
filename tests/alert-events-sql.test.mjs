@@ -5,7 +5,7 @@ import { PGlite } from "@electric-sql/pglite";
 
 let db;
 const directory = new URL("../supabase/migrations/", import.meta.url);
-const migration = "20261015040817_personal_alert_events.sql";
+const migration = "20261015060931_personal_alert_events.sql";
 const at = "2026-10-15T02:30:00Z";
 before(async () => {
   db = new PGlite();

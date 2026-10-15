@@ -50,7 +50,7 @@
 - 提醒頁可按日期查歷史及通知結果。通知採固定重試識別，最多三次、十五分鐘內重試；LINE「已接受」不代表已送達或已讀。
 - 每日 15 則額度以交易先保留，同一重試識別只計一次；未確認的請求仍占用額度，避免超額。
 
-本工作分支的提醒歷史尚未正式啟用。發布前須先取得授權並套用 `supabase/migrations/20261015040817_personal_alert_events.sql`，再推送 `main` 發布新版程式。完整個人使用計畫見 [優化計畫](docs/superpowers/plans/2026-10-15-personal-optimization.md)。
+2026-10-15 已取得使用者授權並套用 `supabase/migrations/20261015060931_personal_alert_events.sql`；既有 10 筆清單資料已備份並比對保留。新版程式仍待本人存取保護完成後合併 `main` 發布。完整個人使用計畫見 [優化計畫](docs/superpowers/plans/2026-10-15-personal-optimization.md)。
 
 ### PWA 與行動裝置支援
 
