@@ -54,6 +54,7 @@ interface KlineResponse {
   candles: Candle[];
   latestDate: string | null;
   stale: boolean;
+  expectedDate: string;
 }
 
 interface StockWatchRow {
@@ -433,7 +434,7 @@ export default function StockPage() {
               <span>最新 {kline.data?.latestDate ?? rangeStats.lastDate ?? "—"}</span>
               {kline.data?.stale && (
                 <span className="rounded-pill bg-warn-tint px-2 py-0.5 text-warn">
-                  顯示快取資料
+                  待更新至 {kline.data.expectedDate}
                 </span>
               )}
             </div>
