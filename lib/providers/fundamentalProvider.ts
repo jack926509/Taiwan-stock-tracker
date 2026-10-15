@@ -1,5 +1,6 @@
 // 基本面資料：法人買賣超、月營收、估值（FinMind 三個資料集，一次抓齊）
 import { finmindRows } from "@/lib/providers/finmind";
+import type { FundamentalKey } from "@/lib/fundamentalFreshness";
 
 export interface InstDay {
   date: string; // YYYY-MM-DD
@@ -48,6 +49,7 @@ export interface FundamentalResult extends Fundamental {
   // 三個資料集是否全部成功回應（含「成功但回空」）。任一「抓失敗」即 false，
   // 供快取層改用短 TTL 重試，避免半套結果被鎖 12 小時。
   complete: boolean;
+  failed: FundamentalKey[];
 }
 
 interface InstRow {
@@ -251,6 +253,12 @@ export async function fetchFundamental(
   );
 
   const latestPer = per && per.length > 0 ? per[per.length - 1] : null;
+  const failed: FundamentalKey[] = [];
+  if (inst === null) failed.push("institutional");
+  if (rev === null) failed.push("revenue");
+  if (per === null) failed.push("valuation");
+  if (fs === null) failed.push("eps");
+  if (div === null) failed.push("dividend");
 
   return {
     // null（抓失敗）→ 視為無資料；[]（成功但空）也是無資料，但不影響 complete
@@ -268,7 +276,7 @@ export async function fetchFundamental(
     eps: fs ? buildEps(fs) : [],
     dividend: div ? buildDividend(div) : [],
     // 只要有任一支「抓失敗」就不完整，呼叫端據此縮短快取
-    complete:
-      inst !== null && rev !== null && per !== null && fs !== null && div !== null,
+    complete: failed.length === 0,
+    failed,
   };
 }

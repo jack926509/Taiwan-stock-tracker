@@ -9,6 +9,7 @@ import {
 } from "@/lib/fundamentalStore";
 import { taipeiNow } from "@/lib/market-hours";
 import { logApiError, publicErrorBody } from "@/lib/apiErrors";
+import { mergeFundamental, FUNDAMENTAL_KEYS } from "@/lib/fundamentalFreshness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,10 +39,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { complete, ...data } = await fetchFundamental(
+    const { complete, failed, ...fetched } = await fetchFundamental(
       id,
       taipeiNow(now).isoDate
     );
+    const data = mergeFundamental(fetched, failed, cached, now);
     // 半套結果（任一資料集抓失敗）只存 30 分鐘，下次瀏覽自動重抓修復
     const fresh = await saveFundamental(
       id,
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         stockId: id,
         asOf: cached.fetchedAt,
-        ...cached.data,
+        ...mergeFundamental(cached.data, FUNDAMENTAL_KEYS, cached, now),
       });
     }
     logApiError("api/fundamental fetch", e);

@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
-import type { Fundamental } from "@/lib/providers/fundamentalProvider";
+import type { CachedFundamental } from "@/lib/fundamentalFreshness";
 import FundamentalSection from "@/components/FundamentalSection";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PriceAlertCard from "@/components/PriceAlertCard";
@@ -127,7 +127,7 @@ export default function StockPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
-  const fundamental = useSWR<Fundamental & { stockId: string; asOf: string }>(
+  const fundamental = useSWR<CachedFundamental & { stockId: string; asOf: string }>(
     id ? `/api/fundamental?id=${encodeURIComponent(id)}` : null,
     fetcher,
     { revalidateOnFocus: false }

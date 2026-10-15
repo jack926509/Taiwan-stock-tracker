@@ -3,12 +3,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getSupabase } from "@/lib/supabase";
-import type { Fundamental } from "@/lib/providers/fundamentalProvider";
+import type { CachedFundamental } from "@/lib/fundamentalFreshness";
 
 export interface FundamentalCache {
   fetchedAt: string; // ISO
   expiresAt: string; // ISO
-  data: Fundamental;
+  data: CachedFundamental;
 }
 
 // 快取結構版本：改變 Fundamental 形狀（如新增 eps）時 +1，
@@ -34,7 +34,7 @@ function keyOf(stockId: string): string {
 // 舊資料（直接存 Fundamental，無 v 欄位）讀到時版本不符 → 視為未命中。
 interface CloudPayload {
   v?: number;
-  data?: Fundamental;
+  data?: CachedFundamental;
 }
 
 export async function loadFundamental(
@@ -69,7 +69,7 @@ export async function loadFundamental(
 
 export async function saveFundamental(
   stockId: string,
-  data: Fundamental,
+  data: CachedFundamental,
   now: Date,
   ttlMs: number = TTL_MS
 ): Promise<FundamentalCache> {
