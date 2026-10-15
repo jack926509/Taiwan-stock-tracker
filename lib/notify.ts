@@ -42,12 +42,18 @@ async function readUsage(
 ): Promise<LineUsage> {
   const isoDate = taipeiNow(now).isoDate;
   const month = isoDate.slice(0, 7);
-  const { data } = await db!
+  const { data, error } = await db!
     .from("news_cache")
     .select("payload")
     .eq("cache_key", LINE_USAGE_KEY)
     .maybeSingle();
+  if (error) throw new Error("讀取通知用量失敗");
   const rec = data?.payload as LineUsage | undefined;
+  if (data && (!rec || typeof rec.month !== "string" || !/^\d{4}-\d{2}$/.test(rec.month) ||
+    typeof rec.day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(rec.day) ||
+    !Number.isSafeInteger(rec.count) || rec.count < 0 || !Number.isSafeInteger(rec.dayCount) || rec.dayCount < 0)) {
+    throw new Error("通知用量紀錄格式錯誤");
+  }
   if (!rec || rec.month !== month) {
     return { month, count: 0, day: isoDate, dayCount: 0 };
   }

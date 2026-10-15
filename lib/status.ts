@@ -12,6 +12,7 @@ export interface BackfillRecord {
   ranAt: string; // ISO
   ok: number;
   fail: number;
+  pending?: number;
 }
 
 const BACKFILL_KEY = "meta:backfill";
@@ -22,11 +23,12 @@ const NEVER_EXPIRE = "2099-12-31T00:00:00.000Z";
 export async function recordBackfill(
   ok: number,
   fail: number,
-  now: Date
+  now: Date,
+  pending?: number
 ): Promise<void> {
   const db = getSupabase();
   if (!db) return;
-  const rec: BackfillRecord = { ranAt: now.toISOString(), ok, fail };
+  const rec: BackfillRecord = { ranAt: now.toISOString(), ok, fail, ...(pending === undefined ? {} : { pending }) };
   const { error } = await db.from("news_cache").upsert({
     cache_key: BACKFILL_KEY,
     payload: rec,

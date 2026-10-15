@@ -19,12 +19,13 @@ test("行情時間包含台北日期，不因無效或未知日期拋出 RangeEr
   }
 });
 
-test("Yahoo 與舊快照文案顯示日期及暫停提醒，缺漏文案不稱完整", () => {
+test("Yahoo 與舊快照文案顯示日期及觸發依據，缺漏文案不稱完整", () => {
   const yahoo = quoteWarnings(quote({ source: "yahoo", complete: false })).join(" ");
-  assert.match(yahoo, /Yahoo.*可能延遲.*2026\/10\/08.*暫停即時提醒/);
+  assert.match(yahoo, /Yahoo.*可能延遲.*2026\/10\/08.*不作為新提醒/);
   assert.match(yahoo, /部分股票報價缺漏/);
+  assert.doesNotMatch(yahoo,/暫停即時提醒/);
   const stale = quoteWarnings(quote({ source: "stale" })).join(" ");
-  assert.match(stale, /舊報價快照.*2026\/10\/08.*不觸發即時提醒/);
+  assert.match(stale, /舊報價快照.*2026\/10\/08.*不作為新提醒/);
   assert.match(quoteWarnings(quote({ asOf: null })).join(" "), /日期時間未知/);
   assert.deepEqual(quoteWarnings(quote()), []);
 });

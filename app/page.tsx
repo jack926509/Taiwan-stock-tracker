@@ -13,6 +13,7 @@ import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
 import ClosingSummary from "@/components/ClosingSummary";
+import PersonalStatusCard from "@/components/PersonalStatusCard";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
 import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 
@@ -150,6 +151,7 @@ export default function Dashboard() {
                 reorderable={canSort}
                 onReorder={handleReorder}
                 onEditGroup={setGroupEditingId}
+                showAlertDistance={sortKey==="near"}
               />
             ) : initialError ? (
               <div className="rounded-card bg-surface p-4 text-sm text-muted shadow-card ring-1 ring-line">
@@ -169,6 +171,8 @@ export default function Dashboard() {
 
             {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
             {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
+
+            <PersonalStatusCard />
 
             <footer className="pt-2 text-center text-xs leading-relaxed text-muted">
               {data?.source === "yahoo"

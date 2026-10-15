@@ -13,6 +13,8 @@ test("重新讀取能保留排序、篩選、分組與跨個股共用的 K 線�
   assert.deepEqual(readPersonalPreferences(storage),current);
   assert.equal(current.group,"持有");
   assert.equal(current.sort,"gain");
+  current=persistPersonalPreferences(storage,current,{sort:"near"});
+  assert.equal(readPersonalPreferences(storage).sort,"near");
 });
 test("另一頁更新的欄位不被舊畫面覆蓋",()=>{
   const storage=memoryStorage(),old={...DEFAULT_PERSONAL_PREFERENCES};

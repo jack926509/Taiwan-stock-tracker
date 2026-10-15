@@ -7,6 +7,7 @@ import useSWR from "swr";
 import type { QuoteResponse, Quote } from "@/lib/types";
 import PriceAlertCard from "@/components/PriceAlertCard";
 import AlertHistory from "@/components/AlertHistory";
+import PersonalStatusCard from "@/components/PersonalStatusCard";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import EmptyState from "@/components/EmptyState";
@@ -471,6 +472,7 @@ export default function AlertsPage() {
             )}
           </div>
         )}
+        <PersonalStatusCard monitorRows />
         <AlertHistory />
       </main>
 

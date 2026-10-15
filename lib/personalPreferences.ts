@@ -18,7 +18,7 @@ function normalize(value:unknown,fallback:PersonalPreferences):PersonalPreferenc
   if(input.v!==1)return {...fallback};
   const period=oneOf(input.klinePeriod,["day","week","month"] as const,fallback.klinePeriod);
   const range=oneOf(input.klineRange,KLINE_RANGES.map(item=>item.key),fallback.klineRange);
-  return {v:1,sort:oneOf(input.sort,["default","gain","loss"] as const,fallback.sort),
+  return {v:1,sort:oneOf(input.sort,["default","gain","loss","near"] as const,fallback.sort),
     filter:oneOf(input.filter,["all","alert","up","down"] as const,fallback.filter),
     group:input.group===null?null:typeof input.group==="string"?(input.group.trim()?normalizeGroupName(input.group):null):fallback.group,
     klinePeriod:period,klineRange:period==="week"&&!WEEK_RANGE_KEYS.includes(range)?"1y":range};

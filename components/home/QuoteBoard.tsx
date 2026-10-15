@@ -6,6 +6,7 @@
 import Link from "next/link";
 import type { Quote, WatchlistItem } from "@/lib/types";
 import type { WatchlistQuote } from "@/lib/watchlistQuotes";
+import { nearestAlertDistance } from "@/lib/alertProximity";
 import type { Signal } from "@/lib/signals";
 import Sparkline from "@/components/Sparkline";
 import SwipeToDelete from "@/components/SwipeToDelete";
@@ -19,6 +20,7 @@ export const SORTS = [
   { key: "default", label: "預設" },
   { key: "gain", label: "漲幅" },
   { key: "loss", label: "跌幅" },
+  { key: "near", label: "距到價" },
 ] as const;
 export type SortKey = (typeof SORTS)[number]["key"];
 
@@ -83,7 +85,7 @@ function Row({
   latestAsOf,
   onDelete,
   reorderable,
-  groupName,onEditGroup,
+  groupName,onEditGroup,alertDistance,
 }: {
   quote: WatchlistQuote;
   hasAlert: boolean;
@@ -94,6 +96,7 @@ function Row({
   onDelete: (stockId: string, name: string) => void;
   reorderable: boolean;
   groupName:string;onEditGroup?:(stockId:string)=>void;
+  alertDistance?:number|null;
 }) {
   const t = trendOf(quote.change);
   const limit = limitOf(quote.changePct);
@@ -211,6 +214,7 @@ function Row({
           {delay && (
             <span className="whitespace-nowrap font-mono text-xs font-semibold text-warn tabular">{delay}</span>
           )}
+          {alertDistance!=null&&<span className="text-xs text-muted">{alertDistance===0?"參考價已越過":`距到價 ${fmtPct(alertDistance)}`}</span>}
           {onEditGroup&&<button type="button" onClick={()=>onEditGroup(quote.stockId)} aria-label={`調整 ${quote.name} 分組`}
             className="inline-flex min-h-11 max-w-full items-center gap-1 rounded-pill border border-line px-2 text-xs text-muted md:min-h-8">
             <span className="max-w-24 truncate">{groupName}</span><span aria-hidden="true">⌄</span>
@@ -248,6 +252,7 @@ export default function QuoteBoard({
   reorderable = false,
   onReorder,
   onEditGroup,
+  showAlertDistance=false,
 }: {
   quotes: WatchlistQuote[];
   items: WatchlistItem[];
@@ -263,6 +268,7 @@ export default function QuoteBoard({
   reorderable?: boolean;
   onReorder?: (next: string[]) => void;
   onEditGroup?:(stockId:string)=>void;
+  showAlertDistance?:boolean;
 }) {
   const alertedIds = new Set(
     items.filter(hasAnyAlert).map((i) => i.stock_id)
@@ -291,6 +297,7 @@ export default function QuoteBoard({
   const ids = quotes.map((q) => q.stockId);
 
   const rows = quotes.map((q, i) => {
+    const item=items.find(item=>item.stock_id===q.stockId);
     const node = (
       <div className="rise-in" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
         <Row
@@ -302,8 +309,9 @@ export default function QuoteBoard({
           latestAsOf={latestAsOf}
           onDelete={onDelete}
           reorderable={canDrag}
-          groupName={items.find(item=>item.stock_id===q.stockId)?.group_name||"預設"}
+          groupName={item?.group_name||"預設"}
           onEditGroup={onEditGroup}
+          alertDistance={showAlertDistance?nearestAlertDistance(item,q):null}
         />
       </div>
     );

@@ -4,7 +4,7 @@ import { registerHooks } from "node:module";
 
 const NOW = new Date("2026-10-08T02:30:00.000Z"); // 台北 10:30
 const originalDateNow = Date.now;
-const calls = { push: [], hit: [], kline: [], capture: [] };
+const calls = { push: [], hit: [], kline: [], capture: [], monitor: [] };
 let configured;
 let captureFails;
 let items;
@@ -21,6 +21,7 @@ registerHooks({
       "@/lib/notify": "export const lineConfigured = () => true; export const pushLineMessages = (...args) => globalThis.__alertDelivery.push(...args);",
       "@/lib/alertEvents": "export const captureAlertEvent = (...args) => globalThis.__alertDelivery.capture(...args);",
       "@/lib/alertDelivery": "export const deliverAlertEvents = () => globalThis.__alertDelivery.deliver();",
+      "@/lib/alertMonitorStore": "export const saveAlertMonitor = (...args) => globalThis.__alertDelivery.monitor(...args);",
     };
     if (stubs[specifier]) {
       return { url: `data:text/javascript,${encodeURIComponent(stubs[specifier])}`, shortCircuit: true };
@@ -33,6 +34,7 @@ registerHooks({
 });
 
 globalThis.__alertDelivery = {
+  monitor:async(...args)=>calls.monitor.push(...args),
   list: async () => items,
   fetch: async () => result,
   hit: async (...args) => calls.hit.push(args),
@@ -62,6 +64,7 @@ function fixture(overrides = {}) {
   calls.hit.length = 0;
   calls.kline.length = 0;
   calls.capture.length = 0;
+  calls.monitor.length = 0;
   configured = true;
   captureFails = null;
   pushOk = true;
@@ -215,4 +218,21 @@ test("一檔事件儲存失敗仍檢查其他股票及通知，最後回報部�
   await assert.rejects(checkAlerts(NOW),/部分提醒/);
   assert.deepEqual(calls.hit,[["2317","high",NOW.toISOString()]]);
   assert.equal(calls.push.length,1);
+});
+
+test("後端保存本次實際檢查來源、觸發數與各股略過原因",async()=>{
+  fixture();await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].source,"mis");
+  assert.equal(calls.monitor[0].rows["2330"].status,"triggered");
+  assert.equal(calls.monitor[0].rows["2330"].captured,1);
+  fixture({source:"yahoo"});await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].rows["2330"].status,"reference-only");
+  fixture();result.quotes[0].asOf=new Date(NOW.getTime()-120_001).toISOString();await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].rows["2330"].status,"quote-expired");
+});
+test("部分事件保存失敗仍留下實際失敗狀態，不能記成檢查成功",async()=>{
+  fixture();captureFails="2330";
+  await assert.rejects(checkAlerts(NOW));
+  assert.equal(calls.monitor[0].outcome,"failed");
+  assert.equal(calls.monitor[0].rows["2330"].status,"storage-error");
 });

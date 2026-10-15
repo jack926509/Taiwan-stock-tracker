@@ -64,7 +64,7 @@ export default function AlertSummaryCard({ items }: { items: AlertRailItem[] }) 
       <div className="mb-2.5 flex items-center gap-2">
         <span className="text-sm font-bold tracking-wide text-ink">提醒摘要</span>
         <span className="ml-auto font-mono text-xs tracking-wide text-faint">
-          {items.length} 檔監控中
+          {items.length} 檔已設到價
         </span>
       </div>
       {items.length === 0 ? (

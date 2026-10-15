@@ -20,6 +20,7 @@ import { saveWatchlistOrder } from "@/lib/watchlistOrder";
 import { buildWatchlistQuotes } from "@/lib/watchlistQuotes";
 import { filterByGroup,watchlistGroups } from "@/lib/watchlistGroups";
 import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
+import { sortByAlertDistance } from "@/lib/alertProximity";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -213,6 +214,7 @@ export function useHomeDashboard() {
   // UI-1：依今日漲跌幅排序（null 一律排最後），預設依自訂拖曳順序
   const sortedQuotes = useMemo(() => {
     const list = buildWatchlistQuotes(items, data?.quotes ?? []);
+    if(sortKey==="near")return sortByAlertDistance(list,items??[]);
     if (sortKey === "default") {
       if (order.length === 0) return list;
       const map = new Map(list.map((q) => [q.stockId, q]));
