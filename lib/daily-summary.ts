@@ -2,6 +2,7 @@
 // 內容：加權＋櫃買指數背景 + 漲跌家數 + 各自選股（單行緊湊：收盤價／當日幅／本週累計）+ 最強最弱
 // + 今日新出現的技術訊號 + 今日觸發提醒則數。排序依當日漲跌幅由大到小，紅漲（▲）綠跌（▼）。
 // 送出格式：LINE Flex Message 卡片（色塊標題＋白底分區＋按鈕，沿用機票降價通知卡的視覺語言）。
+import { countAlertEvents } from "@/lib/alertHistory";
 import { listWatchlist, type WatchItem } from "@/lib/store";
 import { fetchQuotes, INDEX_TARGETS } from "@/lib/providers/quoteProvider";
 import { loadKline } from "@/lib/klineStore";
@@ -501,7 +502,7 @@ export async function dailySummary(now: Date = new Date()): Promise<boolean> {
     signalRows,
     best: best ? { stockId: best.stockId, name: best.name, changePct: best.changePct } : null,
     worst: worst ? { stockId: worst.stockId, name: worst.name, changePct: worst.changePct } : null,
-    hits: countTodayHits(items, now),
+    hits: await countAlertEvents(t.isoDate),
     baseUrl: BASE_URL,
   };
 

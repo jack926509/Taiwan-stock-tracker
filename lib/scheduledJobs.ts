@@ -54,8 +54,8 @@ const defaultDependencies: ScheduledJobDependencies = {
     return alerts.checkAlerts(now);
   },
   dailySummary: async (now) => {
-    const summary = await import("./daily-summary.ts");
-    return summary.dailySummary(now);
+    const summary = await import("./dailyClose.ts");
+    return summary.runDailyClose(now);
   },
   backfillWatchlist: async () => {
     const backfill = await import("./backfill.ts");

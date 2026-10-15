@@ -64,3 +64,18 @@ export async function listPersonalRecords<T>(prefix: string, options: {
   if (error || typeof count !== "number") throw new Error("讀取個人紀錄列表失敗");
   return { items: (data ?? []).map(row => ({ key: row.cache_key, data: row.payload as T, fetchedAt: row.fetched_at })), total: count };
 }
+
+/** 保存一次性快照；同 key 已存在時維持原始內容，避免重跑覆寫歷史。 */
+export async function createPersonalRecord<T>(key: string, data: T, at: Date): Promise<void> {
+  const db = getSupabase();
+  if (!db) {
+    await serialPersonalWrite(async () => {
+      if (await loadPersonalRecord(key)) return;
+      await savePersonalRecord(key, data, at);
+    });
+    return;
+  }
+  const { error } = await db.from("news_cache").upsert({ cache_key: key, payload: data,
+    fetched_at: at.toISOString(), expires_at: NEVER_EXPIRE }, { onConflict: "cache_key", ignoreDuplicates: true });
+  if (error) throw new Error("保存個人快照失敗");
+}

@@ -10,7 +10,7 @@ export default function WatchSummaryCard({
   up: number;
   down: number;
   flat: number;
-  todayHits: number;
+  todayHits: number | null;
 }) {
   const hasData = up > 0 || down > 0 || flat > 0;
 
@@ -61,7 +61,7 @@ export default function WatchSummaryCard({
             今日觸發提醒
           </dt>
           <dd className="font-mono font-bold tabular text-ink">
-            {todayHits} <span className="text-xs font-semibold text-faint">則</span>
+            {todayHits ?? "—"} <span className="text-xs font-semibold text-faint">則</span>
           </dd>
         </div>
       </dl>

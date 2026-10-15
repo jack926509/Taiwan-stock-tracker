@@ -13,6 +13,7 @@ import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
 import ClosingSummary from "@/components/ClosingSummary";
+import TodayFocusCard from "@/components/home/TodayFocusCard";
 import PersonalStatusCard from "@/components/PersonalStatusCard";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
 import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
@@ -20,6 +21,7 @@ import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 export default function Dashboard() {
   const {
     data,
+    todayFocus, todayDate,
     storage,
     quote,
     watchlist,
@@ -66,7 +68,7 @@ export default function Dashboard() {
       <TopBar
         sessionLabel={sessionLabel}
         sessionDetail={sessionDetail}
-        hasUnread={watchStats.todayHits > 0}
+        hasUnread={(watchStats.todayHits ?? 0) > 0}
         onRefresh={handleManualRefresh}
         refreshing={quote.isValidating}
       />
@@ -127,6 +129,8 @@ export default function Dashboard() {
               </div>
             </div>
 
+            <TodayFocusCard items={items ?? []} quotes={data?.quotes ?? []} source={data?.source} date={todayDate} events={watchStats.todayHits} countError={Boolean(todayFocus.error)} />
+
             <WatchlistToolbar
               sort={sortKey}
               filter={filterKey}
@@ -169,8 +173,8 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
-            {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
+            {/* 收盤回顧可隨時選日期；今日尚未保存時另標示為暫覽。 */}
+            <ClosingSummary />
 
             <PersonalStatusCard />
 

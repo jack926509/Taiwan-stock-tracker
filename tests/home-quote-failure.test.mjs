@@ -41,7 +41,7 @@ test("行情全部失敗但自選清單已載入時，首頁仍顯示缺報價�
     data: undefined, items: [{ stock_id: "2330" }, { stock_id: "2317" }],
     filteredQuotes: [{ stockId: "2330", name: "台積電", missing: true }, { stockId: "2317", name: "鴻海", missing: true }],
     quote: { error: new Error("測試來源失敗") }, watchlist: {}, sparks: {},
-    watchStats: {}, alertItems: [],
+    watchStats: {}, alertItems: [], todayFocus: {}, todayDate: null,
   };
   const html = renderToStaticMarkup(createElement(Dashboard));
   assert.match(html, /台積電 報價暫缺/);

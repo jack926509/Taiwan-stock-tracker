@@ -34,3 +34,7 @@ test('備份只含清單分組、順序、提醒設定及觸發時間，不包�
  assert.equal(backup.v,1);assert.equal(backup.items[0].group_name,'持有');assert.equal(backup.items[0].alert_high,105);
  assert.doesNotMatch(JSON.stringify(backup),/SECRET|alert_versions/);
 });
+test('備份 API 提供下載檔名與禁止快取標頭',async()=>{
+ const {GET}=await import('../app/api/personal-backup/route.ts');const res=await GET();
+ assert.equal(res.status,200);assert.match(res.headers.get('content-disposition'),/attachment; filename="twstock-backup-\d{4}-\d{2}-\d{2}\.json"/);assert.match(res.headers.get('cache-control'),/private, no-store/);assert.doesNotMatch(JSON.stringify(await res.json()),/SECRET/);
+});

@@ -115,7 +115,7 @@ test("自選概況不把未知或非有限的漲跌幅算成平盤", () => {
   quoteData.quotes = [null, NaN, Infinity, -Infinity, 0, 0.01, -0.01].map((changePct, index) => ({
     stockId: String(2330 + index), changePct,
   }));
-  assert.deepEqual(useHomeDashboard().watchStats, { up: 1, down: 1, flat: 1, todayHits: 0 });
+  assert.deepEqual(useHomeDashboard().watchStats, { up: 1, down: 1, flat: 1, todayHits: null });
 });
 
 for (const [page, refresh] of [

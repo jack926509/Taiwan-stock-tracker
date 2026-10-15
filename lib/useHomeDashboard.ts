@@ -12,7 +12,7 @@ import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
-import { countTodayHitStamps } from "@/lib/alertLogic";
+import { taipeiNow } from "@/lib/market-hours";
 import { highTouchState, lowTouchState, type TouchState } from "@/lib/alertTouched";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
@@ -86,6 +86,11 @@ export function useHomeDashboard() {
     revalidateOnReconnect: true,
     refreshWhenHidden: false,
     onSuccess: onQuoteSuccess,
+  });
+
+  const todayDate = now ? taipeiNow(now).isoDate : null;
+  const todayFocus = useSWR<{ date: string; events: number }>(todayDate ? `/api/today-focus?date=${todayDate}` : null, fetcher, {
+    refreshInterval: 60_000, revalidateOnFocus: true,
   });
 
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
@@ -266,10 +271,9 @@ export function useHomeDashboard() {
       else if (q.changePct > 0) up++;
       else down++;
     }
-    // 今日觸發＝伺服端記錄的當日觸發（含到價、漲跌幅、爆量），與收盤總覽同一套（lib/alertLogic.ts 的 countTodayHitStamps）
-    const todayHits = countTodayHitStamps(items ?? [], now ?? new Date());
+    const todayHits = !todayFocus.error && todayFocus.data?.date === todayDate ? todayFocus.data.events : null;
     return { up, down, flat, todayHits };
-  }, [data?.quotes, items, now]);
+  }, [data?.quotes, todayFocus.data, todayFocus.error, todayDate]);
 
   // 左欄「提醒摘要」：已設到價提醒的自選股，補上現價供算「距觸價 %」（不新增 API，沿用既有 quotes）
   const alertItems: AlertRailItem[] = useMemo(() => {
@@ -293,6 +297,7 @@ export function useHomeDashboard() {
     sortKey === "default" && filterKey === "all" && groupFilter===null && sortedQuotes.length > 1;
 
   return {
+    todayFocus, todayDate,
     now,
     data,
     storage,
