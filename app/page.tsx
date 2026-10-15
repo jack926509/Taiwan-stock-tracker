@@ -141,7 +141,7 @@ export default function Dashboard() {
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
                 incomplete={data?.complete !== true}
-                sparkLoading={!sparks.data && !sparks.error}
+                sparkLoading={sparks.isLoading}
                 allQuotes={data?.quotes}
                 reorderable={canSort}
                 onReorder={handleReorder}

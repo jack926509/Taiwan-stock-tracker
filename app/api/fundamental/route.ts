@@ -45,13 +45,13 @@ export async function GET(req: NextRequest) {
     );
     const data = mergeFundamental(fetched, failed, cached, now);
     // 半套結果（任一資料集抓失敗）只存 30 分鐘，下次瀏覽自動重抓修復
-    const fresh = await saveFundamental(
-      id,
-      data,
-      now,
-      complete ? TTL_MS : RETRY_TTL_MS
-    );
-    return NextResponse.json({ stockId: id, asOf: fresh.fetchedAt, ...data });
+    try {
+      await saveFundamental(id, data, now, complete ? TTL_MS : RETRY_TTL_MS);
+    } catch (e) {
+      // 儲存失敗不代表來源抓取失敗，仍呈現本次已取得的結果。
+      logApiError("api/fundamental save", e);
+    }
+    return NextResponse.json({ stockId: id, asOf: now.toISOString(), ...data });
   } catch (e) {
     // 抓不到新資料時退回過期快照；完全沒快取才回錯誤
     if (cached) {

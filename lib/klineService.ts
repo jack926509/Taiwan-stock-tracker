@@ -67,7 +67,7 @@ export async function ensureKlineWithStatus(
   const needBackfill = candles.length > 0 && candles[0].date > backfillCutoff;
 
   const needFetch =
-    canAttempt && (candles.length === 0 || needBackfill || last.date < expectedDate);
+    candles.length === 0 || (canAttempt && (needBackfill || last.date < expectedDate));
 
   if (needFetch) {
     lastAttempt.set(stockId, Date.now());
@@ -88,7 +88,7 @@ export async function ensureKlineWithStatus(
   return {
     candles,
     latestDate,
-    stale: latestDate !== null && latestDate < expectedDate,
+    stale: latestDate === null || latestDate < expectedDate,
     expectedDate,
   };
 }

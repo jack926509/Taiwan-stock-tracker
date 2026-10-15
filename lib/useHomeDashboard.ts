@@ -267,7 +267,7 @@ export function useHomeDashboard() {
 
   // 僅「預設」排序、無篩選、且 ≥2 檔時可拖曳排序（漲幅/跌幅為即時計算、篩選中皆不可手動排）
   const canSort =
-    sortKey === "default" && filterKey === "all" && (data?.quotes.length ?? 0) > 1;
+    sortKey === "default" && filterKey === "all" && sortedQuotes.length > 1;
 
   return {
     now,

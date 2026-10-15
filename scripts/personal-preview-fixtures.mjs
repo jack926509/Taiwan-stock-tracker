@@ -50,7 +50,11 @@ function start(port, mode) {
     }
     try {
       const target = new URL(req.url, upstream);
-      const response = await fetch(target, { headers: { accept: req.headers.accept ?? "*/*" }, redirect: "manual" });
+      const requestHeaders = { accept: req.headers.accept ?? "*/*" };
+      for (const key of ["rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch", "next-url"]) {
+        if (typeof req.headers[key] === "string") requestHeaders[key] = req.headers[key];
+      }
+      const response = await fetch(target, { headers: requestHeaders, redirect: "manual" });
       const headers = Object.fromEntries(response.headers);
       delete headers["content-encoding"];
       delete headers["content-length"];

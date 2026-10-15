@@ -15,6 +15,7 @@ registerHooks({
         export const saveKline = async (id, old, incoming) => globalThis.__kline.candles = [...old, ...incoming];`,
     };
     if (stubs[specifier]) return { url: `data:text/javascript,${encodeURIComponent(stubs[specifier])}`, shortCircuit: true };
+    if (specifier === "@/lib/market-hours") return nextResolve(new URL(`../lib/market-hours.ts?case=${moduleId}`, import.meta.url).href, context);
     if (specifier.startsWith("@/")) return nextResolve(new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href, context);
     return nextResolve(specifier, context);
   },
@@ -87,4 +88,15 @@ test("補抓取得預期交易日後解除待更新，歷史補齊失敗不誤�
   await withKline("2026-10-15T08:00:00Z", async (service, now) => {
     assert.equal((await service.ensureKlineWithStatus("2330", "2026-10-15", now)).stale, false);
   }, { candles: [candle("2026-10-15")], fail: true });
+});
+
+test("沒有歷史快取時，首次失敗後下一次開啟仍可重新抓取", async () => {
+  await withKline("2026-10-15T08:00:00Z", async (service, now) => {
+    assert.deepEqual((await service.ensureKlineWithStatus("2330", "2026-10-15", now)).candles, []);
+    globalThis.__kline.fail = false;
+    globalThis.__kline.incoming = [candle("2026-10-15")];
+    const result = await service.ensureKlineWithStatus("2330", "2026-10-15", now);
+    assert.equal(result.latestDate, "2026-10-15");
+    assert.equal(globalThis.__kline.requests, 2);
+  }, { candles: [], fail: true });
 });
