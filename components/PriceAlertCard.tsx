@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import type { Trend } from "@/lib/format";
 import type { AlertSide } from "@/lib/store";
 import { hitToday } from "@/lib/alertLogic";
@@ -69,6 +69,7 @@ export default function PriceAlertCard({
   /** 個股當下漲跌方向，僅供左緣色條使用（視覺沿用首頁 QuoteBoard 語彙），未提供時不上色 */
   trend?: Trend;
 }) {
+  const { mutate: refreshShared } = useSWRConfig();
   const { data, mutate } = useSWR<{ items: WatchRow[] }>(
     "/api/watchlist",
     fetcher
@@ -135,6 +136,7 @@ export default function PriceAlertCard({
         return;
       }
       await mutate();
+      void refreshShared("/api/personal-status");
       setMsg(rearm.length > 0 ? "已重新啟用指定條件" : "已儲存；其他已觸發條件保持原狀");
     } catch {
       setMsg("儲存失敗，請稍後重試");

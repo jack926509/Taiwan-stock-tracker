@@ -179,14 +179,14 @@ export default function Dashboard() {
             <PersonalStatusCard />
 
             <footer className="pt-2 text-center text-xs leading-relaxed text-muted">
-              {data?.source === "yahoo"
+              {!data ? "目前尚未取得行情資料" : data.source === "yahoo"
                 ? "報價來源：Yahoo Finance 備援"
                 : data?.source === "stale"
                   ? "報價來源：最近一次成功快照"
                   : "資料來源：台灣證券交易所・證券櫃檯買賣中心（MIS 即時行情）"}
               <br className="sm:hidden" />
               <span className="hidden sm:inline">・</span>
-              {data?.source === "yahoo"
+              {!data ? "自選清單仍保留，可稍後重新讀取報價" : data.source === "yahoo"
                 ? "備援報價可能延遲，僅供個人參考，非投資建議"
                 : data?.source === "stale"
                   ? "快照不是即時報價，僅供個人參考，非投資建議"

@@ -47,4 +47,5 @@ test("行情全部失敗但自選清單已載入時，首頁仍顯示缺報價�
   assert.match(html, /台積電 報價暫缺/);
   assert.match(html, /鴻海 報價暫缺/);
   assert.match(html, /可篩選/);
+  assert.doesNotMatch(html, /MIS 即時行情|報價約延遲 10 秒/);
 });

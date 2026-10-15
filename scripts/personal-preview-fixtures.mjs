@@ -10,9 +10,11 @@ const items = [
   { ...baseItem, stock_id: "2330", name: "台積電",group_name:"持有", sort_order: 0, alert_high:105, alert_high_hit_at:"2026-10-15T02:30:00.000Z",
     alert_low:95, alert_low_hit_at:"2026-10-15T02:20:00.000Z" },
   { ...baseItem, stock_id: "2317", name: "鴻海",group_name:"觀察", sort_order: 1, alert_high: 210 },
+  { ...baseItem, stock_id: "0050", name: "元大台灣 50",group_name:"ETF", sort_order: 2, alert_high: 110 },
 ];
-const asOf = "2026-10-15T05:10:00.000Z";
-const quote = { stockId: "2330", market: "tse", name: "TAIWAN SEMICONDUCTOR", price: 100, prevClose: 99, change: 1, changePct: 1 / 99, open: 99, high: 101, low: 98, volume: null, traded: true, time: "13:10:00", asOf };
+const asOf = "2026-10-15T04:50:00.000Z";
+const quote = { stockId: "2330", market: "tse", name: "TAIWAN SEMICONDUCTOR", price: 100, prevClose: 99, change: 1, changePct: 1 / 99, open: 99, high: 101, low: 98, volume: null, traded: true, time: "12:50:00", asOf };
+const quotes = [quote, { ...quote, stockId: "0050", name: "YUANTA ETF", price: 105, prevClose:104, changePct:1/104, open:104, high:106, low:103 }];
 const candles = Array.from({ length: 50 }, (_, i) => {
   const date = new Date(Date.UTC(2026, 7, 26 + i)).toISOString().slice(0, 10);
   return { date, open: 99, high: 101, low: 98, close: 100, volume: 10 };
@@ -26,6 +28,12 @@ const freshness = {
   dividend: { state: "empty", lastSuccessAt: asOf },
 };
 
+function summaryFor(date, price = 100) {
+  return { date, source: "yahoo", asOf: `${date}T${date === "2026-10-15" ? "04:50" : "05:30"}:00.000Z`, complete: false,
+    indices: [], counts: {up:1,down:0,flat:0}, alertHits: 3,
+    rows: [{stockId:"2330",name:"台積電",price,changePct:0.01,weekPct:0.02,newSignals:[]}],
+    best:{name:"台積電",changePct:0.01},worst:null };
+}
 function start(port, mode) {
   const demoItems = structuredClone(items);
   const demoHistory = ["accepted","limited","failed"].map((state,i)=>({v:1,id:`demo-${i}`,stockId:"2330",market:"tse",name:"台積電",
@@ -65,12 +73,23 @@ function start(port, mode) {
           const events = date==="2026-10-15"?demoHistory:[];
           return json({date,total:events.length,offset,limit:50,nextOffset:null,events:events.slice(offset,offset+50)});
         }
+        case "/api/today-focus": return json({date:"2026-10-15",events:demoHistory.length});
+        case "/api/personal-status": return json({checkedAt:asOf,monitor:{finishedAt:asOf,outcome:mode==="offline"?"failed":"completed",source:mode==="offline"?null:"yahoo",complete:false,
+          rows:demoItems.map(row=>({stockId:row.stock_id,name:row.name,status:mode==="offline"?"行情來源無法取得":row.stock_id==="2330"&&!row.alert_high_hit_at?"設定已更新，等待下次檢查":"本輪為參考來源，未判定新觸發"}))},
+          line:{configured:true,usage:{day:"2026-10-15",month:"2026-10",count:5,dayCount:3,dailyCap:15}},backfill:{ranAt:"2026-10-14T09:00:00Z",ok:1,fail:0,pending:2},issues:[]});
+        case "/api/personal-backup": {
+          res.writeHead(200,{"Content-Type":"application/json","Content-Disposition":"attachment; filename=twstock-demo-backup.json","Cache-Control":"private, no-store"});
+          return res.end(JSON.stringify({v:1,exportedAt:new Date().toISOString(),timezone:"Asia/Taipei",items:demoItems}));
+        }
         case "/api/quote": return mode === "offline"
           ? json({ error: "測試：行情來源暫時無法使用" }, 502)
           : json({ asOf, marketOpen: false, source: "yahoo", complete: false, indices: [],
-            quotes:!url.searchParams.get("ids")||url.searchParams.get("ids").split(",").includes("2330")?[quote]:[] });
+            quotes:quotes.filter(row=>!url.searchParams.get("ids")||url.searchParams.get("ids").split(",").includes(row.stockId)) });
         case "/api/sparklines": return json({ data: {} });
-        case "/api/summary": return json({ summary: null });
+        case "/api/summary": {
+          const date=url.searchParams.get("date");
+          return json(date==="2026-10-14"?{summary:summaryFor(date,80),savedAt:`${date}T05:35:00Z`}:date?{summary:null,savedAt:null}:{summary:summaryFor("2026-10-15"),savedAt:null});
+        }
         case "/api/kline": return json({ stockId: url.searchParams.get("id")??"2330", candles, latestDate: candles.at(-1).date, stale: true, expectedDate: "2026-10-15" });
         case "/api/fundamental": return json({ stockId: url.searchParams.get("id")??"2330", asOf, ...empty,
           freshness: mode === "empty" ? Object.fromEntries(Object.keys(freshness).map(key => [key, { state: "unavailable", lastSuccessAt: null }])) : freshness,
