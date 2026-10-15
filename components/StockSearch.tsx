@@ -24,6 +24,8 @@ export default function StockSearch({ onAdded }: { onAdded?: () => void | Promis
   const rootRef = useRef<HTMLFormElement>(null);
   // 與首頁共用同一個 SWR 快取鍵，不會多打 API
   const watchlist = useSWR("/api/watchlist", fetchWatchlist);
+  // 清單讀取中或失敗時不開放加入，避免已在自選的股票被當成未加入
+  const watchlistReady = Boolean(watchlist.data) && !watchlist.error;
   const inWatchlist = new Set((watchlist.data?.items ?? []).map((row) => row.stock_id));
   const { add, busyId } = useAddToWatchlist(onAdded);
 
@@ -133,55 +135,62 @@ export default function StockSearch({ onAdded }: { onAdded?: () => void | Promis
 
       {/* 建議清單 */}
       {showList && results.length > 0 && (
-        <ul
-          id="stock-search-listbox"
-          role="listbox"
-          aria-label="搜尋建議"
-          className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-card bg-surface shadow-lift ring-1 ring-line"
-        >
-          {results.map((r, i) => (
-            <li key={r.stockId} role="presentation" className={`flex items-center ${i === active ? "bg-primary-tint" : "hover:bg-primary-tint"}`}>
-              <button
-                type="button"
-                id={`stock-search-option-${i}`}
-                role="option"
-                aria-selected={i === active}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => goTo(r.stockId)}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2 pl-4 pr-2 text-left text-sm"
-              >
-                <span className="w-14 shrink-0 font-mono text-xs font-semibold text-primary tabular">
-                  {r.stockId}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-serif text-ink">
-                  {r.name}
-                </span>
-                <span className="shrink-0 rounded-pill bg-app px-2 py-0.5 text-xs text-muted ring-1 ring-line">
-                  {r.market === "tse" ? "上市" : "上櫃"}
-                </span>
-              </button>
-              {inWatchlist.has(r.stockId) ? (
+        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-card bg-surface shadow-lift ring-1 ring-line">
+          {/* listbox 只放 option；「＋ 自選」按鈕放在右側獨立清單，列高固定 h-11 讓兩邊對齊 */}
+          <ul id="stock-search-listbox" role="listbox" aria-label="搜尋建議">
+            {results.map((r, i) => (
+              <li key={r.stockId} role="presentation">
                 <button
                   type="button"
-                  disabled
-                  className="mr-3 min-h-9 shrink-0 px-2 text-xs text-muted"
+                  id={`stock-search-option-${i}`}
+                  role="option"
+                  aria-selected={i === active}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => goTo(r.stockId)}
+                  className={`flex h-11 w-full items-center gap-3 py-2 pl-4 pr-28 text-left text-sm transition-colors ${
+                    i === active ? "bg-primary-tint" : "hover:bg-primary-tint"
+                  }`}
                 >
-                  已在自選
+                  <span className="w-14 shrink-0 font-mono text-xs font-semibold text-primary tabular">
+                    {r.stockId}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-serif text-ink">
+                    {r.name}
+                  </span>
+                  <span className="shrink-0 rounded-pill bg-app px-2 py-0.5 text-xs text-muted ring-1 ring-line">
+                    {r.market === "tse" ? "上市" : "上櫃"}
+                  </span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={busyId !== null}
-                  aria-label={`加入 ${r.name} ${r.stockId} 到自選`}
-                  onClick={() => void add(r.stockId)}
-                  className="mr-3 min-h-9 shrink-0 rounded-pill bg-primary px-3 text-xs font-medium text-white transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 dark:text-app"
-                >
-                  {busyId === r.stockId ? "加入中…" : "＋ 自選"}
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+          <ul aria-label="加入自選" className="absolute right-3 top-0">
+            {results.map((r) => (
+              <li key={r.stockId} className="flex h-11 items-center">
+                {inWatchlist.has(r.stockId) ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-label={`${r.name} ${r.stockId} 已在自選`}
+                    className="h-9 px-2 text-xs text-muted"
+                  >
+                    已在自選
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busyId !== null || !watchlistReady}
+                    aria-label={`加入 ${r.name} ${r.stockId} 到自選`}
+                    onClick={() => void add(r.stockId)}
+                    className="h-9 rounded-pill bg-primary px-3 text-xs font-medium text-white transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 dark:text-app"
+                  >
+                    {busyId === r.stockId ? "加入中…" : "＋ 自選"}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </form>
   );

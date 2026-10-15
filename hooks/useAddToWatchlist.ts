@@ -27,8 +27,13 @@ export function useAddToWatchlist(onAdded?: () => void | Promise<unknown>) {
           return false;
         }
         toast.show(`已加入 ${json.item?.name ?? stockId}`, { tone: "success" });
-        if (onAdded) await onAdded();
-        else await mutate("/api/watchlist");
+        // 已加入成功；後續重新整理失敗不算新增失敗，不顯示錯誤，避免使用者重按
+        try {
+          if (onAdded) await onAdded();
+          else await mutate("/api/watchlist");
+        } catch {
+          /* 忽略：輪詢稍後會自動更新 */
+        }
         return true;
       } catch {
         toast.show("連線失敗，請再試一次", { tone: "error" });

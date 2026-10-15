@@ -73,7 +73,7 @@ export default function Dashboard() {
 
       <div className="mx-auto max-w-[1360px] px-4 sm:px-[18px]">
         {/* 離線提示維持原樣；其餘警告（備援／缺漏／暫停輪詢／更新失敗…）併入 StatusNotice 單行摘要 */}
-        <div className="pt-4 empty:hidden"><MobileNetworkBanner /></div>
+        <div className="pt-4 empty:hidden md:hidden"><MobileNetworkBanner /></div>
         <StatusNotice
           data={data}
           items={items ?? []}

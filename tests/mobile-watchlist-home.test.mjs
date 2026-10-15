@@ -228,3 +228,12 @@ test("首頁主要互動不使用 transition-all", async () => {
     assert.doesNotMatch(source, /transition-all/);
   }
 });
+
+test("加入自選：POST 成功後 onAdded 拋錯不會顯示錯誤 toast", async () => {
+  const src = await read("hooks/useAddToWatchlist.ts");
+  // POST 成功的 toast 之後，onAdded 必須在獨立 try/catch 內，不落入外層「連線失敗」catch
+  assert.match(
+    src,
+    /tone: "success" \}\);\s*[^]*?try \{\s*if \(onAdded\) await onAdded\(\);[^]*?\} catch \{[^}]*\}\s*return true;/
+  );
+});
