@@ -125,3 +125,31 @@ test("LINE 用量以交易保留，同一重試識別不重算且不超過每日
   assert.equal(usage.dayCount, 2);
   assert.equal(usage.count, 2);
 });
+
+test("等待重試的舊事件不會擋住後面的新事件，收盤後過期事件也可歸檔", async () => {
+  const keys = [];
+  for(let i=0;i<6;i++) {
+    const id=String(2400+i), versions=await seed(id);
+    const event=await capture(id,"high",versions.high);
+    keys.push(event.key);
+    if(i<5) { await claim(event.key,`hold-${i}`,at); await finish(event.key,`hold-${i}`,"failed",at,true); }
+  }
+  const ready=(await db.query("select list_ready_alert_events($1,5) as events",[later(30)])).rows[0].events;
+  assert.ok(ready.some(event=>event.key===keys[5]));
+  assert.ok(!ready.some(event=>keys.slice(0,5).includes(event.key)));
+  await db.query("select list_ready_alert_events($1,5)",[later(901)]);
+  const expired=(await db.query("select payload from news_cache where cache_key=$1",[keys[0]])).rows[0].payload;
+  assert.equal(expired.notification.state,"failed");
+});
+
+test("服務角色可執行事件流程，重跑待套用 migration 不清除事件與設定",async()=>{
+  const versions=await seed("2500");
+  await db.exec("set role service_role");
+  try { assert.ok(await capture("2500","high",versions.high)); }
+  finally { await db.exec("reset role"); }
+  const before=(await db.query("select count(*)::int as n from news_cache where cache_key like 'alert:event:%'")).rows[0].n;
+  await db.exec(await readFile(new URL(migration,directory),"utf8"));
+  const after=(await db.query("select count(*)::int as n from news_cache where cache_key like 'alert:event:%'")).rows[0].n;
+  assert.equal(after,before);
+  assert.equal((await db.query("select alert_high from watchlist where stock_id='2500'")).rows[0].alert_high,"100");
+});

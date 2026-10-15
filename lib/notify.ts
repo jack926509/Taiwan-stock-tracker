@@ -19,9 +19,9 @@ export const LINE_DAILY_CAP = 15;
 
 export interface LineUsage {
   month: string; // "2026-07"
-  count: number; // 本月累積推播則數
+  count: number; // 本月已使用／保留的推播額度（含尚未確認的請求）
   day: string; // "2026-07-06"
-  dayCount: number; // 本日累積推播則數
+  dayCount: number; // 本日已使用／保留的推播額度
 }
 
 export interface LineFailure {
@@ -55,18 +55,6 @@ async function readUsage(
     return { month, count: rec.count, day: isoDate, dayCount: 0 };
   }
   return rec;
-}
-
-async function saveUsage(
-  db: ReturnType<typeof getSupabase>,
-  usage: LineUsage
-): Promise<void> {
-  await db!.from("news_cache").upsert({
-    cache_key: LINE_USAGE_KEY,
-    payload: usage,
-    fetched_at: new Date().toISOString(),
-    expires_at: NEVER_EXPIRE,
-  });
 }
 
 async function recordFailure(
@@ -118,20 +106,39 @@ export type LineMessage = Record<string, unknown>;
 // 底層送出：承載每日上限與用量/失敗記錄，訊息型別不拘（text 或 flex 都走這條路，行為完全一致）
 // 成功回 true，未設定、超過每日上限或失敗回 false
 // （不丟例外，避免中斷檢查迴圈；語意對呼叫端相容——呼叫端本來就把 false 當失敗處理）
-export async function pushLineMessages(messages: LineMessage[]): Promise<boolean> {
+export interface LineSendResult {
+  state: "accepted" | "unconfigured" | "limited" | "failed";
+  reason: string | null;
+  retryable: boolean;
+}
+
+/** HTTP 接受不等於已送達；重試必須沿用第一次請求的識別。 */
+export async function sendLineMessages(
+  messages: LineMessage[], retryKey: string = crypto.randomUUID()
+): Promise<LineSendResult> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   const to = process.env.LINE_TARGET_USER_ID;
-  if (!token || !to) return false;
+  if (!token || !to) return { state: "unconfigured", reason: "not-configured", retryable: false };
 
   const now = new Date();
-  const db = getSupabase();
-  let usage: LineUsage | null = null;
-  if (db) {
-    usage = await readUsage(db, now);
-    if (usage.dayCount >= LINE_DAILY_CAP) {
-      console.log(`[line] 已達每日推播上限 ${LINE_DAILY_CAP} 則，本則跳過`);
-      return false;
+  let db: ReturnType<typeof getSupabase>;
+  try {
+    db = getSupabase();
+    if (db) {
+      const { data, error } = await db.rpc("reserve_line_quota", {
+        p_retry_key: retryKey, p_now: now.toISOString(), p_daily_cap: LINE_DAILY_CAP,
+      });
+      if (error || typeof data !== "boolean") throw new Error("配額紀錄失敗");
+      if (data !== true) return { state: "limited", reason: "daily-limit", retryable: false };
     }
+  } catch {
+    console.error("[line] 配額紀錄失敗，停止送出");
+    return { state: "failed", reason: "usage-unavailable", retryable: true };
+  }
+  async function failure(reason: string) {
+    if (!db) return;
+    try { await recordFailure(db, now, reason); }
+    catch { console.error("[line] 失敗狀態記錄失敗"); }
   }
 
   try {
@@ -140,28 +147,32 @@ export async function pushLineMessages(messages: LineMessage[]): Promise<boolean
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        "X-Line-Retry-Key": retryKey,
       },
       body: JSON.stringify({ to, messages }),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) {
+    const acceptedBefore = res.status === 409 && Boolean(res.headers.get("x-line-accepted-request-id"));
+    if (!res.ok && !acceptedBefore) {
       const reason = `HTTP ${res.status}`;
       console.error(`[line] push 失敗 ${reason}`);
-      if (db) await recordFailure(db, now, reason);
-      return false;
+      await failure(reason);
+      return { state: "failed", reason: `http-${res.status}`, retryable: res.status === 429 || res.status >= 500 };
     }
-    if (db && usage) {
-      usage.count += 1;
-      usage.dayCount += 1;
-      await saveUsage(db, usage);
-      await clearFailure(db);
+    if (db) {
+      try { await clearFailure(db); }
+      catch { console.error("[line] 接受後診斷狀態更新失敗"); }
     }
-    return true;
+    return { state: "accepted", reason: null, retryable: false };
   } catch {
     console.error("[line] 推播處理失敗");
-    if (db) await recordFailure(db, now, "推播處理失敗");
-    return false;
+    await failure("推播處理失敗");
+    return { state: "failed", reason: "network", retryable: true };
   }
+}
+
+export async function pushLineMessages(messages: LineMessage[]): Promise<boolean> {
+  return (await sendLineMessages(messages)).state === "accepted";
 }
 
 // 推一則純文字訊息給設定的 userId；薄封裝 pushLineMessages，維持既有呼叫端相容

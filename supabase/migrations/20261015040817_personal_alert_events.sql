@@ -27,13 +27,13 @@ begin
   new.alert_versions := versions;
   return new;
 end $$;
-create trigger preserve_alert_versions before update on public.watchlist
+create or replace trigger preserve_alert_versions before update on public.watchlist
 for each row execute function public.preserve_alert_versions();
 
 create or replace function public.capture_alert_event(
   p_stock_id text, p_kind text, p_version text, p_triggered_at timestamptz,
   p_quote_as_of timestamptz, p_price numeric, p_threshold numeric,
-  p_change_pct numeric, p_volume numeric
+  p_change_pct numeric, p_volume numeric, p_details jsonb default '{}'
 ) returns jsonb language plpgsql security invoker set search_path = public, pg_temp as $$
 declare
   item public.watchlist%rowtype;
@@ -43,7 +43,7 @@ declare
   event_id text := gen_random_uuid()::text;
   event jsonb;
 begin
-  if p_kind not in ('high','low','change','volume') or p_triggered_at is null or
+  if p_kind is null or p_kind not in ('high','low','change','volume') or p_triggered_at is null or
     p_quote_as_of is null or p_quote_as_of > p_triggered_at or
     p_triggered_at - p_quote_as_of > interval '120 seconds' or
     (p_triggered_at at time zone 'Asia/Taipei')::date <> (p_quote_as_of at time zone 'Asia/Taipei')::date or
@@ -77,6 +77,9 @@ begin
   event := jsonb_build_object('v',1,'id',event_id,'key',event_key,'stockId',item.stock_id,
     'market',item.market,'name',item.name,'kind',p_kind,'threshold',p_threshold,'price',p_price,
     'changePct',p_change_pct,'volume',p_volume,'triggeredAt',p_triggered_at,'quoteAsOf',p_quote_as_of,
+    'open',case when jsonb_typeof(p_details->'open')='number' then p_details->'open' else null end,
+    'high',case when jsonb_typeof(p_details->'high')='number' then p_details->'high' else null end,
+    'low',case when jsonb_typeof(p_details->'low')='number' then p_details->'low' else null end,
     'notification',jsonb_build_object('state','pending','attempts',0,'retryKey',event_id));
   insert into public.news_cache(cache_key,payload,fetched_at,expires_at)
     values(event_key,event,p_triggered_at,'2099-12-31T00:00:00Z') on conflict do nothing;
@@ -94,7 +97,7 @@ create or replace function public.claim_alert_delivery(p_key text,p_claim_id tex
 returns jsonb language plpgsql security invoker set search_path = public, pg_temp as $$
 declare event jsonb; notification jsonb; attempts integer;
 begin
-  if p_key not like 'alert:event:%' then return null; end if;
+  if p_key is null or p_key not like 'alert:event:%' or p_now is null or p_claim_id is null then return null; end if;
   select payload into event from public.news_cache where cache_key=p_key for update;
   if not found then return null; end if;
   notification := event->'notification';
@@ -119,7 +122,8 @@ create or replace function public.finish_alert_delivery(
 ) returns boolean language plpgsql security invoker set search_path = public, pg_temp as $$
 declare event jsonb; notification jsonb; state text;
 begin
-  if p_key not like 'alert:event:%' or p_state not in ('accepted','unconfigured','limited','failed') then return false; end if;
+  if p_key is null or p_key not like 'alert:event:%' or p_now is null or p_claim_id is null or p_state is null or
+    p_state not in ('accepted','unconfigured','limited','failed') then return false; end if;
   select payload into event from public.news_cache where cache_key=p_key for update;
   if not found then return false; end if;
   notification := event->'notification';
@@ -137,7 +141,7 @@ create or replace function public.reserve_line_quota(p_retry_key uuid,p_now time
 returns boolean language plpgsql security invoker set search_path = public, pg_temp as $$
 declare usage jsonb; day text; month text; reservation text := 'meta:line-reservation:'||p_retry_key::text;
 begin
-  if p_retry_key is null or p_now is null or p_daily_cap < 1 or p_daily_cap > 15 then return false; end if;
+  if p_retry_key is null or p_now is null or p_daily_cap is null or p_daily_cap < 1 or p_daily_cap > 15 then return false; end if;
   day := to_char(p_now at time zone 'Asia/Taipei','YYYY-MM-DD');
   month := left(day,7);
   insert into public.news_cache(cache_key,payload,fetched_at,expires_at)
@@ -159,13 +163,36 @@ begin
   return true;
 end $$;
 
+create or replace function public.list_ready_alert_events(p_now timestamptz,p_limit integer)
+returns jsonb language plpgsql security invoker set search_path = public, pg_temp as $$
+declare events jsonb;
+begin
+  if p_now is null or p_limit is null or p_limit<1 or p_limit>20 then return '[]'::jsonb; end if;
+  update public.news_cache set payload=jsonb_set(payload,'{notification}',
+    payload->'notification'||jsonb_build_object('state','failed','reason','retry-expired'))
+    where cache_key like 'alert:event:%' and payload->'notification'->>'state' in ('pending','retry','sending')
+    and p_now-(payload->>'triggeredAt')::timestamptz>interval '15 minutes'
+    and (payload->'notification'->>'state'<>'sending' or (payload->'notification'->>'leaseUntil')::timestamptz<=p_now);
+  select coalesce(jsonb_agg(item.payload order by item.fetched_at,item.cache_key),'[]'::jsonb) into events
+  from (select payload,fetched_at,cache_key from public.news_cache
+    where cache_key like 'alert:event:%' and payload->'notification'->>'state' in ('pending','retry','sending')
+    and coalesce((payload->'notification'->>'nextAttemptAt')::timestamptz,p_now)<=p_now
+    and (payload->'notification'->>'state'<>'sending' or (payload->'notification'->>'leaseUntil')::timestamptz<=p_now)
+    order by fetched_at,cache_key limit p_limit) item;
+  return events;
+end $$;
+create index if not exists idx_personal_alert_events_state_time on public.news_cache
+  ((payload->'notification'->>'state'),fetched_at,cache_key) where cache_key like 'alert:event:%';
+
 revoke all on function public.preserve_alert_versions() from public,anon,authenticated;
-revoke all on function public.capture_alert_event(text,text,text,timestamptz,timestamptz,numeric,numeric,numeric,numeric) from public,anon,authenticated;
+revoke all on function public.capture_alert_event(text,text,text,timestamptz,timestamptz,numeric,numeric,numeric,numeric,jsonb) from public,anon,authenticated;
 revoke all on function public.claim_alert_delivery(text,text,timestamptz) from public,anon,authenticated;
 revoke all on function public.finish_alert_delivery(text,text,text,text,boolean,timestamptz) from public,anon,authenticated;
 grant execute on function public.preserve_alert_versions() to service_role;
-grant execute on function public.capture_alert_event(text,text,text,timestamptz,timestamptz,numeric,numeric,numeric,numeric) to service_role;
+grant execute on function public.capture_alert_event(text,text,text,timestamptz,timestamptz,numeric,numeric,numeric,numeric,jsonb) to service_role;
 grant execute on function public.claim_alert_delivery(text,text,timestamptz) to service_role;
 grant execute on function public.finish_alert_delivery(text,text,text,text,boolean,timestamptz) to service_role;
 revoke all on function public.reserve_line_quota(uuid,timestamptz,integer) from public,anon,authenticated;
 grant execute on function public.reserve_line_quota(uuid,timestamptz,integer) to service_role;
+revoke all on function public.list_ready_alert_events(timestamptz,integer) from public,anon,authenticated;
+grant execute on function public.list_ready_alert_events(timestamptz,integer) to service_role;

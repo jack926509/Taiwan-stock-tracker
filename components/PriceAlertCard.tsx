@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Trend } from "@/lib/format";
 import type { AlertSide } from "@/lib/store";
+import { hitToday } from "@/lib/alertLogic";
 
 interface WatchRow {
   stock_id: string;
@@ -37,10 +38,11 @@ function mmdd(iso: string): string {
 
 // 門檻狀態註記：未設定時不顯示（避免孤懸的「—」被誤讀成按鈕）；設定後顯示監控中或觸發時間。
 // 放在輸入框下方整行，不擠在窄欄裡直排斷字。
-function StatusNote({ set, hitAt, onRearm, disabled, label }: {
-  set: boolean; hitAt: string | null; onRearm?: () => void; disabled?: boolean; label?: string;
+function StatusNote({ set, hitAt, onRearm, disabled, label, daily = false }: {
+  set: boolean; hitAt: string | null; onRearm?: () => void; disabled?: boolean; label?: string; daily?: boolean;
 }) {
   if (!set) return null;
+  if(daily && !hitToday(hitAt,new Date()))return <span className="text-xs text-muted">今日待觸發</span>;
   return hitAt ? (
     <span className="flex flex-wrap items-center justify-end gap-1 font-mono text-xs tabular text-warn">
       <span>已於 {mmdd(hitAt)} 觸發</span>
@@ -49,7 +51,7 @@ function StatusNote({ set, hitAt, onRearm, disabled, label }: {
         className="min-h-11 rounded-pill border border-line px-3 text-xs text-ink disabled:opacity-50">重新啟用</button>}
     </span>
   ) : (
-    <span className="whitespace-nowrap font-mono text-xs tabular text-muted">監控中</span>
+    <span className="whitespace-nowrap font-mono text-xs tabular text-muted">待觸發</span>
   );
 }
 
@@ -269,7 +271,7 @@ export default function PriceAlertCard({
           </label>
           {row?.alert_change_pct != null && (
             <div className="ml-14 flex justify-end">
-              <StatusNote set hitAt={row.alert_change_hit_at} />
+              <StatusNote set daily hitAt={row.alert_change_hit_at} label="漲跌幅提醒" disabled={busy} onRearm={()=>void save(["change"])} />
             </div>
           )}
         </div>
@@ -282,6 +284,7 @@ export default function PriceAlertCard({
           <button
             type="button"
             role="switch"
+            aria-label="爆量提醒"
             aria-checked={volumeOn}
             onClick={() => setVolumeOn((v) => !v)}
             className={`relative h-6 w-11 shrink-0 rounded-pill transition-colors ${
@@ -296,6 +299,7 @@ export default function PriceAlertCard({
             />
           </button>
         </div>
+        {row?.alert_volume_on && <StatusNote set daily hitAt={row.alert_volume_hit_at} label="爆量提醒" disabled={busy} onRearm={()=>void save(["volume"])} />}
         <button
           onClick={() => void save()}
           disabled={busy}
@@ -307,6 +311,7 @@ export default function PriceAlertCard({
           {msg ??
             "留空＝取消；只重新啟用有改動的條件。漲跌幅與爆量隔日自動啟用，到價可按重新啟用"}
         </p>
+        <p className="text-xs leading-relaxed text-muted">到價條件觸發後即記錄一次；LINE 未設定或通知未完成，也需重新啟用才會再次觸發。</p>
       </div>
     </div>
   );

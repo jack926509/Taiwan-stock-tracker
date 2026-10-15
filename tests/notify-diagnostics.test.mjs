@@ -12,7 +12,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   if (specifier.startsWith("@/")) return nextResolve(new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href, context);
   return nextResolve(specifier, context);
 } });
-globalThis.__notifyDb = { from() { return {
+globalThis.__notifyDb = { rpc: async () => ({ data: true, error: null }), from() { return {
   select() { return { eq(key, value) { return { maybeSingle: async () => ({ data: value === "meta:line-last-failure" ? { payload: failure } : null }) }; } }; },
   upsert: async (row) => { writes.push(row); return { error: null }; },
 }; } };

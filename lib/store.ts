@@ -19,6 +19,7 @@ export interface WatchItem {
   alert_volume_on: boolean; // 爆量提醒開關
   alert_volume_hit_at: string | null; // 最近一次觸發時間戳；每日一次性
   sort_order: number;
+  alert_versions?: Partial<Record<AlertSide, string>>;
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -52,6 +53,7 @@ function mk(
     alert_volume_on: false,
     alert_volume_hit_at: null,
     sort_order,
+    alert_versions: Object.fromEntries(["high", "low", "change", "volume"].map(side => [side, crypto.randomUUID()])),
   };
 }
 
@@ -180,6 +182,8 @@ export async function setAlert(
     if (changePct !== undefined && changePct !== row.alert_change_pct) Object.assign(patch, { alert_change_pct: changePct, alert_change_hit_at: null });
     if (volumeOn !== undefined && volumeOn !== row.alert_volume_on) Object.assign(patch, { alert_volume_on: volumeOn, alert_volume_hit_at: null });
     for (const side of rearm) patch[HIT_COL[side]] = null;
+    const changed = (["high", "low", "change", "volume"] as AlertSide[]).filter(side => Object.hasOwn(patch, HIT_COL[side]));
+    if (changed.length > 0) patch.alert_versions = Object.fromEntries(changed.map(side => [side, crypto.randomUUID()]));
     return patch;
   }
   const db = getSupabase();
@@ -187,7 +191,8 @@ export async function setAlert(
     const items = await fileRead();
     const row = items.find((i) => i.stock_id === stockId);
     if (!row) return false;
-    Object.assign(row, patchFor(row));
+    const patch = patchFor(row);
+    Object.assign(row, { ...patch, alert_versions: { ...row.alert_versions, ...patch.alert_versions } });
     await fileWrite(items);
     return true;
   }
@@ -215,7 +220,8 @@ const HIT_COL = {
 export async function markAlertHit(
   stockId: string,
   side: AlertSide,
-  at: string
+  at: string,
+  expectedVersion?: string
 ): Promise<void> {
   const col = HIT_COL[side];
   const db = getSupabase();
@@ -223,6 +229,7 @@ export async function markAlertHit(
     const items = await fileRead();
     const row = items.find((i) => i.stock_id === stockId);
     if (!row) return;
+    if (expectedVersion !== undefined && (row.alert_versions?.[side] ?? "initial") !== expectedVersion) return;
     (row as unknown as Record<string, string>)[col] = at;
     await fileWrite(items);
     return;
