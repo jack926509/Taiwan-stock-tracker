@@ -18,6 +18,7 @@ import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
 import { buildWatchlistQuotes } from "@/lib/watchlistQuotes";
+import { filterByGroup,watchlistGroups } from "@/lib/watchlistGroups";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -50,6 +51,8 @@ export function useHomeDashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
   const [filterKey, setFilterKey] = useState<FilterKey>("all");
+  const [groupFilter,setGroupFilter]=useState<string|null>(null);
+  const [groupEditingId,setGroupEditingId]=useState<string|null>(null);
   const orderVersion = useRef(0);
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -82,6 +85,18 @@ export function useHomeDashboard() {
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
   // 同時保留本次拖曳結果、自動納入新增/移除的代號
   const items = watchlist.data?.items;
+  const groups=useMemo(()=>watchlistGroups(items??[]),[items]);
+  const groupEditingRow=items?.find(item=>item.stock_id===groupEditingId)??null;
+  useEffect(()=>{
+    if(!items)return;
+    if(groupFilter!==null&&!groups.includes(groupFilter))setGroupFilter(null);
+    if(groupEditingId!==null&&!items.some(item=>item.stock_id===groupEditingId))setGroupEditingId(null);
+  },[items,groups,groupFilter,groupEditingId]);
+  async function handleGroupSaved(stockId:string,group:string) {
+    await watchlist.mutate(current=>current?{...current,items:current.items.map(item=>item.stock_id===stockId?{...item,group_name:group}:item)}:current,{revalidate:false});
+    setGroupEditingId(null);
+    toast.show("分組已儲存",{tone:"success"});
+  }
   useEffect(() => {
     const ids = (items ?? []).map((i) => i.stock_id);
     setOrder((prev) => {
@@ -220,17 +235,18 @@ export function useHomeDashboard() {
   );
 
   const filteredQuotes = useMemo(() => {
+    const grouped=filterByGroup(sortedQuotes,items??[],groupFilter);
     if (filterKey === "alert") {
-      return sortedQuotes.filter((q) => alertedIds.has(q.stockId));
+      return grouped.filter((q) => alertedIds.has(q.stockId));
     }
     if (filterKey === "up") {
-      return sortedQuotes.filter((q) => q.changePct !== null && q.changePct > 0);
+      return grouped.filter((q) => q.changePct !== null && q.changePct > 0);
     }
     if (filterKey === "down") {
-      return sortedQuotes.filter((q) => q.changePct !== null && q.changePct < 0);
+      return grouped.filter((q) => q.changePct !== null && q.changePct < 0);
     }
-    return sortedQuotes;
-  }, [sortedQuotes, filterKey, alertedIds]);
+    return grouped;
+  }, [sortedQuotes, filterKey, alertedIds,items,groupFilter]);
 
   // 左欄「自選概況」：以全部自選股（不受篩選影響）即時計算漲跌家數 ＋ 今日已觸發到價提醒則數
   const watchStats = useMemo(() => {
@@ -267,7 +283,7 @@ export function useHomeDashboard() {
 
   // 僅「預設」排序、無篩選、且 ≥2 檔時可拖曳排序（漲幅/跌幅為即時計算、篩選中皆不可手動排）
   const canSort =
-    sortKey === "default" && filterKey === "all" && sortedQuotes.length > 1;
+    sortKey === "default" && filterKey === "all" && groupFilter===null && sortedQuotes.length > 1;
 
   return {
     now,
@@ -281,6 +297,7 @@ export function useHomeDashboard() {
     setSortKey,
     filterKey,
     setFilterKey,
+    groups,groupFilter,setGroupFilter,groupEditingRow,setGroupEditingId,handleGroupSaved,
     filteredQuotes,
     sparks,
     watchStats,

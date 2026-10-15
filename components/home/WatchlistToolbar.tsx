@@ -12,6 +12,7 @@ export default function WatchlistToolbar({
   statusText,
   showChips = true,
   reorderHint = false,
+  groups=[],groupFilter=null,onGroupFilter,
 }: {
   sort: SortKey;
   filter: FilterKey;
@@ -22,12 +23,19 @@ export default function WatchlistToolbar({
   statusText: ReactNode;
   showChips?: boolean;
   reorderHint?: boolean;
+  groups?:string[];groupFilter?:string|null;onGroupFilter?:(group:string|null)=>void;
 }) {
   return (
     <div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-base font-semibold text-ink">自選股</h2>
         <p className="text-xs text-muted">{statusText}</p>
+        {groups.length>0&&onGroupFilter&&<label className="ml-auto flex items-center gap-2 text-xs text-muted">分組
+          <select aria-label="自選股分組" value={groupFilter??""} onChange={event=>onGroupFilter(event.target.value||null)}
+            className="min-h-11 max-w-40 rounded-pill border border-line bg-surface px-3 text-ink md:min-h-8">
+            <option value="">全部分組</option>{groups.map(group=><option key={group} value={group}>{group}</option>)}
+          </select>
+        </label>}
       </div>
       {reorderHint && (
         <p className="mt-1 text-xs text-muted md:hidden">長按拖曳把手可調整排序</p>

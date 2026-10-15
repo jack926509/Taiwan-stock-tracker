@@ -166,6 +166,20 @@ export async function removeWatch(stockId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+export async function setWatchGroup(stockId: string, groupName: string): Promise<boolean> {
+  const db=getSupabase();
+  if(!db) {
+    const items=await fileRead(),row=items.find(item=>item.stock_id===stockId);
+    if(!row)return false;
+    row.group_name=groupName;
+    await fileWrite(items);
+    return true;
+  }
+  const {data,error}=await db.from("watchlist").update({group_name:groupName}).eq("stock_id",stockId).select("stock_id").maybeSingle();
+  if(error)throw new Error(error.message);
+  return data!==null;
+}
+
 // 只重新啟用有改動或明確指定的條件；省略的欄位保留原值。
 export async function setAlert(
   stockId: string,

@@ -7,6 +7,7 @@ import AddStockForm from "@/components/AddStockForm";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
+import WatchlistGroupDialog from "@/components/WatchlistGroupDialog";
 import TopBar from "@/components/home/TopBar";
 import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
@@ -27,6 +28,7 @@ export default function Dashboard() {
     setSortKey,
     filterKey,
     setFilterKey,
+    groups,groupFilter,setGroupFilter,groupEditingRow,setGroupEditingId,handleGroupSaved,
     filteredQuotes,
     sparks,
     watchStats,
@@ -132,6 +134,9 @@ export default function Dashboard() {
               statusText={statusText}
               showChips={(items?.length ?? data?.quotes.length ?? 0) > 1}
               reorderHint={canSort}
+              groups={items?.length?groups:[]}
+              groupFilter={groupFilter}
+              onGroupFilter={setGroupFilter}
             />
 
             {data || items ? (
@@ -140,11 +145,11 @@ export default function Dashboard() {
                 items={items ?? []}
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
-                incomplete={data?.complete !== true}
                 sparkLoading={sparks.isLoading}
                 allQuotes={data?.quotes}
                 reorderable={canSort}
                 onReorder={handleReorder}
+                onEditGroup={setGroupEditingId}
               />
             ) : initialError ? (
               <div className="rounded-card bg-surface p-4 text-sm text-muted shadow-card ring-1 ring-line">
@@ -194,6 +199,7 @@ export default function Dashboard() {
           void confirmDelete();
         }}
       />
+      <WatchlistGroupDialog item={groupEditingRow} groups={groups} onClose={()=>setGroupEditingId(null)} onSaved={handleGroupSaved}/>
     </div>
   );
 }

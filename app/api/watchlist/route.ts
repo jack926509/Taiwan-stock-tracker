@@ -6,10 +6,12 @@ import {
   removeWatch,
   reorderWatch,
   setAlert,
+  setWatchGroup,
   usingSupabase,
   type AlertSide,
 } from "@/lib/store";
 import { logApiError, publicErrorBody } from "@/lib/apiErrors";
+import { normalizeGroupName } from "@/lib/watchlistGroups";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,7 @@ export async function PATCH(req: NextRequest) {
     changePct?: unknown;
     volumeOn?: unknown;
     rearm?: unknown;
+    groupName?: unknown;
   };
   try {
     body = await req.json();
@@ -71,6 +74,19 @@ export async function PATCH(req: NextRequest) {
     typeof body.stockId === "string" ? body.stockId.trim().toUpperCase() : "";
   if (!/^[0-9A-Z]{4,6}$/.test(stockId)) {
     return NextResponse.json({ error: "股票代號格式不正確" }, { status: 400 });
+  }
+  if(body.groupName!==undefined) {
+    const groupName=typeof body.groupName==="string"?normalizeGroupName(body.groupName):null;
+    if(groupName===null||[body.high,body.low,body.changePct,body.volumeOn,body.rearm].some(value=>value!==undefined)) {
+      return NextResponse.json({error:"分組名稱最多 20 字，請與提醒條件分開儲存"},{status:400});
+    }
+    try {
+      if(!await setWatchGroup(stockId,groupName))return NextResponse.json({error:"自選清單中沒有此股票"},{status:404});
+      return NextResponse.json({ok:true,stockId,groupName});
+    } catch(error) {
+      logApiError("api/watchlist group",error);
+      return NextResponse.json({error:"儲存分組失敗"},{status:500});
+    }
   }
   const parse = (v: unknown): number | null | undefined => {
     if (v === undefined) return undefined;
