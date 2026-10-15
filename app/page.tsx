@@ -130,19 +130,19 @@ export default function Dashboard() {
               onSort={setSortKey}
               onFilter={setFilterKey}
               statusText={statusText}
-              showChips={(data?.quotes.length ?? 0) > 1}
+              showChips={(items?.length ?? data?.quotes.length ?? 0) > 1}
               reorderHint={canSort}
             />
 
-            {data ? (
+            {data || items ? (
               <QuoteBoard
                 quotes={filteredQuotes}
                 items={items ?? []}
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
-                incomplete={data.complete !== true}
+                incomplete={data?.complete !== true}
                 sparkLoading={!sparks.data && !sparks.error}
-                allQuotes={data.quotes}
+                allQuotes={data?.quotes}
                 reorderable={canSort}
                 onReorder={handleReorder}
               />

@@ -1,0 +1,66 @@
+// 本機瀏覽器驗收：頁面與資源來自已建置 Worker，API 使用隔離資料且一律封鎖寫入。
+// 使用：node scripts/personal-preview-fixtures.mjs http://127.0.0.1:8787
+import http from "node:http";
+
+const upstream = new URL(process.argv[2] ?? "http://127.0.0.1:8787");
+if (!["127.0.0.1", "localhost"].includes(upstream.hostname)) throw new Error("僅允許本機預覽來源");
+const baseItem = { market: "tse", group_name: "預設", alert_high: null, alert_low: null, alert_high_hit_at: null, alert_low_hit_at: null, alert_change_pct: null, alert_change_hit_at: null, alert_volume_on: false, alert_volume_hit_at: null };
+const items = [
+  { ...baseItem, stock_id: "2330", name: "台積電", sort_order: 0 },
+  { ...baseItem, stock_id: "2317", name: "鴻海", sort_order: 1, alert_high: 210 },
+];
+const asOf = "2026-10-15T05:10:00.000Z";
+const quote = { stockId: "2330", market: "tse", name: "TAIWAN SEMICONDUCTOR", price: 100, prevClose: 99, change: 1, changePct: 1 / 99, open: 99, high: 101, low: 98, volume: null, traded: true, time: "13:10:00", asOf };
+const candles = Array.from({ length: 50 }, (_, i) => {
+  const date = new Date(Date.UTC(2026, 7, 26 + i)).toISOString().slice(0, 10);
+  return { date, open: 99, high: 101, low: 98, close: 100, volume: 10 };
+});
+const empty = { institutional: [], revenue: [], valuation: null, eps: [], dividend: [] };
+const freshness = {
+  institutional: { state: "empty", lastSuccessAt: asOf },
+  revenue: { state: "unavailable", lastSuccessAt: null },
+  valuation: { state: "stale", lastSuccessAt: "2026-10-14T08:00:00.000Z" },
+  eps: { state: "empty", lastSuccessAt: asOf },
+  dividend: { state: "empty", lastSuccessAt: asOf },
+};
+
+function start(port, mode) {
+  http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://127.0.0.1:${port}`);
+    const json = (data, status = 200) => {
+      res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify(data));
+    };
+    if (req.method !== "GET" && req.method !== "HEAD") return json({ error: "隔離驗收不允許寫入" }, 405);
+    if (url.pathname.startsWith("/api/")) {
+      switch (url.pathname) {
+        case "/api/watchlist": return json({ items, storage: "supabase" });
+        case "/api/quote": return mode === "offline"
+          ? json({ error: "測試：行情來源暫時無法使用" }, 502)
+          : json({ asOf, marketOpen: false, source: "yahoo", complete: false, indices: [], quotes: [quote] });
+        case "/api/sparklines": return json({ data: {} });
+        case "/api/summary": return json({ summary: null });
+        case "/api/kline": return json({ stockId: "2330", candles, latestDate: candles.at(-1).date, stale: true, expectedDate: "2026-10-15" });
+        case "/api/fundamental": return json({ stockId: "2330", asOf, ...empty,
+          freshness: mode === "empty" ? Object.fromEntries(Object.keys(freshness).map(key => [key, { state: "unavailable", lastSuccessAt: null }])) : freshness,
+          valuation: mode === "empty" ? null : { date: "2026-10-14", per: 20, pbr: 5, dividendYield: 2 } });
+        case "/api/search": return json({ results: [{ stockId: "2330", market: "tse", name: "台積電" }] });
+        default: return json({ error: "未設定的測試端點" }, 404);
+      }
+    }
+    try {
+      const target = new URL(req.url, upstream);
+      const response = await fetch(target, { headers: { accept: req.headers.accept ?? "*/*" }, redirect: "manual" });
+      const headers = Object.fromEntries(response.headers);
+      delete headers["content-encoding"];
+      delete headers["content-length"];
+      res.writeHead(response.status, { ...headers, "Cache-Control": "no-store" });
+      res.end(Buffer.from(await response.arrayBuffer()));
+    } catch {
+      json({ error: "本機 Worker 預覽尚未就緒" }, 502);
+    }
+  }).listen(port, "127.0.0.1", () => console.log(`隔離驗收 ${mode}: http://127.0.0.1:${port}`));
+}
+start(8790, "partial");
+start(8791, "offline");
+start(8792, "empty");
