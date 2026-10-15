@@ -4,6 +4,13 @@
 
 2026-10-15 使用者明確指示：此次不需要 Claude 審查；由 Astra 驗收，沒有問題後推送 GitHub 並合併。這項指示取代前輪等待外部 Claude 授權的阻擋條件。Astra 為本次合併前指定技術驗收者，不宣稱使用者已親自操作。
 
+## 最新發布狀態
+
+- 使用者後續另明確指示「請直接推送與合併」；[PR #10](https://github.com/jack926509/Taiwan-stock-tracker/pull/10) 已於 2026-10-15 15:49（台北）合併，合併提交為 `72f4210cbe1fc236714d07d39131827aa37a8faa`。
+- 該版本 [GitHub validate](https://github.com/jack926509/Taiwan-stock-tracker/actions/runs/38701389189) 成功，349 項測試全數通過；[Cloudflare 建置](https://dash.cloudflare.com/7f317345f0f1b68b16bb2ccfbcd731d9/workers/services/view/tw-stock-tracker/production/builds/ba0831fa-5a1d-4adf-943f-a995f90bcb26) 成功，正式 Worker 版本 `db784774` 承接 100% 流量。本機 main 已同步且無未提交改動後才開始晚間查核。
+- 正式 migration、單一 email Access、匿名阻擋及本人登入後的正式桌面／手機頁面與 API 驗收均已完成。晚間本人直接完成 OTP；主代理驗四個核心頁面與主要唯讀互動，Astra 獨立驗六個正式 API 及實體備份 JSON，未發現阻擋問題。完整證據與歷史資源 4xx 的歸因限制見[本人存取計畫](2026-10-15-personal-private-access.md)。
+- 後文為依序保留的歷史紀錄，其「尚未合併／發布」與「本人尚待登入」只代表當時狀態，現況以本節與本人存取計畫為準。本輪只更新文件，沒有更動正式清單、通知或存取保護。
+
 ## 第一輪獨立驗收
 
 - 模型：`gpt-6-astra`，獨立於實作者；範圍 `a4427df..0acc8f8`。
