@@ -33,6 +33,7 @@ import { hasAnyAlert } from "@/lib/alertBadge";
 import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
+import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
 import { IconArrowLeft } from "@/components/icons";
 
 type KlinePeriod = "day" | "week" | "month";
@@ -82,8 +83,10 @@ export default function StockPage() {
     setHydrated(true);
   }, []);
   const id = stockIdForRender(hydrated, params.id, pathname);
-  const [range, setRange] = useState<KlineRangeKey>("6m");
-  const [period, setPeriod] = useState<KlinePeriod>("day");
+  const {preferences,setPreference}=usePersonalPreferences();
+  const range=preferences.klineRange,period=preferences.klinePeriod;
+  const setRange=(klineRange:KlineRangeKey)=>setPreference({klineRange});
+  const setPeriod=(klinePeriod:KlinePeriod)=>setPreference({klinePeriod});
   const [alertOpen, setAlertOpen] = useState(false);
   const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
   const alertRef = useRef<HTMLDivElement>(null);
@@ -166,12 +169,7 @@ export default function StockPage() {
   const warnings = quote.data ? quoteWarnings(quote.data) : [];
   const quoteAt = formatQuoteAsOf(q?.asOf);
 
-  // 週 K 模式的區間鈕只開放 6月/1年/3年；切到週 K 時若目前區間不在其中，改用 1 年
-  useEffect(() => {
-    if (period === "week" && !WEEK_RANGE_KEYS.includes(range)) {
-      setRange("1y");
-    }
-  }, [period, range]);
+  // 偏好層維持週 K 的區間契約：不相容時改用 1 年。
 
   const dayVisible = useMemo(() => {
     const all = kline.data?.candles ?? [];

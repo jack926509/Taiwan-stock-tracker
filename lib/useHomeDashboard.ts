@@ -19,6 +19,7 @@ import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
 import { buildWatchlistQuotes } from "@/lib/watchlistQuotes";
 import { filterByGroup,watchlistGroups } from "@/lib/watchlistGroups";
+import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -48,10 +49,14 @@ async function fetcher<T>(url: string): Promise<T> {
 
 export function useHomeDashboard() {
   const { autoPaused, onQuoteSuccess, refreshInterval, resumePolling } = usePollGuard();
-  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const {preferences,setPreference}=usePersonalPreferences();
+  const sortKey=preferences.sort;
+  const setSortKey=useCallback((sort:SortKey)=>setPreference({sort}),[setPreference]);
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
-  const [filterKey, setFilterKey] = useState<FilterKey>("all");
-  const [groupFilter,setGroupFilter]=useState<string|null>(null);
+  const filterKey=preferences.filter;
+  const setFilterKey=useCallback((filter:FilterKey)=>setPreference({filter}),[setPreference]);
+  const groupFilter=preferences.group;
+  const setGroupFilter=useCallback((group:string|null)=>setPreference({group}),[setPreference]);
   const [groupEditingId,setGroupEditingId]=useState<string|null>(null);
   const orderVersion = useRef(0);
   const [now, setNow] = useState<Date | null>(null);
@@ -91,7 +96,7 @@ export function useHomeDashboard() {
     if(!items)return;
     if(groupFilter!==null&&!groups.includes(groupFilter))setGroupFilter(null);
     if(groupEditingId!==null&&!items.some(item=>item.stock_id===groupEditingId))setGroupEditingId(null);
-  },[items,groups,groupFilter,groupEditingId]);
+  },[items,groups,groupFilter,groupEditingId,setGroupFilter]);
   async function handleGroupSaved(stockId:string,group:string) {
     await watchlist.mutate(current=>current?{...current,items:current.items.map(item=>item.stock_id===stockId?{...item,group_name:group}:item)}:current,{revalidate:false});
     setGroupEditingId(null);

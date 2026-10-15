@@ -7,9 +7,9 @@ const upstream = new URL(process.argv[2] ?? "http://127.0.0.1:8787");
 if (!["127.0.0.1", "localhost"].includes(upstream.hostname)) throw new Error("僅允許本機預覽來源");
 const baseItem = { market: "tse", group_name: "預設", alert_high: null, alert_low: null, alert_high_hit_at: null, alert_low_hit_at: null, alert_change_pct: null, alert_change_hit_at: null, alert_volume_on: false, alert_volume_hit_at: null };
 const items = [
-  { ...baseItem, stock_id: "2330", name: "台積電", sort_order: 0, alert_high:105, alert_high_hit_at:"2026-10-15T02:30:00.000Z",
+  { ...baseItem, stock_id: "2330", name: "台積電",group_name:"持有", sort_order: 0, alert_high:105, alert_high_hit_at:"2026-10-15T02:30:00.000Z",
     alert_low:95, alert_low_hit_at:"2026-10-15T02:20:00.000Z" },
-  { ...baseItem, stock_id: "2317", name: "鴻海", sort_order: 1, alert_high: 210 },
+  { ...baseItem, stock_id: "2317", name: "鴻海",group_name:"觀察", sort_order: 1, alert_high: 210 },
 ];
 const asOf = "2026-10-15T05:10:00.000Z";
 const quote = { stockId: "2330", market: "tse", name: "TAIWAN SEMICONDUCTOR", price: 100, prevClose: 99, change: 1, changePct: 1 / 99, open: 99, high: 101, low: 98, volume: null, traded: true, time: "13:10:00", asOf };
@@ -44,6 +44,7 @@ function start(port, mode) {
       try {
         const body = JSON.parse(raw), row = demoItems.find(item=>item.stock_id===body.stockId);
         if(!row)return json({error:"測試股票不存在"},404);
+        if(body.groupName!==undefined){row.group_name=body.groupName.trim()||"預設";return json({ok:true,stockId:row.stock_id,groupName:row.group_name});}
         const columns = {high:["alert_high","alert_high_hit_at"],low:["alert_low","alert_low_hit_at"],changePct:["alert_change_pct","alert_change_hit_at"],volumeOn:["alert_volume_on","alert_volume_hit_at"]};
         for(const [field,[valueCol,hitCol]] of Object.entries(columns)) {
           if(body[field]===undefined)continue;
@@ -66,11 +67,12 @@ function start(port, mode) {
         }
         case "/api/quote": return mode === "offline"
           ? json({ error: "測試：行情來源暫時無法使用" }, 502)
-          : json({ asOf, marketOpen: false, source: "yahoo", complete: false, indices: [], quotes: [quote] });
+          : json({ asOf, marketOpen: false, source: "yahoo", complete: false, indices: [],
+            quotes:!url.searchParams.get("ids")||url.searchParams.get("ids").split(",").includes("2330")?[quote]:[] });
         case "/api/sparklines": return json({ data: {} });
         case "/api/summary": return json({ summary: null });
-        case "/api/kline": return json({ stockId: "2330", candles, latestDate: candles.at(-1).date, stale: true, expectedDate: "2026-10-15" });
-        case "/api/fundamental": return json({ stockId: "2330", asOf, ...empty,
+        case "/api/kline": return json({ stockId: url.searchParams.get("id")??"2330", candles, latestDate: candles.at(-1).date, stale: true, expectedDate: "2026-10-15" });
+        case "/api/fundamental": return json({ stockId: url.searchParams.get("id")??"2330", asOf, ...empty,
           freshness: mode === "empty" ? Object.fromEntries(Object.keys(freshness).map(key => [key, { state: "unavailable", lastSuccessAt: null }])) : freshness,
           valuation: mode === "empty" ? null : { date: "2026-10-14", per: 20, pbr: 5, dividendYield: 2 } });
         case "/api/search": return json({ results: [{ stockId: "2330", market: "tse", name: "台積電" }] });
