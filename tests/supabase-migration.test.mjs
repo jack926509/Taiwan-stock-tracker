@@ -25,8 +25,8 @@ test("migration defines all backend storage tables", () => {
   }
 });
 
-test("migration history mirrors live Supabase versions", () => {
-  assert.deepEqual(files, [
+test("保留既有 Supabase migration 歷史，新 migration 另列待套用", () => {
+  assert.deepEqual(files.slice(0, 7), [
     "20260612140245_init_taiwan_stock_tracker.sql",
     "20260613055604_enable_pg_cron_purge_expired_news_cache.sql",
     "20260613055617_comment_reserved_normalized_tables.sql",
@@ -35,6 +35,7 @@ test("migration history mirrors live Supabase versions", () => {
     "20260706134143_add_change_and_volume_alerts.sql",
     "20260815000000_add_scheduled_job_state.sql",
   ]);
+  assert.deepEqual(files.slice(7), ["20261015040817_personal_alert_events.sql"]);
 });
 
 test("migrations include operational indexes and purge job", () => {
