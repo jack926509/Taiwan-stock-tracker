@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Trend } from "@/lib/format";
+import type { AlertSide } from "@/lib/store";
 
 interface WatchRow {
   stock_id: string;
@@ -36,11 +37,16 @@ function mmdd(iso: string): string {
 
 // 門檻狀態註記：未設定時不顯示（避免孤懸的「—」被誤讀成按鈕）；設定後顯示監控中或觸發時間。
 // 放在輸入框下方整行，不擠在窄欄裡直排斷字。
-function StatusNote({ set, hitAt }: { set: boolean; hitAt: string | null }) {
+function StatusNote({ set, hitAt, onRearm, disabled, label }: {
+  set: boolean; hitAt: string | null; onRearm?: () => void; disabled?: boolean; label?: string;
+}) {
   if (!set) return null;
   return hitAt ? (
-    <span className="whitespace-nowrap font-mono text-xs tabular text-warn">
-      已於 {mmdd(hitAt)} 觸發
+    <span className="flex flex-wrap items-center justify-end gap-1 font-mono text-xs tabular text-warn">
+      <span>已於 {mmdd(hitAt)} 觸發</span>
+      {onRearm && <button type="button" onClick={onRearm} disabled={disabled}
+        aria-label={`${label}重新啟用`}
+        className="min-h-11 rounded-pill border border-line px-3 text-xs text-ink disabled:opacity-50">重新啟用</button>}
     </span>
   ) : (
     <span className="whitespace-nowrap font-mono text-xs tabular text-muted">監控中</span>
@@ -106,14 +112,14 @@ export default function PriceAlertCard({
     else setLow(String(value));
   }
 
-  async function save() {
+  async function save(rearm: AlertSide[] = []) {
     setBusy(true);
     setMsg(null);
     try {
       const res = await fetch("/api/watchlist", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(rearm.length > 0 ? { stockId, rearm } : {
           stockId,
           high: high.trim() || null,
           low: low.trim() || null,
@@ -127,7 +133,9 @@ export default function PriceAlertCard({
         return;
       }
       await mutate();
-      setMsg("已儲存，盤中穿越門檻會推 LINE 通知");
+      setMsg(rearm.length > 0 ? "已重新啟用指定條件" : "已儲存；其他已觸發條件保持原狀");
+    } catch {
+      setMsg("儲存失敗，請稍後重試");
     } finally {
       setBusy(false);
     }
@@ -213,7 +221,8 @@ export default function PriceAlertCard({
             >
               現價 +5%
             </button>
-            <StatusNote set={row?.alert_high != null} hitAt={row?.alert_high_hit_at ?? null} />
+            <StatusNote set={row?.alert_high != null} hitAt={row?.alert_high_hit_at ?? null}
+              label="漲到提醒" disabled={busy} onRearm={() => void save(["high"])} />
           </div>
         </div>
         {/* 跌到（綠） */}
@@ -237,7 +246,8 @@ export default function PriceAlertCard({
             >
               現價 −5%
             </button>
-            <StatusNote set={row?.alert_low != null} hitAt={row?.alert_low_hit_at ?? null} />
+            <StatusNote set={row?.alert_low != null} hitAt={row?.alert_low_hit_at ?? null}
+              label="跌到提醒" disabled={busy} onRearm={() => void save(["low"])} />
           </div>
         </div>
         <div className="border-t border-dotted border-line pt-3" />
@@ -287,7 +297,7 @@ export default function PriceAlertCard({
           </button>
         </div>
         <button
-          onClick={save}
+          onClick={() => void save()}
           disabled={busy}
           className="w-full rounded-pill bg-primary px-5 py-2 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:text-app"
         >
@@ -295,7 +305,7 @@ export default function PriceAlertCard({
         </button>
         <p className="text-xs leading-relaxed text-muted">
           {msg ??
-            "到價／漲跌幅：留空＝取消；漲跌幅與爆量觸發後隔日自動重新啟用，到價需重設門檻"}
+            "留空＝取消；只重新啟用有改動的條件。漲跌幅與爆量隔日自動啟用，到價可按重新啟用"}
         </p>
       </div>
     </div>

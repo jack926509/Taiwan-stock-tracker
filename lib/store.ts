@@ -164,46 +164,51 @@ export async function removeWatch(stockId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// 設定各項提醒門檻：任何一次儲存都會重新武裝全部四種（清掉對應 *_hit_at），
-// 到價（high/low）達成後需使用者重設才會再次推播；漲跌幅／爆量另外每日跨日也會自動重新武裝（見 markAlertHit 呼叫端）。
+// 只重新啟用有改動或明確指定的條件；省略的欄位保留原值。
 export async function setAlert(
   stockId: string,
-  high: number | null,
-  low: number | null,
-  changePct: number | null = null,
-  volumeOn = false
-): Promise<void> {
-  const patch = {
-    alert_high: high,
-    alert_low: low,
-    alert_high_hit_at: null,
-    alert_low_hit_at: null,
-    alert_change_pct: changePct,
-    alert_change_hit_at: null,
-    alert_volume_on: volumeOn,
-    alert_volume_hit_at: null,
-  };
+  high?: number | null,
+  low?: number | null,
+  changePct?: number | null,
+  volumeOn?: boolean,
+  rearm: AlertSide[] = []
+): Promise<boolean> {
+  function patchFor(row: WatchItem): Partial<WatchItem> {
+    const patch: Partial<WatchItem> = {};
+    if (high !== undefined && high !== row.alert_high) Object.assign(patch, { alert_high: high, alert_high_hit_at: null });
+    if (low !== undefined && low !== row.alert_low) Object.assign(patch, { alert_low: low, alert_low_hit_at: null });
+    if (changePct !== undefined && changePct !== row.alert_change_pct) Object.assign(patch, { alert_change_pct: changePct, alert_change_hit_at: null });
+    if (volumeOn !== undefined && volumeOn !== row.alert_volume_on) Object.assign(patch, { alert_volume_on: volumeOn, alert_volume_hit_at: null });
+    for (const side of rearm) patch[HIT_COL[side]] = null;
+    return patch;
+  }
   const db = getSupabase();
   if (!db) {
     const items = await fileRead();
     const row = items.find((i) => i.stock_id === stockId);
-    if (!row) return;
-    Object.assign(row, patch);
+    if (!row) return false;
+    Object.assign(row, patchFor(row));
     await fileWrite(items);
-    return;
+    return true;
   }
+  const { data: row, error: readError } = await db.from("watchlist").select("*").eq("stock_id", stockId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!row) return false;
+  const patch = patchFor(row as WatchItem);
+  if (Object.keys(patch).length === 0) return true;
   const { error } = await db.from("watchlist").update(patch).eq("stock_id", stockId);
   if (error) throw new Error(error.message);
+  return true;
 }
 
-type AlertSide = "high" | "low" | "change" | "volume";
+export type AlertSide = "high" | "low" | "change" | "volume";
 
-const HIT_COL: Record<AlertSide, keyof WatchItem> = {
+const HIT_COL = {
   high: "alert_high_hit_at",
   low: "alert_low_hit_at",
   change: "alert_change_hit_at",
   volume: "alert_volume_hit_at",
-};
+} as const;
 
 // 標記某側已觸發（寫入時間戳）。到價（high/low）為「觸發後靜音直到使用者重設」；
 // 漲跌幅／爆量（change/volume）為「每日一次性」，呼叫端（lib/alerts.ts）自行判斷 hit_at 是否為今天。
