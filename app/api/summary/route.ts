@@ -1,19 +1,19 @@
-// GET /api/summary — 站內收盤總覽（漲跌家數、各股當日/本週幅、今日新訊號、最強最弱、提醒觸發數）。
-// 資料層 10 分鐘記憶體快取；自選清單為空回 { summary: null }。
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { buildSummaryData } from "@/lib/summaryData";
-
+import { loadClosingSummary } from "@/lib/closingHistory";
+import { countAlertEvents } from "@/lib/alertHistory";
+import { taipeiDateRange } from "@/lib/personalDates";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const date = req.nextUrl.searchParams.get("date");
+  if (date !== null && !taipeiDateRange(date)) return NextResponse.json({ error: "日期格式不正確" }, { status: 400 });
   try {
-    const summary = await buildSummaryData();
-    return NextResponse.json({ summary });
-  } catch {
-    return NextResponse.json(
-      { error: "收盤總覽暫時無法取得" },
-      { status: 503 }
-    );
-  }
+    const snapshot = date ? await loadClosingSummary(date) : null;
+    const summary = date ? snapshot?.summary ?? null : await buildSummaryData();
+    return NextResponse.json({
+      summary: summary && !date ? { ...summary, alertHits: await countAlertEvents(summary.date) } : summary,
+      savedAt: snapshot?.savedAt ?? null,
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch { return NextResponse.json({ error: "收盤總覽暫時無法取得" }, { status: 503 }); }
 }

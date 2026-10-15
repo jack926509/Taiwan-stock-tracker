@@ -66,14 +66,15 @@ function withCurrentWatchlist(data: DailySummaryData | null, items: WatchItem[],
 }
 
 export async function buildSummaryData(
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { fresh?: boolean } = {}
 ): Promise<DailySummaryData | null> {
   const items = await listWatchlist();
   if (items.length === 0) return null;
 
   const t = taipeiNow(now);
   const key = `${t.isoDate}|${JSON.stringify(items.map((i) => [i.market, i.stock_id]).sort())}`;
-  if (cache && cache.key === key && Date.now() < cache.expiresAt) {
+  if (!options.fresh && cache && cache.key === key && Date.now() < cache.expiresAt) {
     return withCurrentWatchlist(cache.data, items, now);
   }
 

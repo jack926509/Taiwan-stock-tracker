@@ -7,17 +7,21 @@ import AddStockForm from "@/components/AddStockForm";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
+import WatchlistGroupDialog from "@/components/WatchlistGroupDialog";
 import TopBar from "@/components/home/TopBar";
 import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
 import ClosingSummary from "@/components/ClosingSummary";
+import TodayFocusCard from "@/components/home/TodayFocusCard";
+import PersonalStatusCard from "@/components/PersonalStatusCard";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
 import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 
 export default function Dashboard() {
   const {
     data,
+    todayFocus, todayDate,
     storage,
     quote,
     watchlist,
@@ -27,6 +31,7 @@ export default function Dashboard() {
     setSortKey,
     filterKey,
     setFilterKey,
+    groups,groupFilter,setGroupFilter,groupEditingRow,setGroupEditingId,handleGroupSaved,
     filteredQuotes,
     sparks,
     watchStats,
@@ -63,7 +68,7 @@ export default function Dashboard() {
       <TopBar
         sessionLabel={sessionLabel}
         sessionDetail={sessionDetail}
-        hasUnread={watchStats.todayHits > 0}
+        hasUnread={(watchStats.todayHits ?? 0) > 0}
         onRefresh={handleManualRefresh}
         refreshing={quote.isValidating}
       />
@@ -124,27 +129,33 @@ export default function Dashboard() {
               </div>
             </div>
 
+            <TodayFocusCard items={items ?? []} quotes={data?.quotes ?? []} source={data?.source} date={todayDate} events={watchStats.todayHits} countError={Boolean(todayFocus.error)} />
+
             <WatchlistToolbar
               sort={sortKey}
               filter={filterKey}
               onSort={setSortKey}
               onFilter={setFilterKey}
               statusText={statusText}
-              showChips={(data?.quotes.length ?? 0) > 1}
+              showChips={(items?.length ?? data?.quotes.length ?? 0) > 1}
               reorderHint={canSort}
+              groups={items?.length?groups:[]}
+              groupFilter={groupFilter}
+              onGroupFilter={setGroupFilter}
             />
 
-            {data ? (
+            {data || items ? (
               <QuoteBoard
                 quotes={filteredQuotes}
                 items={items ?? []}
                 onDelete={requestDelete}
                 sparkData={sparks.data?.data}
-                incomplete={data.complete !== true}
-                sparkLoading={!sparks.data && !sparks.error}
-                allQuotes={data.quotes}
+                sparkLoading={sparks.isLoading}
+                allQuotes={data?.quotes}
                 reorderable={canSort}
                 onReorder={handleReorder}
+                onEditGroup={setGroupEditingId}
+                showAlertDistance={sortKey==="near"}
               />
             ) : initialError ? (
               <div className="rounded-card bg-surface p-4 text-sm text-muted shadow-card ring-1 ring-line">
@@ -162,18 +173,20 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* 收盤總覽：休市時段且有自選股時顯示（複用每日 LINE 總結彙整邏輯，盤中隱藏避免半場數據誤導） */}
-            {data && !data.marketOpen && data.quotes.length > 0 && <ClosingSummary />}
+            {/* 收盤回顧可隨時選日期；今日尚未保存時另標示為暫覽。 */}
+            <ClosingSummary />
+
+            <PersonalStatusCard />
 
             <footer className="pt-2 text-center text-xs leading-relaxed text-muted">
-              {data?.source === "yahoo"
+              {!data ? "目前尚未取得行情資料" : data.source === "yahoo"
                 ? "報價來源：Yahoo Finance 備援"
                 : data?.source === "stale"
                   ? "報價來源：最近一次成功快照"
                   : "資料來源：台灣證券交易所・證券櫃檯買賣中心（MIS 即時行情）"}
               <br className="sm:hidden" />
               <span className="hidden sm:inline">・</span>
-              {data?.source === "yahoo"
+              {!data ? "自選清單仍保留，可稍後重新讀取報價" : data.source === "yahoo"
                 ? "備援報價可能延遲，僅供個人參考，非投資建議"
                 : data?.source === "stale"
                   ? "快照不是即時報價，僅供個人參考，非投資建議"
@@ -194,6 +207,7 @@ export default function Dashboard() {
           void confirmDelete();
         }}
       />
+      <WatchlistGroupDialog item={groupEditingRow} groups={groups} onClose={()=>setGroupEditingId(null)} onSaved={handleGroupSaved}/>
     </div>
   );
 }

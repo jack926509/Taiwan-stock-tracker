@@ -1,6 +1,6 @@
 "use client";
 
-import type { Fundamental } from "@/lib/providers/fundamentalProvider";
+import { FUNDAMENTAL_KEYS, type CachedFundamental } from "@/lib/fundamentalFreshness";
 import { fmt, fmtSigned, fmtYi } from "@/lib/format";
 
 // 法人買賣超／月營收 YoY 的正負配色（沿用全站紅漲綠跌）
@@ -38,15 +38,20 @@ function DeltaBadge({ label, v }: { label: string; v: number }) {
   );
 }
 
-// 快取新鮮度：超過此時長顯示「顯示快取資料」提示，比照 K 線的 stale pill
-const STALE_DISPLAY_MS = 60 * 60 * 1000; // 1 小時
+const DATASET_LABELS = { institutional: "法人", revenue: "月營收", valuation: "估值", eps: "EPS", dividend: "股利" };
+function formatFetchedAt(value: string): string {
+  return new Date(value).toLocaleString("zh-TW", {
+    month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
+    hour12: false, timeZone: "Asia/Taipei",
+  });
+}
 
 export default function FundamentalSection({
   fund,
   price,
   asOf,
 }: {
-  fund: Fundamental;
+  fund: CachedFundamental;
   price?: number | null;
   asOf?: string | null;
 }) {
@@ -84,40 +89,41 @@ export default function FundamentalSection({
       ? (yieldBase.cashDividend / price) * 100
       : null;
 
-  if (
+  const empty = (
     !valuation &&
     institutional.length === 0 &&
     revenue.length === 0 &&
     eps.length === 0 &&
     dividend.length === 0
-  ) {
-    return null;
-  }
-
-  const stale = asOf ? Date.now() - Date.parse(asOf) > STALE_DISPLAY_MS : false;
+  );
+  const issues = FUNDAMENTAL_KEYS.filter(key => {
+    const state = fund.freshness?.[key]?.state;
+    return state === "stale" || state === "unavailable";
+  });
+  const emptyLabels = FUNDAMENTAL_KEYS.filter(key => fund.freshness?.[key]?.state === "empty")
+    .map(key => DATASET_LABELS[key]);
 
   return (
     <>
       {asOf && (
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-muted tabular">
           <span>
-            基本面更新於{" "}
-            {new Date(asOf).toLocaleString("zh-TW", {
-              month: "numeric",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-              timeZone: "Asia/Taipei",
-            })}
+            基本面查詢於 {formatFetchedAt(asOf)}
           </span>
-          {stale && (
-            <span className="rounded-pill bg-warn-tint px-2 py-0.5 text-warn">
-              顯示快取資料
-            </span>
-          )}
         </div>
       )}
+      {issues.length > 0 && (
+        <div role="status" className="space-y-1 rounded-card border border-warn/30 bg-warn-tint px-4 py-3 text-xs text-warn">
+          {issues.map(key => {
+            const status = fund.freshness![key]!;
+            return <p key={key}>{DATASET_LABELS[key]}：{status.state === "stale"
+              ? `更新失敗，沿用${status.lastSuccessAt ? ` ${formatFetchedAt(status.lastSuccessAt)} 取得的` : "上次的"}資料`
+              : "暫時無法取得，稍後重試"}</p>;
+          })}
+        </div>
+      )}
+      {emptyLabels.length > 0 && <p className="text-xs text-muted">本次來源未提供資料：{emptyLabels.join("、")}</p>}
+      {empty && issues.length === 0 && emptyLabels.length === 0 && <p className="text-sm text-muted">目前沒有基本面資料</p>}
 
       {/* 估值（ETF 等無此資料時整塊隱藏） */}
       {valuation && (

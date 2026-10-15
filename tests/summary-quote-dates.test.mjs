@@ -18,6 +18,7 @@ let importSequence = 0;
 registerHooks({
   resolve(specifier, context, nextResolve) {
     const stubs = {
+      "@/lib/alertHistory": "export const countAlertEvents=async()=>0;",
       "@/lib/store": "export const listWatchlist = () => globalThis.__summaryDates.list();",
       "@/lib/providers/quoteProvider": "export const INDEX_TARGETS = [{stockId:'t00',market:'tse'},{stockId:'o00',market:'otc'}]; export const fetchQuotes = (...args) => globalThis.__summaryDates.fetch(...args);",
       "@/lib/klineStore": "export const loadKline = (...args) => globalThis.__summaryDates.kline(...args);",

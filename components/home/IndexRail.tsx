@@ -11,7 +11,7 @@ export default function IndexRail({
   alertItems,
 }: {
   indices: Quote[];
-  watchStats: { up: number; down: number; flat: number; todayHits: number };
+  watchStats: { up: number; down: number; flat: number; todayHits: number | null };
   alertItems: AlertRailItem[];
 }) {
   return (

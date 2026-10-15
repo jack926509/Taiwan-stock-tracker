@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import useSWR from "swr";
 import type { QuoteResponse } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
-import type { Fundamental } from "@/lib/providers/fundamentalProvider";
+import type { CachedFundamental } from "@/lib/fundamentalFreshness";
 import FundamentalSection from "@/components/FundamentalSection";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PriceAlertCard from "@/components/PriceAlertCard";
@@ -33,6 +33,7 @@ import { hasAnyAlert } from "@/lib/alertBadge";
 import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
+import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
 import { IconArrowLeft } from "@/components/icons";
 
 type KlinePeriod = "day" | "week" | "month";
@@ -54,6 +55,7 @@ interface KlineResponse {
   candles: Candle[];
   latestDate: string | null;
   stale: boolean;
+  expectedDate: string;
 }
 
 interface StockWatchRow {
@@ -81,8 +83,10 @@ export default function StockPage() {
     setHydrated(true);
   }, []);
   const id = stockIdForRender(hydrated, params.id, pathname);
-  const [range, setRange] = useState<KlineRangeKey>("6m");
-  const [period, setPeriod] = useState<KlinePeriod>("day");
+  const {preferences,setPreference}=usePersonalPreferences();
+  const range=preferences.klineRange,period=preferences.klinePeriod;
+  const setRange=(klineRange:KlineRangeKey)=>setPreference({klineRange});
+  const setPeriod=(klinePeriod:KlinePeriod)=>setPreference({klinePeriod});
   const [alertOpen, setAlertOpen] = useState(false);
   const { autoPaused, onQuoteSuccess, refreshInterval } = usePollGuard();
   const alertRef = useRef<HTMLDivElement>(null);
@@ -127,7 +131,7 @@ export default function StockPage() {
     fetcher,
     { revalidateOnFocus: false }
   );
-  const fundamental = useSWR<Fundamental & { stockId: string; asOf: string }>(
+  const fundamental = useSWR<CachedFundamental & { stockId: string; asOf: string }>(
     id ? `/api/fundamental?id=${encodeURIComponent(id)}` : null,
     fetcher,
     { revalidateOnFocus: false }
@@ -147,6 +151,7 @@ export default function StockPage() {
       : null;
 
   const q = quote.data?.quotes[0];
+  const stockName = currentWatch?.name ?? q?.name ?? id;
   const t = trendOf(q?.change ?? null);
 
   // 大價格卡是否還在畫面內（扣掉 sticky 標題列約 64px）；預設 true＝標題列先不顯示股價
@@ -164,12 +169,7 @@ export default function StockPage() {
   const warnings = quote.data ? quoteWarnings(quote.data) : [];
   const quoteAt = formatQuoteAsOf(q?.asOf);
 
-  // 週 K 模式的區間鈕只開放 6月/1年/3年；切到週 K 時若目前區間不在其中，改用 1 年
-  useEffect(() => {
-    if (period === "week" && !WEEK_RANGE_KEYS.includes(range)) {
-      setRange("1y");
-    }
-  }, [period, range]);
+  // 偏好層維持週 K 的區間契約：不相容時改用 1 年。
 
   const dayVisible = useMemo(() => {
     const all = kline.data?.candles ?? [];
@@ -210,7 +210,7 @@ export default function StockPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-serif font-semibold">
-                    {q?.name ?? id}
+                    {stockName}
                   </span>
                   <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-xs text-muted">
                     {id}
@@ -355,7 +355,7 @@ export default function StockPage() {
                   >
                     <PriceAlertCard
                       stockId={id}
-                      name={q.name ?? id}
+                      name={stockName}
                       currentPrice={q.price ?? null}
                       trend={t}
                     />
@@ -432,7 +432,7 @@ export default function StockPage() {
               <span>最新 {kline.data?.latestDate ?? rangeStats.lastDate ?? "—"}</span>
               {kline.data?.stale && (
                 <span className="rounded-pill bg-warn-tint px-2 py-0.5 text-warn">
-                  顯示快取資料
+                  待更新至 {kline.data.expectedDate}
                 </span>
               )}
             </div>

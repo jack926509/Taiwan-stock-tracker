@@ -6,9 +6,12 @@ import {
   removeWatch,
   reorderWatch,
   setAlert,
+  setWatchGroup,
   usingSupabase,
+  type AlertSide,
 } from "@/lib/store";
 import { logApiError, publicErrorBody } from "@/lib/apiErrors";
+import { normalizeGroupName } from "@/lib/watchlistGroups";
 
 export const dynamic = "force-dynamic";
 
@@ -56,19 +59,39 @@ export async function PATCH(req: NextRequest) {
     low?: unknown;
     changePct?: unknown;
     volumeOn?: unknown;
+    rearm?: unknown;
+    groupName?: unknown;
   };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "格式錯誤" }, { status: 400 });
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "格式錯誤" }, { status: 400 });
+  }
   const stockId =
     typeof body.stockId === "string" ? body.stockId.trim().toUpperCase() : "";
-  if (!stockId) {
-    return NextResponse.json({ error: "缺少 stockId" }, { status: 400 });
+  if (!/^[0-9A-Z]{4,6}$/.test(stockId)) {
+    return NextResponse.json({ error: "股票代號格式不正確" }, { status: 400 });
   }
-  const parse = (v: unknown): number | null => {
-    if (v === null || v === undefined || v === "") return null;
+  if(body.groupName!==undefined) {
+    const groupName=typeof body.groupName==="string"?normalizeGroupName(body.groupName):null;
+    if(groupName===null||[body.high,body.low,body.changePct,body.volumeOn,body.rearm].some(value=>value!==undefined)) {
+      return NextResponse.json({error:"分組名稱最多 20 字，請與提醒條件分開儲存"},{status:400});
+    }
+    try {
+      if(!await setWatchGroup(stockId,groupName))return NextResponse.json({error:"自選清單中沒有此股票"},{status:404});
+      return NextResponse.json({ok:true,stockId,groupName});
+    } catch(error) {
+      logApiError("api/watchlist group",error);
+      return NextResponse.json({error:"儲存分組失敗"},{status:500});
+    }
+  }
+  const parse = (v: unknown): number | null | undefined => {
+    if (v === undefined) return undefined;
+    if (v === null || v === "") return null;
+    if (typeof v !== "string" && typeof v !== "number") return NaN;
     const n = Number(v);
     return Number.isFinite(n) && n > 0 ? n : NaN;
   };
@@ -78,10 +101,19 @@ export async function PATCH(req: NextRequest) {
   if (Number.isNaN(high) || Number.isNaN(low) || Number.isNaN(changePct)) {
     return NextResponse.json({ error: "門檻需為正數" }, { status: 400 });
   }
-  const volumeOn = body.volumeOn === true;
+  if (body.volumeOn !== undefined && typeof body.volumeOn !== "boolean") {
+    return NextResponse.json({ error: "爆量開關格式不正確" }, { status: 400 });
+  }
+  const sides: AlertSide[] = ["high", "low", "change", "volume"];
+  if (body.rearm !== undefined && (!Array.isArray(body.rearm) || body.rearm.some(side => !sides.includes(side)))) {
+    return NextResponse.json({ error: "重新啟用條件格式不正確" }, { status: 400 });
+  }
+  const rearm = [...new Set((body.rearm ?? []) as AlertSide[])];
+  const volumeOn = body.volumeOn as boolean | undefined;
   try {
-    await setAlert(stockId, high, low, changePct, volumeOn);
-    return NextResponse.json({ ok: true, stockId, high, low, changePct, volumeOn });
+    const found = await setAlert(stockId, high, low, changePct, volumeOn, rearm);
+    if (!found) return NextResponse.json({ error: "自選清單中沒有此股票" }, { status: 404 });
+    return NextResponse.json({ ok: true, stockId, high, low, changePct, volumeOn, rearm });
   } catch (err) {
     logApiError("api/watchlist PATCH", err);
     return NextResponse.json(publicErrorBody("設定到價提醒失敗", err), { status: 500 });

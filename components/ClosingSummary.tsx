@@ -1,6 +1,8 @@
 "use client";
 
 import useSWR from "swr";
+import { useEffect, useState } from "react";
+import { taipeiNow } from "@/lib/market-hours";
 import type { DailySummaryData } from "@/lib/summaryData";
 import type { Signal } from "@/lib/signals";
 import { fmt, fmtPct, trendOf, arrowOf, textColor } from "@/lib/format";
@@ -19,18 +21,39 @@ const signalToneClass: Record<Signal["tone"], string> = {
   down: "bg-down-tint text-down",
 };
 
-// 站內收盤總覽：休市時段顯示於首頁，內容與每日 LINE 總結同源
-// （漲跌家數、各股當日/本週累計、今日新技術訊號、最強最弱、提醒觸發數）。
-// 取不到資料時整段隱藏——總覽是加分資訊，不該擋住主畫面。
+// 保存的每日快照按日期查詢；今日尚未保存時，明確區分即時暫覽。
 export default function ClosingSummary() {
-  const { data, error } = useSWR<{ summary: DailySummaryData | null }>(
-    "/api/summary",
-    fetcher,
-    { revalidateOnFocus: false, shouldRetryOnError: false }
+  const [date, setDate] = useState("");
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    const current = taipeiNow().isoDate; setDate(current); setToday(current);
+    const timer = setInterval(() => setToday(taipeiNow().isoDate), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const saved = useSWR<{ summary: DailySummaryData | null; savedAt: string | null }>(
+    date ? `/api/summary?date=${date}` : null, fetcher, { refreshInterval: date === today ? 60_000 : 0, shouldRetryOnError: false }
   );
-  const s = data?.summary;
-  if (error || !s) return null;
-
+  const preview = useSWR<{ summary: DailySummaryData | null }>(
+    date && date === today && saved.data && !saved.data.summary && !saved.error ? "/api/summary" : null, fetcher,
+    { refreshInterval: 60_000, shouldRetryOnError: false }
+  );
+  const summary = saved.data?.summary ?? (date === today ? preview.data?.summary : null);
+  return <section aria-label="收盤回顧" className="rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="font-serif text-base font-semibold text-ink">收盤回顧</h2>
+      <label className="flex min-w-0 items-center gap-2 text-xs text-muted">查詢日期
+        <input type="date" aria-label="收盤回顧日期" max={today || undefined} value={date} onChange={event => setDate(event.target.value)} className="min-h-11 min-w-0 rounded-lg border border-line bg-app px-2 text-ink" />
+      </label>
+    </div>
+    {saved.error || preview.error ? <p role="alert" className="mt-2 text-xs text-warn">收盤紀錄暫時無法讀取<button type="button" onClick={() => { void saved.mutate(); void preview.mutate(); }} className="ml-2 min-h-11 px-2 text-primary">重試</button></p>
+      : !date ? <p className="mt-2 text-xs text-muted">請選擇查詢日期</p>
+      : saved.isLoading || preview.isLoading ? <p className="mt-2 text-xs text-muted">讀取收盤紀錄中…</p>
+      : saved.data?.savedAt ? <p className="mt-2 text-xs leading-relaxed text-muted">保存於 {formatQuoteAsOf(saved.data.savedAt)}（台北）。內容維持當時自選清單與行情。</p>
+      : <p className="mt-2 text-xs leading-relaxed text-muted">這一天尚無保存的收盤紀錄。{summary ? "以下為今日暫覽，尚未保存。" : "紀錄從功能啟用後的收盤排程開始保留，不回填過往行情。"}</p>}
+    {summary && !saved.error && !preview.error && <SummaryDetails s={summary} />}
+  </section>;
+}
+function SummaryDetails({ s }: { s: DailySummaryData }) {
   const signalRows = s.rows.filter((r) => r.newSignals.length > 0);
   const dateLabel = `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`;
   const quoteDateLabel = formatQuoteAsOf(s.asOf);
@@ -39,17 +62,14 @@ export default function ClosingSummary() {
     : s.source === "stale" ? "當日舊快照（非即時）" : "MIS";
 
   return (
-    <section
-      aria-label="收盤總覽"
-      className="rise-in rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5"
-    >
+    <div className="mt-4" aria-label="收盤總覽內容">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-serif text-base font-semibold text-ink">
-          收盤總覽
+        <h3 className="font-serif text-base font-semibold text-ink">
+          當日漲跌概況
           <span className="ml-2 font-mono text-xs font-normal text-muted tabular">
             {dateLabel}
           </span>
-        </h2>
+        </h3>
         <span className="font-mono text-xs text-muted tabular">
           漲 {s.counts.up}・跌 {s.counts.down}・平 {s.counts.flat}
         </span>
@@ -158,11 +178,11 @@ export default function ClosingSummary() {
             </span>
           </span>
         )}
-        <span>今日觸發提醒 {s.alertHits} 則</span>
+        <span>當日已記錄提醒 {s.alertHits} 則</span>
       </div>
 
       {/* 收尾細線：卡片 ring 很淡，內容結束處補一條細線明確收版（2026-07-19 使用者要求） */}
       <div aria-hidden="true" className="mt-3.5 h-px bg-line" />
-    </section>
+    </div>
   );
 }

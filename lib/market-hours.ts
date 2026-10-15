@@ -20,6 +20,9 @@ interface HolidayCache {
 
 let cache: HolidayCache | null = null;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const FAILURE_RETRY_MS = 60_000;
+let retryAfter = 0;
+let calendarPending: Promise<HolidayCache | null> | null = null;
 
 function rocToIso(roc: string): string | null {
   if (!/^\d{7}$/.test(roc)) return null;
@@ -29,12 +32,20 @@ function rocToIso(roc: string): string | null {
 
 async function getHolidayCalendar(): Promise<HolidayCache | null> {
   if (cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) return cache;
+  if (Date.now() < retryAfter) return cache;
+  if (!calendarPending) {
+    calendarPending = fetchHolidayCalendar().finally(() => { calendarPending = null; });
+  }
+  return calendarPending;
+}
+
+async function fetchHolidayCalendar(): Promise<HolidayCache | null> {
   try {
     const res = await fetch(HOLIDAY_URL, {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return cache;
+    if (!res.ok) throw new Error("行事曆來源暫時無法使用");
     const rows = (await res.json()) as HolidayRow[];
     const holidays = new Set<string>();
     const makeupTradingDays = new Set<string>();
@@ -54,8 +65,11 @@ async function getHolidayCalendar(): Promise<HolidayCache | null> {
       }
     }
     cache = { fetchedAt: Date.now(), holidays, makeupTradingDays };
+    retryAfter = 0;
     return cache;
   } catch {
+    // 每檔 K 線與回溯日期共用短暫等待，避免來源故障時累積多次逾時。
+    retryAfter = Date.now() + FAILURE_RETRY_MS;
     return cache; // 行事曆抓不到時沿用舊快取或 null（退回週間判斷）
   }
 }

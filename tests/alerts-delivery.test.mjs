@@ -4,7 +4,9 @@ import { registerHooks } from "node:module";
 
 const NOW = new Date("2026-10-08T02:30:00.000Z"); // 台北 10:30
 const originalDateNow = Date.now;
-const calls = { push: [], hit: [], kline: [] };
+const calls = { push: [], hit: [], kline: [], capture: [], monitor: [] };
+let configured;
+let captureFails;
 let items;
 let result;
 let pushOk;
@@ -17,6 +19,9 @@ registerHooks({
       "@/lib/providers/quoteProvider": "export const fetchQuotes = (...args) => globalThis.__alertDelivery.fetch(...args);",
       "@/lib/klineStore": "export const loadKline = (...args) => globalThis.__alertDelivery.kline(...args);",
       "@/lib/notify": "export const lineConfigured = () => true; export const pushLineMessages = (...args) => globalThis.__alertDelivery.push(...args);",
+      "@/lib/alertEvents": "export const captureAlertEvent = (...args) => globalThis.__alertDelivery.capture(...args);",
+      "@/lib/alertDelivery": "export const deliverAlertEvents = () => globalThis.__alertDelivery.deliver();",
+      "@/lib/alertMonitorStore": "export const saveAlertMonitor = (...args) => globalThis.__alertDelivery.monitor(...args);",
     };
     if (stubs[specifier]) {
       return { url: `data:text/javascript,${encodeURIComponent(stubs[specifier])}`, shortCircuit: true };
@@ -29,10 +34,22 @@ registerHooks({
 });
 
 globalThis.__alertDelivery = {
+  monitor:async(...args)=>calls.monitor.push(...args),
   list: async () => items,
   fetch: async () => result,
   hit: async (...args) => calls.hit.push(args),
   push: async (messages) => { calls.push.push(messages); return pushOk; },
+  capture: async (row, decision, quote, at) => {
+    if(row.stock_id===captureFails)throw new Error("測試保存失敗");
+    calls.capture.push({ row, decision, quote });
+    calls.hit.push([row.stock_id, decision.kind, at.toISOString()]);
+    return {};
+  },
+  deliver: async () => {
+    if (!configured) return 0;
+    for (const event of calls.capture) calls.push.push([event]);
+    return pushOk ? calls.capture.length : 0;
+  },
   kline: async (id) => {
     calls.kline.push(id);
     Date.now = () => NOW.getTime() + klineDelay;
@@ -46,6 +63,10 @@ function fixture(overrides = {}) {
   calls.push.length = 0;
   calls.hit.length = 0;
   calls.kline.length = 0;
+  calls.capture.length = 0;
+  calls.monitor.length = 0;
+  configured = true;
+  captureFails = null;
   pushOk = true;
   klineDelay = 0;
   Date.now = () => NOW.getTime();
@@ -174,10 +195,44 @@ test("跨台北午夜的昨日行情，即使僅一分鐘前也不推播", async
   assert.deepEqual(calls.hit, []);
 });
 
-test("LINE 回傳失敗時不標記 hit，保留下一次提醒機會", async () => {
+test("LINE 回傳失敗仍保留觸發紀錄，由通知佇列負責重試", async () => {
   fixture();
   pushOk = false;
   assert.equal(await checkAlerts(NOW), 0);
   assert.equal(calls.push.length, 1);
-  assert.deepEqual(calls.hit, []);
+  assert.deepEqual(calls.hit, [["2330", "high", NOW.toISOString()]]);
+  assert.equal(calls.capture.length, 1);
+});
+
+test("沒有設定 LINE 仍執行條件檢查並保存觸發紀錄", async () => {
+  fixture(); configured = false;
+  assert.equal(await checkAlerts(NOW), 0);
+  assert.equal(calls.capture.length, 1);
+  assert.deepEqual(calls.push, []);
+});
+
+test("一檔事件儲存失敗仍檢查其他股票及通知，最後回報部分失敗",async()=>{
+  fixture(); captureFails="2330";
+  items.push({...items[0],stock_id:"2317",name:"鴻海"});
+  result.quotes.push({...result.quotes[0],stockId:"2317",name:"鴻海"});
+  await assert.rejects(checkAlerts(NOW),/部分提醒/);
+  assert.deepEqual(calls.hit,[["2317","high",NOW.toISOString()]]);
+  assert.equal(calls.push.length,1);
+});
+
+test("後端保存本次實際檢查來源、觸發數與各股略過原因",async()=>{
+  fixture();await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].source,"mis");
+  assert.equal(calls.monitor[0].rows["2330"].status,"triggered");
+  assert.equal(calls.monitor[0].rows["2330"].captured,1);
+  fixture({source:"yahoo"});await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].rows["2330"].status,"reference-only");
+  fixture();result.quotes[0].asOf=new Date(NOW.getTime()-120_001).toISOString();await checkAlerts(NOW);
+  assert.equal(calls.monitor[0].rows["2330"].status,"quote-expired");
+});
+test("部分事件保存失敗仍留下實際失敗狀態，不能記成檢查成功",async()=>{
+  fixture();captureFails="2330";
+  await assert.rejects(checkAlerts(NOW));
+  assert.equal(calls.monitor[0].outcome,"failed");
+  assert.equal(calls.monitor[0].rows["2330"].status,"storage-error");
 });

@@ -25,6 +25,7 @@ export interface ScheduledJobDependencies {
   claim: typeof claimScheduledJob;
   finish: typeof finishScheduledJob;
   checkAlerts: (now?: Date) => Promise<number>;
+  deliverAlertEvents: (now?: Date) => Promise<number>;
   dailySummary: (now?: Date) => Promise<boolean>;
   backfillWatchlist: () => Promise<{ ok: number; fail: number }>;
   keepAlive: () => Promise<void>;
@@ -53,9 +54,13 @@ const defaultDependencies: ScheduledJobDependencies = {
     const alerts = await import("./alerts.ts");
     return alerts.checkAlerts(now);
   },
+  deliverAlertEvents: async (now) => {
+    const delivery = await import("./alertDelivery.ts");
+    return delivery.deliverAlertEvents(now);
+  },
   dailySummary: async (now) => {
-    const summary = await import("./daily-summary.ts");
-    return summary.dailySummary(now);
+    const summary = await import("./dailyClose.ts");
+    return summary.runDailyClose(now);
   },
   backfillWatchlist: async () => {
     const backfill = await import("./backfill.ts");
@@ -75,11 +80,14 @@ function logFailure(job: ScheduledJobName, stage: "calendar" | "claim" | "busine
 async function runJob(
   job: ScheduledJobName,
   now: Date,
-  deps: ScheduledJobDependencies
+  deps: ScheduledJobDependencies,
+  deliveryOnly = false
 ): Promise<Record<string, string | number | boolean | null>> {
   switch (job) {
     case "alerts":
-      return { sent: await deps.checkAlerts(now) };
+      return deliveryOnly
+        ? { sent: await deps.deliverAlertEvents(now), deliveryOnly: true }
+        : { sent: await deps.checkAlerts(now) };
     case "daily-summary":
       return { sent: await deps.dailySummary(now) };
     case "backfill":
@@ -100,9 +108,13 @@ export async function runScheduledCron(
     return { job: "unknown", status: "skipped", reason: "unknown-cron" };
   }
 
+  let deliveryOnly = false;
   try {
     if (job === "alerts" && !(await deps.isMarketOpenNow(now))) {
-      return { job, status: "skipped", reason: "market-closed" };
+      const t = taipeiNow(now);
+      // 最後一分鐘捕捉的事件仍有 15 分鐘重試窗；收盤後只派送既有事件。
+      deliveryOnly = t.minutes > 13 * 60 + 35 && t.minutes <= 13 * 60 + 50 && await deps.isTradingDay(t);
+      if (!deliveryOnly) return { job, status: "skipped", reason: "market-closed" };
     }
     if (job === "daily-summary" && !(await deps.isTradingDay(taipeiNow(now)))) {
       return { job, status: "skipped", reason: "non-trading-day" };
@@ -124,7 +136,7 @@ export async function runScheduledCron(
 
   let detail: Record<string, string | number | boolean | null>;
   try {
-    detail = await runJob(job, now, deps);
+    detail = await runJob(job, now, deps, deliveryOnly);
   } catch (error) {
     logFailure(job, "business", now);
     const result: ScheduledJobResult = {

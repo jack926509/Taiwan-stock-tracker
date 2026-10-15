@@ -14,14 +14,14 @@ export function quoteWarnings(data: QuoteResponse): string[] {
   const date = formatQuoteAsOf(data.asOf);
   const at = date ? `行情時間：${date}（台北）` : "行情日期時間未知";
   if (data.source === "yahoo") {
-    warnings.push(`目前顯示 Yahoo 備援報價，可能延遲；${at}。備援期間暫停即時提醒。`);
+    warnings.push(`目前顯示 Yahoo 備援報價，可能延遲；${at}。此來源不作為新提醒的觸發依據，後端檢查結果請見提醒頁。`);
   } else if (data.source === "stale") {
-    warnings.push(`報價來源暫時異常，顯示舊報價快照；${at}。快照不觸發即時提醒。`);
+    warnings.push(`報價來源暫時異常，顯示舊報價快照；${at}。此快照不作為新提醒的觸發依據。`);
   } else if (!date) {
-    warnings.push("部分行情日期時間未知，無法確認的股票暫停即時提醒。稍後會重新嘗試取得報價。");
+    warnings.push("部分行情日期時間未知，不作為提醒觸發依據。後端實際檢查結果請見提醒頁。");
   }
   if (data.complete !== true) {
-    warnings.push("部分股票報價缺漏，僅顯示已取得的資料；本輪暫停即時提醒，稍後會重新嘗試。");
+    warnings.push("部分股票報價缺漏，缺少的欄位顯示「—」，稍後會重新嘗試。後端實際檢查結果請見提醒頁。");
   }
   return warnings;
 }

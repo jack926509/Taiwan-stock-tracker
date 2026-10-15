@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { buildAlertFlex } from "../lib/alertFlex.ts";
 
@@ -69,12 +68,4 @@ test("爆量提醒使用中性色並顯示近五日均量倍數", () => {
   assert.match(message.altText, /爆量 2.3 萬張.*近 5 日均量 1.0 萬張 的 2.3 倍/);
   assert.equal(bubble.header.backgroundColor, "#6B5E54");
   assert.match(JSON.stringify(bubble.body), /爆量 2.3 萬張（近 5 日均量 1.0 萬張 的 2.3 倍）/);
-});
-
-test("提醒發送端改用 Flex 訊息且保留成功後標記語意", () => {
-  const alerts = readFileSync(new URL("../lib/alerts.ts", import.meta.url), "utf8");
-
-  assert.match(alerts, /import \{ pushLineMessages, lineConfigured \} from "@\/lib\/notify"/);
-  assert.match(alerts, /buildAlertFlex\(/);
-  assert.match(alerts, /if \(await pushLineMessages\(\[message\]\)\) \{\s*await markAlertHit/s);
 });

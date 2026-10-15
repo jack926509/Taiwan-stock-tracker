@@ -1,8 +1,7 @@
 // GET /api/kline?id=2330 — 回傳近一年日 K（FinMind），有快取就用、缺最新才補抓
 import { NextRequest, NextResponse } from "next/server";
-import { ensureKlineWithStatus } from "@/lib/klineService";
+import { ensureKlineWithStatus, type KlineResult } from "@/lib/klineService";
 import { taipeiNow } from "@/lib/market-hours";
-import type { Candle } from "@/lib/providers/klineProvider";
 import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
 export const runtime = "nodejs";
@@ -17,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const today = taipeiNow().isoDate;
-  let result: { candles: Candle[]; latestDate: string | null; stale: boolean };
+  let result: KlineResult;
   try {
     result = await ensureKlineWithStatus(id, today);
   } catch (e) {
@@ -40,5 +39,6 @@ export async function GET(req: NextRequest) {
     candles: result.candles,
     latestDate: result.latestDate,
     stale: result.stale,
+    expectedDate: result.expectedDate,
   });
 }

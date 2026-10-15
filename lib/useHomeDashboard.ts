@@ -12,11 +12,15 @@ import { getMarketSessionLabel } from "@/lib/marketSession";
 import { useToast } from "@/components/Toast";
 import type { SortKey, FilterKey } from "@/components/home/QuoteBoard";
 import type { AlertRailItem } from "@/components/home/AlertSummaryCard";
-import { countTodayHitStamps } from "@/lib/alertLogic";
+import { taipeiNow } from "@/lib/market-hours";
 import { highTouchState, lowTouchState, type TouchState } from "@/lib/alertTouched";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
+import { buildWatchlistQuotes } from "@/lib/watchlistQuotes";
+import { filterByGroup,watchlistGroups } from "@/lib/watchlistGroups";
+import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
+import { sortByAlertDistance } from "@/lib/alertProximity";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -46,9 +50,15 @@ async function fetcher<T>(url: string): Promise<T> {
 
 export function useHomeDashboard() {
   const { autoPaused, onQuoteSuccess, refreshInterval, resumePolling } = usePollGuard();
-  const [sortKey, setSortKey] = useState<SortKey>("default");
+  const {preferences,setPreference}=usePersonalPreferences();
+  const sortKey=preferences.sort;
+  const setSortKey=useCallback((sort:SortKey)=>setPreference({sort}),[setPreference]);
   const [order, setOrder] = useState<string[]>([]); // 預設模式的自訂排序（拖曳）
-  const [filterKey, setFilterKey] = useState<FilterKey>("all");
+  const filterKey=preferences.filter;
+  const setFilterKey=useCallback((filter:FilterKey)=>setPreference({filter}),[setPreference]);
+  const groupFilter=preferences.group;
+  const setGroupFilter=useCallback((group:string|null)=>setPreference({group}),[setPreference]);
+  const [groupEditingId,setGroupEditingId]=useState<string|null>(null);
   const orderVersion = useRef(0);
   const [now, setNow] = useState<Date | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -67,7 +77,7 @@ export function useHomeDashboard() {
   const watchlist = useSWR<{ items: WatchlistItem[]; storage: string }>(
     "/api/watchlist",
     fetcher,
-    { revalidateOnFocus: false, revalidateOnReconnect: true }
+    { refreshInterval: 60_000, revalidateOnFocus: true, revalidateOnReconnect: true, refreshWhenHidden: false }
   );
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {
@@ -78,9 +88,26 @@ export function useHomeDashboard() {
     onSuccess: onQuoteSuccess,
   });
 
+  const todayDate = now ? taipeiNow(now).isoDate : null;
+  const todayFocus = useSWR<{ date: string; events: number }>(todayDate ? `/api/today-focus?date=${todayDate}` : null, fetcher, {
+    refreshInterval: 60_000, revalidateOnFocus: true,
+  });
+
   // 自訂排序以自選清單（後端已依 sort_order 排好）為基準，
   // 同時保留本次拖曳結果、自動納入新增/移除的代號
   const items = watchlist.data?.items;
+  const groups=useMemo(()=>watchlistGroups(items??[]),[items]);
+  const groupEditingRow=items?.find(item=>item.stock_id===groupEditingId)??null;
+  useEffect(()=>{
+    if(!items)return;
+    if(groupFilter!==null&&!groups.includes(groupFilter))setGroupFilter(null);
+    if(groupEditingId!==null&&!items.some(item=>item.stock_id===groupEditingId))setGroupEditingId(null);
+  },[items,groups,groupFilter,groupEditingId,setGroupFilter]);
+  async function handleGroupSaved(stockId:string,group:string) {
+    await watchlist.mutate(current=>current?{...current,items:current.items.map(item=>item.stock_id===stockId?{...item,group_name:group}:item)}:current,{revalidate:false});
+    setGroupEditingId(null);
+    toast.show("分組已儲存",{tone:"success"});
+  }
   useEffect(() => {
     const ids = (items ?? []).map((i) => i.stock_id);
     setOrder((prev) => {
@@ -191,7 +218,8 @@ export function useHomeDashboard() {
 
   // UI-1：依今日漲跌幅排序（null 一律排最後），預設依自訂拖曳順序
   const sortedQuotes = useMemo(() => {
-    const list = data?.quotes ?? [];
+    const list = buildWatchlistQuotes(items, data?.quotes ?? []);
+    if(sortKey==="near")return sortByAlertDistance(list,items??[]);
     if (sortKey === "default") {
       if (order.length === 0) return list;
       const map = new Map(list.map((q) => [q.stockId, q]));
@@ -205,7 +233,7 @@ export function useHomeDashboard() {
       if (b.changePct === null) return -1;
       return (a.changePct - b.changePct) * dir;
     });
-  }, [data?.quotes, sortKey, order]);
+  }, [items, data?.quotes, sortKey, order]);
 
   // 已設提醒的代號集合（供「僅看已設提醒」篩選、表格鈴鐺圖示、左欄提醒摘要共用）
   const alertedIds = useMemo(
@@ -219,17 +247,18 @@ export function useHomeDashboard() {
   );
 
   const filteredQuotes = useMemo(() => {
+    const grouped=filterByGroup(sortedQuotes,items??[],groupFilter);
     if (filterKey === "alert") {
-      return sortedQuotes.filter((q) => alertedIds.has(q.stockId));
+      return grouped.filter((q) => alertedIds.has(q.stockId));
     }
     if (filterKey === "up") {
-      return sortedQuotes.filter((q) => q.changePct !== null && q.changePct > 0);
+      return grouped.filter((q) => q.changePct !== null && q.changePct > 0);
     }
     if (filterKey === "down") {
-      return sortedQuotes.filter((q) => q.changePct !== null && q.changePct < 0);
+      return grouped.filter((q) => q.changePct !== null && q.changePct < 0);
     }
-    return sortedQuotes;
-  }, [sortedQuotes, filterKey, alertedIds]);
+    return grouped;
+  }, [sortedQuotes, filterKey, alertedIds,items,groupFilter]);
 
   // 左欄「自選概況」：以全部自選股（不受篩選影響）即時計算漲跌家數 ＋ 今日已觸發到價提醒則數
   const watchStats = useMemo(() => {
@@ -242,10 +271,9 @@ export function useHomeDashboard() {
       else if (q.changePct > 0) up++;
       else down++;
     }
-    // 今日觸發＝伺服端記錄的當日觸發（含到價、漲跌幅、爆量），與收盤總覽同一套（lib/alertLogic.ts 的 countTodayHitStamps）
-    const todayHits = countTodayHitStamps(items ?? [], now ?? new Date());
+    const todayHits = !todayFocus.error && todayFocus.data?.date === todayDate ? todayFocus.data.events : null;
     return { up, down, flat, todayHits };
-  }, [data?.quotes, items, now]);
+  }, [data?.quotes, todayFocus.data, todayFocus.error, todayDate]);
 
   // 左欄「提醒摘要」：已設到價提醒的自選股，補上現價供算「距觸價 %」（不新增 API，沿用既有 quotes）
   const alertItems: AlertRailItem[] = useMemo(() => {
@@ -266,9 +294,10 @@ export function useHomeDashboard() {
 
   // 僅「預設」排序、無篩選、且 ≥2 檔時可拖曳排序（漲幅/跌幅為即時計算、篩選中皆不可手動排）
   const canSort =
-    sortKey === "default" && filterKey === "all" && (data?.quotes.length ?? 0) > 1;
+    sortKey === "default" && filterKey === "all" && groupFilter===null && sortedQuotes.length > 1;
 
   return {
+    todayFocus, todayDate,
     now,
     data,
     storage,
@@ -280,6 +309,7 @@ export function useHomeDashboard() {
     setSortKey,
     filterKey,
     setFilterKey,
+    groups,groupFilter,setGroupFilter,groupEditingRow,setGroupEditingId,handleGroupSaved,
     filteredQuotes,
     sparks,
     watchStats,
