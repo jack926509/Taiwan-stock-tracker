@@ -40,3 +40,13 @@ Astra 提出疑慮後，以隔離瀏覽器模擬後端觸發 0050。未手動更
 - 原始重現腳本另跑修正檢查：收盤 fetches = 2、保存價格 110；13:37 新事件檢查 0、既有派送 1、deliveryOnly = true。
 - 兩項 Important 關閉，未發現新增問題。結論「程式可合併」；發布需另確認 migration 能力與公開／限本人存取決策。
 - 主代理最終 Next.js／OpenNext 建置、dry-run（gzip 2050.09 KiB）、既有 9 個 HTTP 驗收通過，記錄於 `/private/tmp/twstock-astra-final-*`。
+
+## GitHub 推送與正式發布待辦
+
+- 已推送工作分支並建立 Draft PR：<https://github.com/jack926509/Taiwan-stock-tracker/pull/10>。
+- 來源 `62fe4a0e55871d62bd1b2b45846cb4b52cfa54e7` 的 push／pull_request 兩個 validate 均成功：[push 驗證](https://github.com/jack926509/Taiwan-stock-tracker/actions/runs/38689353483)、[PR 驗證](https://github.com/jack926509/Taiwan-stock-tracker/actions/runs/38689409665)。後續文件提交的檢查另以 PR 最新 SHA 為準。
+- 修正版四頁 `/`、`/search`、`/alerts`、`/stock/2330` 已再跑桌面 1280 px 及手機 390 × 844，實際渲染、無橫向溢出，未見 console warning／error。
+- 正式 Supabase 安全 advisors 僅有八個既有 RLS 無 policy 的 INFO；後端使用 service role、匿名資料表存取維持封鎖，未增加公開資料庫 policy。這不代表網站 API 已有登入保護；網站匿名清單可讀的實測結果仍有效。[INFO 說明](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)。
+- 依使用者全域 AGENTS.md 的正式資料規則，已提出套用必要新增 migration 的確認；另已詢問沿用公開或限本人存取，目前都尚未收到答覆。未將 async 選項的預選或經過時間當作同意。
+- 在上述確認完成前，不合併 main、不啟用新正式寫入；使用者已授權 GitHub 推送與合併，確認後不用再重問相同 GitHub 操作。
+- Supabase CLI dry-run 長時間無輸出，已明確終止本次程序；未把它當作已通過或已套 migration。正式能力與七筆既有 migration 已由已連線的 Supabase 工具唯讀查核。
