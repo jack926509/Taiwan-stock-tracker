@@ -3,7 +3,6 @@
 // 首頁：純組裝殼層。資料層（輪詢／排序／篩選／刪除／左欄統計）都在 lib/useHomeDashboard.ts，
 // 這裡只負責把資料接到 components/home/* 六個元件與既有共用元件上。
 import StockSearch from "@/components/StockSearch";
-import AddStockForm from "@/components/AddStockForm";
 import MobileNetworkBanner from "@/components/MobileNetworkBanner";
 import PullToRefresh from "@/components/PullToRefresh";
 import DeleteStockDialog from "@/components/DeleteStockDialog";
@@ -13,10 +12,10 @@ import IndexRail from "@/components/home/IndexRail";
 import WatchlistToolbar from "@/components/home/WatchlistToolbar";
 import QuoteBoard from "@/components/home/QuoteBoard";
 import ClosingSummary from "@/components/ClosingSummary";
-import TodayFocusCard from "@/components/home/TodayFocusCard";
+import StatusNotice from "@/components/home/StatusNotice";
 import PersonalStatusCard from "@/components/PersonalStatusCard";
 import { useHomeDashboard } from "@/lib/useHomeDashboard";
-import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
+import { formatQuoteAsOf } from "@/lib/quoteStatus";
 
 export default function Dashboard() {
   const {
@@ -48,7 +47,6 @@ export default function Dashboard() {
     confirmDelete,
     handleReorder,
   } = useHomeDashboard();
-  const warnings = data ? quoteWarnings(data) : [];
   const quoteAt = formatQuoteAsOf(data?.asOf);
   const initialError = !data && Boolean(quote.error || watchlist.error);
 
@@ -74,39 +72,17 @@ export default function Dashboard() {
       />
 
       <div className="mx-auto max-w-[1360px] px-4 sm:px-[18px]">
-        {(warnings.length > 0 || autoPaused || storage === "local" || quote.error || watchlist.error) && (
-          <div className="space-y-2 pt-4">
-            <MobileNetworkBanner
-              stale={data?.source === "stale" || autoPaused}
-              error={quote.error || watchlist.error}
-              asOf={data?.asOf}
-            />
-            {(quote.error || watchlist.error) && (
-              <p role="alert" className="hidden rounded-card bg-warn-tint px-3 py-2 text-xs text-warn md:block">
-                {data ? "資料更新失敗，畫面保留先前資料，稍後會自動重試。" : "行情或自選清單暫時無法載入，稍後會自動重試，也可按立即更新。"}
-              </p>
-            )}
-            {(warnings.length > 0 || autoPaused || storage === "local") && (
-              <div className="flex flex-wrap gap-2 text-xs">
-                {warnings.map((warning) => (
-                  <span key={warning} className="rounded-card bg-warn-tint px-2.5 py-1 leading-relaxed text-warn">
-                    {warning}
-                  </span>
-                ))}
-                {autoPaused && (
-                  <span className="rounded-pill bg-warn-tint px-2.5 py-1 text-warn">
-                    報價久未更新，已暫停輪詢（切回分頁自動恢復）
-                  </span>
-                )}
-                {storage === "local" && (
-                  <span className="rounded-pill bg-app px-2.5 py-1 text-muted">
-                    本地測試模式（自選股存於本機，未連 Supabase）
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* 離線提示維持原樣；其餘警告（備援／缺漏／暫停輪詢／更新失敗…）併入 StatusNotice 單行摘要 */}
+        <div className="pt-4 empty:hidden md:hidden"><MobileNetworkBanner /></div>
+        <StatusNotice
+          data={data}
+          items={items ?? []}
+          todayDate={todayDate}
+          autoPaused={Boolean(autoPaused)}
+          localStorageMode={storage === "local"}
+          fetchError={Boolean(quote.error || watchlist.error)}
+          countError={Boolean(todayFocus.error)}
+        />
         {/* 左欄 1360px 起才並排：1000–1359 併排會把主欄壓到 8 欄表格的最小寬以下，
             表格橫向溢出→觸控板捲動被鎖在表格上（2026-07-19 滑不到底根因之一） */}
         <div className="grid grid-cols-1 gap-4 pt-4 min-[1360px]:grid-cols-[336px_1fr] min-[1360px]:items-start min-[1360px]:gap-5">
@@ -117,19 +93,8 @@ export default function Dashboard() {
           />
 
           <main className="grid min-w-0 grid-cols-1 gap-4 pb-6">
-            {/* 桌面兩個輸入框用途不同，各加標題避免混淆：左＝查看個股走勢、右＝加入自選清單 */}
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="mb-1 hidden text-xs font-semibold text-muted md:block">搜尋個股（查看走勢）</p>
-                <StockSearch />
-              </div>
-              <div className="hidden md:block">
-                <p className="mb-1 text-xs font-semibold text-muted">加入自選股</p>
-                <AddStockForm onAdded={refreshAll} />
-              </div>
-            </div>
-
-            <TodayFocusCard items={items ?? []} quotes={data?.quotes ?? []} source={data?.source} date={todayDate} events={watchStats.todayHits} countError={Boolean(todayFocus.error)} />
+            {/* 單一搜尋框：點列看走勢，列右側「＋ 自選」加入自選 */}
+            <StockSearch onAdded={refreshAll} />
 
             <WatchlistToolbar
               sort={sortKey}
