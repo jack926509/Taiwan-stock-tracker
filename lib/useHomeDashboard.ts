@@ -77,7 +77,7 @@ export function useHomeDashboard() {
   const watchlist = useSWR<{ items: WatchlistItem[]; storage: string }>(
     "/api/watchlist",
     fetcher,
-    { revalidateOnFocus: false, revalidateOnReconnect: true }
+    { refreshInterval: 60_000, revalidateOnFocus: true, revalidateOnReconnect: true, refreshWhenHidden: false }
   );
 
   const quote = useSWR<QuoteResponse>("/api/quote", fetcher, {

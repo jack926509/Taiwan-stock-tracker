@@ -18,7 +18,7 @@ export async function captureClosingSummary(now = new Date()): Promise<ClosingSn
   if (t.minutes < 13 * 60 + 35) return null;
   const existing = await loadClosingSummary(t.isoDate);
   if (existing) return existing;
-  const summary = await buildSummaryData(now);
+  const summary = await buildSummaryData(now, { fresh: true });
   if (!summary || summary.date !== t.isoDate) return null;
   const snapshot: ClosingSnapshot = { v: 1, savedAt: now.toISOString(), summary: {
     ...summary, alertHits: await countAlertEvents(t.isoDate),

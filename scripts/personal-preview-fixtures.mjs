@@ -46,6 +46,14 @@ function start(port, mode) {
       res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify(data));
     };
+    // 僅供本機驗收模擬 Cron；不代理到任何正式來源。
+    if (req.method === "POST" && url.pathname === "/__fixture/trigger-high") {
+      const row = demoItems.find(item => item.stock_id === "0050");
+      row.alert_high_hit_at = new Date().toISOString();
+      demoHistory.push({ ...demoHistory[0], id: "demo-cron", stockId: row.stock_id, name: row.name,
+        triggeredAt: row.alert_high_hit_at, threshold: row.alert_high, price: 111 });
+      return json({ ok: true, events: demoHistory.length });
+    }
     if (req.method === "PATCH" && url.pathname === "/api/watchlist") {
       let raw = "";
       for await (const chunk of req) { raw += chunk; if(raw.length>2048)return json({error:"測試資料過長"},413); }

@@ -95,3 +95,7 @@
 所有功能 A1–C4 已實作。346 項測試、型別檢查、Next.js／OpenNext 建置、dry-run、9 項既有 HTTP 及 4 項新增唯讀 API 驗收通過；桌面與 390 × 844 的核心操作通過。完整證據與使用者路徑見 `2026-10-15-personal-optimization-acceptance.md`。
 
 全案不能標成完整驗收完成：最後 Claude 審查被自動核准審查拒絕，理由為缺少將程式內容提供給外部服務的明確授權，正等待使用者答覆；交接檔已保存在 `2026-10-15-personal-optimization-review-handoff.md`。使用者親自操作的驗收也仍待回覆。未發布、未套用正式 migration、未發送正式通知。
+
+## 使用者更新驗收與發布指示
+
+2026-10-15 使用者指示本輪不需 Claude、改由 Astra 驗收；通過後推送 GitHub 並合併。前述等待 Claude 授權的記錄為先前狀態，不再構成本輪阻擋。此次由 Astra 做指定合併前技術驗收，不宣稱使用者已自行操作。最新審查、修正及發布證據集中於 `2026-10-15-personal-optimization-astra-acceptance.md`。
