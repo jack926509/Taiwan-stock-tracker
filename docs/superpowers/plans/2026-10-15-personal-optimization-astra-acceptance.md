@@ -70,3 +70,19 @@ Astra 提出疑慮後，以隔離瀏覽器模擬後端觸發 0050。未手動更
 
 - 本輪 Next.js build、OpenNext build 均通過；Worker dry-run gzip 2047.47 KiB，未上傳。最初沙箱 listen EPERM 以相同指令在可綁定 localhost 的環境重跑通過。
 - 本輪未修改應用程式執行碼；前輪 9 個 HTTP 與桌面／手機互動證據繼續涵蓋相同功能。正式 Access 的匿名拒絕及本人登入驗收另待實施，未以本機結果代替。
+
+## 單一信箱 Access 啟用（2026-10-15，台北）
+
+- 使用者已明確確認唯一登入信箱；實際信箱只寫入 Cloudflare 政策，未放進公開 Git。前輪按鈕拒絕的待確認條件已消除，本輪 UI 正常開啟並完成設定。
+- 先建立單一精確 email Allow 原則「台股追蹤僅本人」，ID 680aea9e-2320-40f9-b862-ac7960e6eb88，再套用 tw-stock-tracker Worker 的 All traffic，24 小時；未使用帳戶成員／整個網域或 bypass 規則。
+- 管理頁顯示 Worker Access、所有 Traffic、每個正式／預覽 URL 都需登入；Access app ID eab7b1fe-0ae8-4971-ac4f-dfa300515166。官方 Worker 層級保護說明：https://developers.cloudflare.com/workers/configuration/cloudflare-access/ 。
+- 主代理實測兩個現有網域的 24 個匿名 GET，包含四頁、watchlist／alert-history／personal-status／personal-backup／closing-history／health，以及 sw.js／offline.html，全部 HTTP 302 到 xiehcs.cloudflareaccess.com。未帶登入 cookie，未讀取個人資料本文。
+- 已讀 Service Worker 原始碼：只快取無個人內容的 offline.html，不快取頁面或 API；未為 Access 放寬離線快取。
+- 現有 Cloudflare API token 讀取詳細 Access app／policy 回 403；設定及讀回以已登入管理 UI 為準，不用空 list 宣稱無設定，不新增權杖或擴大權限。
+- 正式站已寄出本人 email 一次性驗證碼，由使用者直接在 Chrome 輸入；尚未確認登入成功。Astra 已派工獨立驗匿名阻擋與政策範圍。尚未合併或部署新版。
+
+### Astra Access 獨立驗收
+
+- 審查者自行開啟只讀 Cloudflare 管理頁：app 目的地僅 tw-stock-tracker、類型為 Worker 的生產與預覽 URL、24h；政策表僅一列 Allow，Include Emails 只有使用者確認的精確 email，無 Bypass／整個網域／整個帳戶授權。規則總計一筆、使用 app 數為一。
+- 審查者獨立對兩個正式網域各六個路徑發出無 cookie／key 的 HTTP 請求，12／12 皆為 302 到 xiehcs.cloudflareaccess.com，本文無個人 API 欄位。結論：Access 範圍正確，未發現設定問題。
+- 審查者未修改政策、未操作 OTP 分頁。本人登入尚待完成，未把單一允許規則正確當作登入端到端通過。

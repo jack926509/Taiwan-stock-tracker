@@ -23,15 +23,20 @@
 - [x] 正式 migration 前備份並取得使用者授權。
 - [x] 套用 `20261015060931_personal_alert_events.sql`，比對 10 筆既有資料完全保留。
 - [x] 本機 SQL 檔與測試對齊正式 migration 版本，SQL 原文不變。
-- [ ] 確認登入 email 及以上保護範圍。
-- [ ] 建立單一 email 政策並只套用到台股 Worker 的全部流量。
+- [x] 使用者已確認唯一登入 email 及以上保護範圍。
+- [x] 建立單一 email 政策並只套用到台股 Worker 的全部流量。
 - [ ] 以兩個現有網域測匿名首頁、API 與資源，確認無資料外洩；以本人登入驗桌面及手機核心頁面。
-- [ ] Astra 獨立複驗 Access 政策與 migration 證據。
+- [x] Astra 獨立複驗 Access 政策與 migration 證據；本人登入成功仍另待完成。
 - [ ] 推送最新紀錄、確認 CI、合併 PR #10，核對正式部署並同步本機 main。
 
 ## 目前狀態（2026-10-15，台北）
 
-- Cloudflare 管理頁已使用既有 Google 登入開啟；台股 Worker 的 Access 頁明確顯示尚未受保護。
+- Cloudflare 管理頁已使用既有 Google 登入開啟；台股 Worker 的 Access 頁現已顯示「所有 Traffic」，每個正式／預覽 URL 都需登入。
 - 原生 Worker Access 可覆蓋所有關聯網址，依據 [Cloudflare 官方文件](https://developers.cloudflare.com/workers/configuration/cloudflare-access/)。
-- 「使用 Access 保護此 Worker」按鈕被自動核准審查拒絕，原因為單一登入 email 與政策範圍尚待確認。未重試或以 API 繞過；已向使用者提出具體確認。
-- 尚未建立 Access 政策、尚未合併或發布；不得把本人保護計畫寫成已完成。
+- 前輪「使用 Access 保護此 Worker」按鈕曾被自動核准審查拒絕；使用者已回覆確認唯一信箱，本輪重新開啟設定成功，未以 API 繞過拒絕。
+- Worker 快速設定僅提供整個 Cloudflare 帳戶或 email 網域規則；為符合只允許本人，先在 Zero Trust 建立單一 email 原則，再套用到此 Worker。
+- 已建立單一 email Allow 原則「台股追蹤僅本人」，ID `680aea9e-2320-40f9-b862-ac7960e6eb88`；Access app ID 為 `eab7b1fe-0ae8-4971-ac4f-dfa300515166`，工作階段 24 小時。未新增網域／所有帳戶成員或 bypass 規則。
+- 兩個現有網域的首頁、搜尋、提醒、個股頁、個人 API、健康檢查、Service Worker 與離線頁共 24 個匿名 GET 均為 HTTP 302，導向 `xiehcs.cloudflareaccess.com`；不回傳個人資料。結果存於本機 `/private/tmp/twstock-anonymous-access.json`。
+- 已寄出本人一次性登入碼，保留 Chrome 驗證頁供使用者直接輸入；不索取或讀取信箱／驗證碼內容。本人登入成功與正式頁面驗收仍待完成。
+- 尚未合併或發布；不得把匿名阻擋通過寫成完整登入驗收通過。
+- Astra 已另開只讀管理頁獨立確認：app 目的地僅 `tw-stock-tracker` 的正式與預覽 URL；政策只有一列 Allow、規則總計一筆精確 email、只供一個 app 使用。獨立無 cookie／key 的 12 個 HTTP 請求全數被 Access 攔截，無個人 API JSON；結論為 Access 範圍正確、未發現設定問題。

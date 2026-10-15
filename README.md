@@ -50,7 +50,7 @@
 - 提醒頁可按日期查歷史及通知結果。通知採固定重試識別，最多三次、十五分鐘內重試；LINE「已接受」不代表已送達或已讀。
 - 每日 15 則額度以交易先保留，同一重試識別只計一次；未確認的請求仍占用額度，避免超額。
 
-2026-10-15 已取得使用者授權並套用 `supabase/migrations/20261015060931_personal_alert_events.sql`；既有 10 筆清單資料已備份並比對保留。新版程式仍待本人存取保護完成後合併 `main` 發布。完整個人使用計畫見 [優化計畫](docs/superpowers/plans/2026-10-15-personal-optimization.md)。
+2026-10-15 已取得使用者授權並套用 `supabase/migrations/20261015060931_personal_alert_events.sql`；既有 10 筆清單資料已備份並比對保留。正式站使用 Cloudflare Access，僅允許使用者確認的單一信箱登入，工作階段 24 小時；保護涵蓋此 Worker 的正式網域、`workers.dev`、預覽網址及 API。發布需先通過本人登入與 Astra 驗收，再合併 `main`。完整個人使用計畫見 [優化計畫](docs/superpowers/plans/2026-10-15-personal-optimization.md)。
 
 ### PWA 與行動裝置支援
 
