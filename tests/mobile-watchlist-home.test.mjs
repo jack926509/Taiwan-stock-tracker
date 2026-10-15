@@ -9,18 +9,24 @@ const root = new URL("..", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("首頁提供搜尋入口、可換行的排序篩選工具列與離線快取時間", async () => {
-  const [page, toolbar, dashboard, banner, searchPage] = await Promise.all([
+  const [page, toolbar, dashboard, banner, searchPage, search] = await Promise.all([
     read("app/page.tsx"),
     read("components/home/WatchlistToolbar.tsx"),
     read("lib/useHomeDashboard.ts"),
     read("components/MobileNetworkBanner.tsx"),
     read("app/search/page.tsx"),
+    read("components/StockSearch.tsx"),
   ]);
 
   assert.match(page, /<StockSearch/);
-  // 新版型：手機首頁只放搜尋入口，加自選入口移到底部導覽的「搜尋」分頁（app/search/page.tsx），
-  // 桌機首頁另有 hidden md:block 的 AddStockForm。加自選功能未消失，只是換位置，故在此驗證搜尋頁具備。
-  assert.match(searchPage, /<AddStockForm/);
+  assert.doesNotMatch(page, /AddStockForm|TodayFocusCard/);
+  // 新版型：搜尋與加自選合一（StockSearch 結果列右側「＋ 自選」），首頁與 /search 分頁共用同一元件，
+  // 手機底部導覽的「搜尋」分頁一樣能加自選。
+  assert.match(searchPage, /<StockSearch/);
+  assert.match(search, /useAddToWatchlist/);
+  assert.match(search, /＋ 自選/);
+  assert.match(search, /已在自選/);
+  assert.match(search, /aria-label=\{`加入 \$\{r\.name\} \$\{r\.stockId\} 到自選`\}/);
   // 舊版手機工具列用橫向捲動（overflow-x-auto）；視覺規範 2026-07-18-visual-spec-final.html
   // 的 .toolbar 改用可換行（flex-wrap），排序/篩選晶片在窄螢幕自動換行，不再橫向捲動。
   assert.match(toolbar, /flex-wrap/);
@@ -29,13 +35,12 @@ test("首頁提供搜尋入口、可換行的排序篩選工具列與離線快�
 });
 
 test("搜尋支援名稱與代號並以無障礙下拉呈現建議", async () => {
-  const [search, addForm, hook] = await Promise.all([
+  const [search, hook] = await Promise.all([
     read("components/StockSearch.tsx"),
-    read("components/AddStockForm.tsx"),
     read("hooks/useStockSuggestions.ts"),
   ]);
 
-  for (const source of [search, addForm]) {
+  for (const source of [search]) {
     assert.match(source, /useStockSuggestions/);
     assert.match(source, /role="listbox"/);
     assert.doesNotMatch(source, /inputMode="numeric"/);
@@ -193,13 +198,13 @@ test("刪除成功不會因後續重新整理失敗而誤報且忙碌時焦點�
 test("首頁深色模式的彩色底互動元件使用深色前景", async () => {
   // app/page.tsx 本身不再直接持有任何彩色底互動元件（都搬進 components/home/*）；
   // 檢查目標換成實際持有這些元件的新檔案，範圍不縮小（TopBar/WatchlistToolbar/QuoteBoard）。
-  // 註：StockSearch 改版後不再有彩色底按鈕，故不在此清單。
+  // 註：StockSearch 合併加自選後有彩色底「＋ 自選」按鈕，故納入此清單。
   const files = await Promise.all([
     read("components/home/TopBar.tsx"),
     read("components/home/WatchlistToolbar.tsx"),
     read("components/home/QuoteBoard.tsx"),
     read("components/DeleteStockDialog.tsx"),
-    read("components/AddStockForm.tsx"),
+    read("components/StockSearch.tsx"),
     read("components/SwipeToDelete.tsx"),
   ]);
 
