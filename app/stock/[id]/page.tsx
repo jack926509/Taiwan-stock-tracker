@@ -147,6 +147,7 @@ export default function StockPage() {
       : null;
 
   const q = quote.data?.quotes[0];
+  const stockName = currentWatch?.name ?? q?.name ?? id;
   const t = trendOf(q?.change ?? null);
 
   // 大價格卡是否還在畫面內（扣掉 sticky 標題列約 64px）；預設 true＝標題列先不顯示股價
@@ -210,7 +211,7 @@ export default function StockPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate font-serif font-semibold">
-                    {q?.name ?? id}
+                    {stockName}
                   </span>
                   <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-xs text-muted">
                     {id}
@@ -355,7 +356,7 @@ export default function StockPage() {
                   >
                     <PriceAlertCard
                       stockId={id}
-                      name={q.name ?? id}
+                      name={stockName}
                       currentPrice={q.price ?? null}
                       trend={t}
                     />

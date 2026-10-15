@@ -5,6 +5,7 @@
 // 排序／篩選狀態與資料抓取留在 app/page.tsx（資料層），本元件只負責渲染＋刪除／拖曳排序回呼。
 import Link from "next/link";
 import type { Quote, WatchlistItem } from "@/lib/types";
+import type { WatchlistQuote } from "@/lib/watchlistQuotes";
 import type { Signal } from "@/lib/signals";
 import Sparkline from "@/components/Sparkline";
 import SwipeToDelete from "@/components/SwipeToDelete";
@@ -83,7 +84,7 @@ function Row({
   onDelete,
   reorderable,
 }: {
-  quote: Quote;
+  quote: WatchlistQuote;
   hasAlert: boolean;
   spark?: number[];
   signals?: Signal[];
@@ -97,7 +98,7 @@ function Row({
   const upDown = limit ?? (t === "flat" ? null : t);
   // 報價時間整批只在標題顯示一次；這一列只有落後同批最新行情時才標「延遲」
   // 沒有來源時間的列照契約仍須呈現缺漏，標「時間未知」
-  const delay = quote.asOf ? quoteDelayLabel(quote.asOf, latestAsOf) : "時間未知";
+  const delay = quote.missing ? "報價暫缺" : quote.asOf ? quoteDelayLabel(quote.asOf, latestAsOf) : "時間未知";
 
   const badges: { key: string; label: string; cls: string }[] = [];
   if (limit === "up") badges.push({ key: "limit", label: "漲停", cls: "bg-up text-white dark:text-app" });
@@ -242,7 +243,7 @@ export default function QuoteBoard({
   reorderable = false,
   onReorder,
 }: {
-  quotes: Quote[];
+  quotes: WatchlistQuote[];
   items: WatchlistItem[];
   onDelete: (stockId: string, name: string) => void;
   // 額外資料（超出 task-7-brief 最小契約，皆為可選＋向下相容，見 task-7-report.md）：

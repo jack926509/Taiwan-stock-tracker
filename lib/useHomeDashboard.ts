@@ -17,6 +17,7 @@ import { highTouchState, lowTouchState, type TouchState } from "@/lib/alertTouch
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { quoteRefreshFeedback } from "@/lib/quoteStatus";
 import { saveWatchlistOrder } from "@/lib/watchlistOrder";
+import { buildWatchlistQuotes } from "@/lib/watchlistQuotes";
 
 type PendingDelete = { stockId: string; name: string };
 
@@ -191,7 +192,7 @@ export function useHomeDashboard() {
 
   // UI-1：依今日漲跌幅排序（null 一律排最後），預設依自訂拖曳順序
   const sortedQuotes = useMemo(() => {
-    const list = data?.quotes ?? [];
+    const list = buildWatchlistQuotes(items, data?.quotes ?? []);
     if (sortKey === "default") {
       if (order.length === 0) return list;
       const map = new Map(list.map((q) => [q.stockId, q]));
@@ -205,7 +206,7 @@ export function useHomeDashboard() {
       if (b.changePct === null) return -1;
       return (a.changePct - b.changePct) * dir;
     });
-  }, [data?.quotes, sortKey, order]);
+  }, [items, data?.quotes, sortKey, order]);
 
   // 已設提醒的代號集合（供「僅看已設提醒」篩選、表格鈴鐺圖示、左欄提醒摘要共用）
   const alertedIds = useMemo(
