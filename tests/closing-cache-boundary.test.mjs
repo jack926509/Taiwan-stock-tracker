@@ -15,7 +15,7 @@ registerHooks({resolve(s,c,next){const stubs={
  '@/lib/klineStore':'export const loadKline=async()=>[];',
  '@/lib/notify':'export const lineConfigured=()=>false;export const pushLineMessages=async()=>false;',
  '@/lib/supabase':"export const getSupabase=()=>{throw Error('禁止資料庫連線')};",
- '@/lib/personalRecords':'export const loadPersonalRecord=async k=>globalThis.astra.load(k);export const createPersonalRecord=async(...args)=>globalThis.astra.create(...args);',
+ '@/lib/personalRecords':'export const loadPersonalRecord=async k=>globalThis.astra.load(k);export const createPersonalRecord=async(...args)=>globalThis.astra.create(...args);export const listPersonalRecords=async()=>({items:[],total:0});',
  '@/lib/alertHistory':'export const countAlertEvents=async()=>0;'
 };if(stubs[s])return {url:'data:text/javascript,'+encodeURIComponent(stubs[s]),shortCircuit:true};if(s.startsWith('@/'))return next(pathToFileURL(root+s.slice(2)+'.ts').href,c);return next(s,c);}});
 const {buildSummaryData}=await import(pathToFileURL(root+'lib/summaryData.ts'));

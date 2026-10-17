@@ -21,36 +21,73 @@ const signalToneClass: Record<Signal["tone"], string> = {
   down: "bg-down-tint text-down",
 };
 
-// 保存的每日快照按日期查詢；今日尚未保存時，明確區分即時暫覽。
+interface SummaryResponse { summary: DailySummaryData | null; savedAt: string | null }
+
+// null 表示追蹤最近保存紀錄；手動選定的日期不受背景輪詢影響。
 export default function ClosingSummary() {
-  const [date, setDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [today, setToday] = useState("");
   useEffect(() => {
-    const current = taipeiNow().isoDate; setDate(current); setToday(current);
+    setToday(taipeiNow().isoDate);
     const timer = setInterval(() => setToday(taipeiNow().isoDate), 60_000);
     return () => clearInterval(timer);
   }, []);
-  const saved = useSWR<{ summary: DailySummaryData | null; savedAt: string | null }>(
-    date ? `/api/summary?date=${date}` : null, fetcher, { refreshInterval: date === today ? 60_000 : 0, shouldRetryOnError: false }
+  const latest = useSWR<SummaryResponse>("/api/summary?latest=1", fetcher,
+    { refreshInterval: 60_000, shouldRetryOnError: false });
+  const date = selectedDate ?? latest.data?.summary?.date ?? today;
+  const saved = useSWR<SummaryResponse>(
+    selectedDate ? `/api/summary?date=${selectedDate}` : null, fetcher,
+    { refreshInterval: selectedDate === today ? 60_000 : 0, shouldRetryOnError: false }
   );
+  const activeSaved = selectedDate === null ? latest : saved;
+  const canPreview = Boolean(date && date === today && activeSaved.data?.summary === null && !activeSaved.error);
   const preview = useSWR<{ summary: DailySummaryData | null }>(
-    date && date === today && saved.data && !saved.data.summary && !saved.error ? "/api/summary" : null, fetcher,
+    canPreview ? "/api/summary" : null, fetcher,
     { refreshInterval: 60_000, shouldRetryOnError: false }
   );
-  const summary = saved.data?.summary ?? (date === today ? preview.data?.summary : null);
+  const summary = activeSaved.data?.summary ?? (canPreview ? preview.data?.summary : null);
+  const wrongDate = (activeSaved.data?.summary && activeSaved.data.summary.date !== date)
+    || (canPreview && preview.data?.summary && preview.data.summary.date !== today);
+  const hasError = activeSaved.error || (canPreview && preview.error) || wrongDate;
+  const isLoading = activeSaved.isLoading || (!activeSaved.data && selectedDate !== "")
+    || (canPreview && !preview.data && !preview.error) || (!today && !summary);
+  const noHistory = latest.data?.summary === null;
+  const isPreview = Boolean(summary && !activeSaved.data?.savedAt);
+  const reload = () => {
+    void activeSaved.mutate();
+    if (canPreview) void preview.mutate();
+  };
+  const dateButtonClass = "min-h-11 rounded-lg px-2.5 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
   return <section aria-label="收盤回顧" className="rounded-card bg-surface p-4 shadow-card ring-1 ring-line sm:p-5">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="font-serif text-base font-semibold text-ink">收盤回顧</h2>
-      <label className="flex min-w-0 items-center gap-2 text-xs text-muted">查詢日期
-        <input type="date" aria-label="收盤回顧日期" max={today || undefined} value={date} onChange={event => setDate(event.target.value)} className="min-h-11 min-w-0 rounded-lg border border-line bg-app px-2 text-ink" />
-      </label>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <h2 className="font-serif text-base font-semibold text-ink text-balance">收盤回顧</h2>
+      <div className="flex max-w-full flex-wrap items-center gap-1.5">
+        <div className="flex rounded-lg bg-app ring-1 ring-line">
+          <button type="button" aria-pressed={selectedDate === null} onClick={() => setSelectedDate(null)} className={`${dateButtonClass} ${selectedDate === null ? "bg-surface text-primary shadow-sm" : "text-muted"}`}>最近一筆</button>
+          <button type="button" aria-pressed={selectedDate === today} disabled={!today} onClick={() => setSelectedDate(today)} className={`${dateButtonClass} ${selectedDate === today ? "bg-surface text-primary shadow-sm" : "text-muted"} disabled:opacity-50`}>今天</button>
+        </div>
+        <label className="flex min-w-0 items-center gap-2 text-xs text-muted"><span className="sr-only">查詢日期</span>
+          <input type="date" aria-label="收盤回顧日期" max={today || undefined} value={date} onChange={event => setSelectedDate(event.target.value)} className="min-h-11 w-[9.5rem] min-w-0 max-w-full rounded-lg border border-line bg-app px-2 text-xs text-ink tabular-nums" />
+        </label>
+      </div>
     </div>
-    {saved.error || preview.error ? <p role="alert" className="mt-2 text-xs text-warn">收盤紀錄暫時無法讀取<button type="button" onClick={() => { void saved.mutate(); void preview.mutate(); }} className="ml-2 min-h-11 px-2 text-primary">重試</button></p>
-      : !date ? <p className="mt-2 text-xs text-muted">請選擇查詢日期</p>
-      : saved.isLoading || preview.isLoading ? <p className="mt-2 text-xs text-muted">讀取收盤紀錄中…</p>
-      : saved.data?.savedAt ? <p className="mt-2 text-xs leading-relaxed text-muted">保存於 {formatQuoteAsOf(saved.data.savedAt)}（台北）。內容維持當時自選清單與行情。</p>
-      : <p className="mt-2 text-xs leading-relaxed text-muted">這一天尚無保存的收盤紀錄。{summary ? "以下為今日暫覽，尚未保存。" : "紀錄從功能啟用後的收盤排程開始保留，不回填過往行情。"}</p>}
-    {summary && !saved.error && !preview.error && <SummaryDetails s={summary} />}
+    {hasError ? <p role="alert" className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-warn">收盤紀錄暫時無法讀取<button type="button" onClick={reload} className="min-h-11 px-2 text-primary">重試</button></p>
+      : selectedDate === "" ? <p className="mt-3 text-xs text-muted">請選擇查詢日期</p>
+      : isLoading ? <p role="status" className="mt-3 text-xs text-muted">讀取收盤紀錄中…</p>
+      : activeSaved.data?.savedAt ? <p className="mt-3 text-xs leading-relaxed text-muted tabular-nums">保存於 {formatQuoteAsOf(activeSaved.data.savedAt)}（台北）</p>
+      : isPreview ? <p className="mt-3 text-xs leading-relaxed text-warn">今日暫覽，尚未保存。</p>
+      : <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="text-xs leading-relaxed text-muted text-pretty">
+          <p className="font-medium text-ink">{noHistory ? "尚無收盤紀錄" : "這一天沒有保存紀錄"}</p>
+          <p>{noHistory ? "第一筆收盤紀錄保存後，會自動顯示於此。" : "可切換至最近一筆，或選擇其他日期。"}</p>
+        </div>
+        {noHistory && <button type="button" onClick={reload} className="min-h-11 px-2 text-xs font-medium text-primary">重新讀取</button>}
+      </div>}
+    {summary && !hasError && !isLoading && selectedDate !== "" && <SummaryDetails s={summary} />}
+    <details className="mt-2 text-xs text-muted">
+      <summary className="min-h-11 cursor-pointer content-center select-none">紀錄說明</summary>
+      <p className="pb-1 leading-relaxed text-pretty">從功能啟用後的收盤排程開始保存，不回填過往行情。已保存的紀錄保留當時自選清單與行情；今日暫覽會更新，尚未存入歷史。</p>
+    </details>
   </section>;
 }
 function SummaryDetails({ s }: { s: DailySummaryData }) {

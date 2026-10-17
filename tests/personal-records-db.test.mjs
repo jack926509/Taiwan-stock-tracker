@@ -21,6 +21,16 @@ test("透過真實 Supabase JS client 建立日期、前綴與分頁查詢並讀
   assert.equal(request.url.searchParams.get("cache_key"),"like.alert:event:%");
   assert.deepEqual(request.url.searchParams.getAll("fetched_at"),["gte.2026-10-14T16:00:00Z","lt.2026-10-15T16:00:00Z"]);
   assert.equal(request.url.searchParams.get("limit"),"50");
+  assert.equal(request.url.searchParams.get("order"),"fetched_at.desc,cache_key.desc");
+});
+test("最近收盤快照可依 key 日期倒序取一筆，既有紀錄預設排序不變",async()=>{
+  let request;
+  globalThis.__personalRecordsDB=createClient("https://isolated-test.invalid","test-key",{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:async(url)=>{
+    request=new URL(url);return new Response("[]",{headers:{"Content-Type":"application/json","Content-Range":"*/0"}});
+  }}});
+  await listPersonalRecords("personal:closing:",{orderBy:"key",limit:1});
+  assert.equal(request.searchParams.get("order"),"cache_key.desc");
+  assert.equal(request.searchParams.get("limit"),"1");
 });
 test("沒有總數的回應不能假報為零筆歷史",async()=>{
   globalThis.__personalRecordsDB=createClient("https://isolated-test.invalid","test-key",{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:async()=>new Response("[]",{headers:{"Content-Type":"application/json"}})}});

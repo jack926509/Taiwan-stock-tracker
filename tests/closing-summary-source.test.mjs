@@ -47,7 +47,7 @@ for (const [source,label] of [["mixed","混合來源報價（含參考行情）"
     assert.doesNotMatch(html,/來源：MIS/);
     assert.ok(html.includes(source === "tpex" ? "製表時間：" : "資料時間："));
     assert.match(html,/台積電/);
-    assert.match(html,saved ? /保存於/ : /以下為今日暫覽，尚未保存/);
+    assert.match(html,saved ? /保存於/ : /今日暫覽，尚未保存/);
   });
 }
 for (const [source,label] of [["mis","MIS 行情"],["yahoo","Yahoo 備援（可能延遲）"],["stale","舊報價快照（非即時）"],[undefined,"來源待確認"]]) {
