@@ -34,7 +34,7 @@
 正式平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；`twstock.xiehnet.com` 已綁定同一個 Worker，頁面、API 與 Cron 都由 Worker 執行。Zeabur 不再承接正式流量；若舊服務仍存在，只能作為短期回退，不得在未取得使用者明確核准前停止或刪除。Cloudflare Workers Builds 連接 GitHub `jack926509/Taiwan-stock-tracker`，只有 `main` 分支推送時才會在測試、型別檢查與 OpenNext 建置成功後自動部署正式 Worker；其他分支不建立 Cloudflare 預覽版本。GitHub Actions 只負責驗證，不再上傳 Worker。推送 `main` 等同啟動正式發布，必須先取得使用者明確授權；本地優化或工作分支提交不代表已授權正式發布。
 
 ## 特殊規則
-- 正式存取與發布驗收前先讀 [本人存取計畫](docs/superpowers/plans/2026-10-15-personal-private-access.md)。授權邊界為 Cloudflare 的單一 email Worker Access；Next middleware 保留 passthrough。保留本人政策，不以 bypass、整個網域／帳戶或關閉 Access 排除驗收。正式須分別驗匿名被攔截及本人登入後頁面／API 正常；本機 `verify:cloudflare` 走 localhost 隔離預覽。
+- 使用者於 2026-10-17 明確要求並再次確認移除登入；已刪除僅套用 `tw-stock-tracker` 的 Cloudflare Access app。正式站、`workers.dev`、預覽網址與個人 API 均免登入，知道網址的人可讀取及修改自選股與提醒；個人使用不代表私有存取。Next middleware 保留 passthrough，後端 secrets、Supabase RLS 及 `/api/health?detail=1` 的 bearer token 保護維持不變。正式驗收須確認匿名頁面／一般 API 正常、詳細 health 無 token 仍回 401；本機 `verify:cloudflare` 走 localhost 隔離預覽。此決策取代先前僅本人登入要求，詳見 [免登入設定紀錄](docs/superpowers/plans/2026-10-17-no-login-access.md)。
 - 根版面以 React `Suspense` 包住各頁內容，將頁面 hydration 與共用版面分成邊界，保留 SSR。原始 Worker 曾出現頁面預期 `div`、hydration 游標卻落到內層 `header` 的 React 418；修改後以快取 JavaScript／新 HTML 連續 100 次本機手機驗收無錯誤。完整 HTML 傳送的嘗試無效，未納入；底層 React／OpenNext 原因仍未完全證實，不宣稱所有 hydration 問題已根治。
 - `instrumentation-client.ts` 在 hydration 前建立最小錯誤監聽，`/api/client-diagnostics` 只接受同源、1024 bytes 內的白名單欄位；正常頁面不回報，單頁最多 5 種、單 Worker 每分鐘最多 30 筆。僅記頁面分類、錯誤分類、數字 digest、React 418 與連線／viewport／SW 狀態，不存原始錯誤、堆疊、完整網址或使用者內容；不得消音原有 console 或停用 SSR。Workers Logs 已啟用，invocation logs 關閉。
 - 排程診斷以 `calendar`、`claim`、`business`、`finish` 分類；資料庫失敗狀態只存固定訊息與 `business`。API／LINE 診斷不儲存例外或 LINE 回應原文。Supabase keep-alive 與 backfill 紀錄失敗須拋出固定例外，不能假報成功。
