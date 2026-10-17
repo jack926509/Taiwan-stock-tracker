@@ -49,7 +49,8 @@ const visible = html => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, "")
 test("首頁以明確的上次執行時間呈現完成紀錄，不暗示現在持續運作", () => {
   const html = render(status());
   assert.match(visible(html), /上次提醒檢查/);
-  assert.match(visible(html), /2026\/10\/16 13:35:10/);
+  // 不同 Node／ICU 版本的日期與時間間隔可能是一般空白或窄空白。
+  assert.match(visible(html), /2026\/10\/16\s13:35:10/);
   assert.match(visible(html), /上次已完成/);
   assert.match(visible(html), /僅代表上次執行結果/);
   assert.doesNotMatch(visible(html), /系統正常|持續運作中|目前正常|即時運作/);
