@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { useStockSuggestions } from "@/hooks/useStockSuggestions";
 import { useAddToWatchlist } from "@/hooks/useAddToWatchlist";
+import { marketLabel } from "@/lib/marketLabel";
 import type { WatchlistItem } from "@/lib/types";
 
 const ID_RE = /^[0-9A-Z]{4,6}$/;
@@ -158,7 +159,7 @@ export default function StockSearch({ onAdded }: { onAdded?: () => void | Promis
                     {r.name}
                   </span>
                   <span className="shrink-0 rounded-pill bg-app px-2 py-0.5 text-xs text-muted ring-1 ring-line">
-                    {r.market === "tse" ? "上市" : "上櫃"}
+                    {marketLabel(r.market)}
                   </span>
                 </button>
               </li>

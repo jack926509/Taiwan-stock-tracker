@@ -7,7 +7,7 @@ import {
   QuoteTarget,
   Market,
 } from "@/lib/providers/quoteProvider";
-import { isMarketOpenNow } from "@/lib/market-hours";
+import { getExpectedQuoteDate, isMarketOpenNow } from "@/lib/market-hours";
 import { listWatchlist } from "@/lib/store";
 import { logApiError, publicErrorBody } from "@/lib/apiErrors";
 
@@ -48,9 +48,11 @@ export async function GET(req: NextRequest) {
     const stockTargets = ids
       ? await targetsFromIds(ids)
       : await targetsFromWatchlist();
-    const [result, marketOpen] = await Promise.all([
+    const now = new Date();
+    const [result, marketOpen, expectedQuoteDate] = await Promise.all([
       fetchQuotes([...INDEX_TARGETS, ...stockTargets]),
-      isMarketOpenNow(),
+      isMarketOpenNow(now),
+      getExpectedQuoteDate(now),
     ]);
     const indexIds = new Set(INDEX_TARGETS.map((t) => t.stockId));
     const indices: Quote[] = [];
@@ -61,6 +63,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       asOf: result.asOf,
       marketOpen,
+      expectedQuoteDate,
       source: result.source,
       complete: result.complete && (ids === null || stockTargets.length === ids.length),
       indices,

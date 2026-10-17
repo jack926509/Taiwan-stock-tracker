@@ -118,6 +118,20 @@ export async function isTradingDay(t: TaipeiTime): Promise<boolean> {
   return t.dayOfWeek >= 1 && t.dayOfWeek <= 5;
 }
 
+/** 顯示行情的預期交易日；盤前與休市沿用最近收盤日，不改變提醒的當日限制。 */
+export async function getExpectedQuoteDate(now: Date = new Date()): Promise<string> {
+  const current = taipeiNow(now);
+  const date = new Date(`${current.isoDate}T12:00:00+08:00`);
+  // 08:45 已開始輪詢，但 09:00 前尚不能要求當日成交行情。
+  if (current.minutes < 9 * 60) date.setUTCDate(date.getUTCDate() - 1);
+  for (let i = 0; i < 31; i++) {
+    const candidate = taipeiNow(date);
+    if (await isTradingDay(candidate)) return candidate.isoDate;
+    date.setUTCDate(date.getUTCDate() - 1);
+  }
+  throw new Error("無法判斷行情的最近交易日");
+}
+
 // 盤中視窗 08:45–13:35（含開盤試撮與收盤後資料落定的緩衝）
 const OPEN_MIN = 8 * 60 + 45;
 const CLOSE_MIN = 13 * 60 + 35;

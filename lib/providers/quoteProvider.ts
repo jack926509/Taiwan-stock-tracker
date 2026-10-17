@@ -3,8 +3,9 @@
 // 換報價來源或部署形態，只改這支檔案。
 
 import { getSupabase } from "@/lib/supabase";
-import type { Quote, QuoteSource } from "@/lib/types";
-export type { Quote };
+import type { Market, Quote, QuoteSource } from "@/lib/types";
+import { fetchEmergingQuotes, getCachedEmergingStock, getEmergingStockList } from "./emergingProvider.ts";
+export type { Market, Quote };
 
 const MIS_BASE = "https://mis.twse.com.tw/stock/api";
 const MIS_HEADERS = {
@@ -20,8 +21,6 @@ const YAHOO_MAX_SYMBOLS_PER_BATCH = 20;
 const MIS_CIRCUIT_BREAKER_MS = 5 * 60 * 1000;
 // MIS 硬規則：5 秒 ≤ 3 次。同一執行個體 5 秒內重複請求一律回快取
 const MIN_FETCH_INTERVAL_MS = 5000;
-
-export type Market = "tse" | "otc";
 
 export interface QuoteTarget {
   stockId: string;
@@ -414,13 +413,44 @@ export async function fetchQuotes(targets: QuoteTarget[]): Promise<QuoteResult> 
   const key = uniqueTargets.map(stockCacheKey).join("|");
   const pending = pendingBatches.get(key);
   if (pending) return pending;
-  const request = fetchQuoteBatch(uniqueTargets);
+  const request = fetchMarketQuotes(uniqueTargets);
   pendingBatches.set(key, request);
   try {
     return await request;
   } finally {
     if (pendingBatches.get(key) === request) pendingBatches.delete(key);
   }
+}
+
+async function fetchMarketQuotes(targets: QuoteTarget[]): Promise<QuoteResult> {
+  const emerging = targets.filter(target => target.market === "emerging");
+  if (emerging.length === 0) return fetchQuoteBatch(targets);
+  const standard = targets.filter(target => target.market !== "emerging");
+  if (standard.length === 0) {
+    const result = await fetchEmergingQuotes(emerging);
+    if (result.quotes.length === 0) throw new Error("所有行情來源暫時無法取得");
+    return result;
+  }
+
+  // 不同官方市場分流；任一來源失敗仍保留另一市場可讀資料，但不把缺漏當完整。
+  const results = await Promise.allSettled([fetchQuoteBatch(standard), fetchEmergingQuotes(emerging)]);
+  const byKey = new Map<string, Quote>();
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    for (const quote of result.value.quotes) {
+      const source = quote.source ?? (result.value.source === "mixed" ? undefined : result.value.source);
+      byKey.set(stockCacheKey(quote), { ...quote, source });
+    }
+  }
+  const quotes = targets.flatMap(target => byKey.has(stockCacheKey(target)) ? [byKey.get(stockCacheKey(target))!] : []);
+  if (quotes.length === 0) throw new Error("所有行情來源暫時無法取得");
+  const sources = new Set(quotes.map(quote => quote.source).filter((source): source is Exclude<QuoteSource, "mixed"> => source !== undefined));
+  return {
+    quotes,
+    source: sources.size === 1 ? [...sources][0] : "mixed",
+    asOf: isoAsOf(quotesAsOf(quotes)),
+    complete: quotes.length === targets.length && results.every(result => result.status === "fulfilled" && result.value.complete),
+  };
 }
 
 async function fetchQuoteBatch(targets: QuoteTarget[]): Promise<QuoteResult> {
@@ -551,13 +581,24 @@ async function fetchQuoteBatch(targets: QuoteTarget[]): Promise<QuoteResult> {
 }
 
 /**
- * 新增自選股時解析代號：自動判斷上市/上櫃與名稱（A.4 契約）。
+ * 新增自選股時解析代號：興櫃依官方名冊，上市／上櫃依 MIS 或經名冊排除後的 Yahoo。
  * 查無此代號回 null。
  */
 export async function resolveStock(
   code: string
 ): Promise<{ stockId: string; market: Market; name: string } | null> {
   if (!/^[0-9A-Z]{4,6}$/.test(code)) return null;
+  let emergingListAvailable = false;
+  try {
+    const emergingList = await getEmergingStockList();
+    emergingListAvailable = true;
+    const emerging = emergingList.find(item => item.stockId === code);
+    if (emerging) return { stockId: emerging.stockId, market: "emerging", name: emerging.name };
+  } catch {
+    // 名冊不可用時仍可接受 MIS 明確市場，但不得僅憑 Yahoo 的 .TWO 猜上櫃。
+    const emerging = getCachedEmergingStock(code);
+    if (emerging) return { stockId: emerging.stockId, market: "emerging", name: emerging.name };
+  }
   try {
     const res = await fetch(
       `${MIS_BASE}/getStock.jsp?ch=${code}.tw&json=1&_=${Date.now()}`,
@@ -595,6 +636,7 @@ export async function resolveStock(
       (item.symbol === `${code}.TW` || item.symbol === `${code}.TWO`)
     ) : undefined;
     if (!match?.symbol) return null;
+    if (match.symbol.endsWith(".TWO") && !emergingListAvailable) return null;
     return {
       stockId: code,
       market: match.symbol.endsWith(".TWO") ? "otc" : "tse",

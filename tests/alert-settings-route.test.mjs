@@ -7,7 +7,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   const stubs = {
     "@/lib/store": `export const setAlert = (...args) => globalThis.__alertSettingsRoute.set(...args);
       export const setWatchGroup = (...args) => globalThis.__alertSettingsRoute.group(...args);
-      export const listWatchlist = async () => [], addWatch = async () => {}, removeWatch = async () => {}, reorderWatch = async () => {}, usingSupabase = () => false;`,
+      export const listWatchlist = async () => [{stock_id:'7930',market:'emerging'}], addWatch = async () => {}, removeWatch = async () => {}, reorderWatch = async () => {}, usingSupabase = () => false;`,
     "@/lib/providers/quoteProvider": "export const resolveStock = async () => null;",
   };
   if (stubs[specifier]) return { url: `data:text/javascript,${encodeURIComponent(stubs[specifier])}`, shortCircuit: true };
@@ -37,6 +37,17 @@ for (const body of [null, [], { stockId: "2330", rearm: ["unknown"] }, { stockId
 }
 test("不存在的股票不能假報提醒設定成功", async () => {
   assert.equal((await patch({ stockId: "9999", high: 100 })).status, 404);
+});
+
+test("興櫃不能新增或重新啟用即時提醒，但可取消既有條件或改分組", async () => {
+  for (const fields of [{ high: 200 }, { low: 100 }, { changePct: 5 }, { volumeOn: true }, { rearm: ["high"] }]) {
+    const response = await patch({ stockId: "7930", ...fields });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /興櫃.*參考/);
+    assert.deepEqual(calls, []);
+  }
+  assert.equal((await patch({ stockId: "7930", high: null, low: null, changePct: null, volumeOn: false })).status, 200);
+  assert.equal((await patch({ stockId: "7930", groupName: "觀察" })).status, 200);
 });
 test("分組 PATCH 使用獨立儲存路徑，不碰提醒",async()=>{
   const response=await patch({stockId:"2330",groupName:" 持有 "});

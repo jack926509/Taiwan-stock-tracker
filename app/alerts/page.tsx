@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import type { QuoteResponse, Quote } from "@/lib/types";
+import type { QuoteResponse, Quote, Market } from "@/lib/types";
 import PriceAlertCard from "@/components/PriceAlertCard";
 import AlertHistory from "@/components/AlertHistory";
 import PersonalStatusCard from "@/components/PersonalStatusCard";
@@ -15,7 +15,8 @@ import { fmt, fmtPct, trendOf, arrowOf, chipColor } from "@/lib/format";
 import { getMarketSessionLabel } from "@/lib/marketSession";
 import { hasAnyAlert } from "@/lib/alertBadge";
 import { highTouchState, lowTouchState } from "@/lib/alertTouched";
-import { formatQuoteAsOf, quoteWarnings, quoteRefreshFeedback } from "@/lib/quoteStatus";
+import { marketLabel } from "@/lib/marketLabel";
+import { formatQuoteAsOf, quoteWarnings, quoteRefreshFeedback, quoteReferenceLabel } from "@/lib/quoteStatus";
 import { useToast } from "@/components/Toast";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
@@ -29,7 +30,7 @@ import {
 interface AlertRow {
   stock_id: string;
   name: string;
-  market: "tse" | "otc";
+  market: Market;
   alert_high: number | null;
   alert_low: number | null;
   alert_change_pct: number | null;
@@ -56,11 +57,12 @@ function AlertListRow({
 }: {
   row: AlertRow;
   quote: Quote | undefined;
-  source: string | undefined;
+  source: QuoteResponse["source"] | undefined;
   now: Date;
   isEditing: boolean;
   onToggle: () => void;
 }) {
+  const unsupported = row.market === "emerging" || quote?.market === "emerging";
   const price = quote?.price ?? null;
   const t = trendOf(quote?.change ?? null);
   const hasAlert =
@@ -69,15 +71,16 @@ function AlertListRow({
     row.alert_change_pct != null ||
     row.alert_volume_on;
   // 已觸及＝今日 MIS 成交價越過；價格雖越過但非今日成交價（休市、未成交、備援）只標「參考價已越過（非即時成交）」
-  const highState = highTouchState(row.alert_high, quote, source, now);
-  const lowState = lowTouchState(row.alert_low, quote, source, now);
+  const highState = highTouchState(row.alert_high, quote, unsupported ? "tpex" : quote?.source ?? source, now);
+  const lowState = lowTouchState(row.alert_low, quote, unsupported ? "tpex" : quote?.source ?? source, now);
   const quoteAt = formatQuoteAsOf(quote?.asOf);
 
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-haspopup="dialog"
+      disabled={unsupported}
+      aria-haspopup={unsupported ? undefined : "dialog"}
       aria-expanded={isEditing}
       aria-label={`${row.name} 到價提醒設定`}
       className={`group relative block w-full px-4 py-3 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
@@ -99,7 +102,7 @@ function AlertListRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold text-ink">{row.name}</span>
           <span className="mt-0.5 block font-mono text-xs text-faint">
-            {row.market === "tse" ? "上市" : "上櫃"}
+            {marketLabel(quote?.market ?? row.market)}
           </span>
         </span>
         <span className="flex shrink-0 items-center gap-2">
@@ -111,15 +114,17 @@ function AlertListRow({
               {arrowOf(t)} {fmtPct(quote.changePct)}
             </span>
           )}
-          <IconChevronDown
+          {!unsupported && <IconChevronDown
             className="h-4 w-4 shrink-0 text-faint transition-colors group-hover:text-muted"
             aria-hidden="true"
-          />
+          />}
         </span>
       </div>
       <p className="mt-1 text-xs leading-relaxed text-muted">
-        {quote ? (quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知") : "暫時未取得報價"}
+        {quote ? quoteReferenceLabel(quote, source) ?? (quoteAt ? `行情 ${quoteAt}（台北）` : "行情日期時間未知") : "暫時未取得報價"}
       </p>
+
+      {unsupported && <p className="mt-1 text-xs leading-relaxed text-muted">興櫃參考行情不觸發即時提醒；暫不開放設定。</p>}
 
       {/* 第二行：門檻標籤（已觸及＝實色、監控中＝淡底；漲跌幅／爆量走中性色，不與紅漲綠跌混淆） */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -176,11 +181,11 @@ function AlertListRow({
               </span>
             )}
           </>
-        ) : (
+        ) : !unsupported ? (
           <span className="inline-flex items-center rounded-pill border border-dashed border-line-strong px-2.5 py-0.5 text-xs font-medium text-muted transition-colors group-hover:border-primary group-hover:text-primary">
             ＋ 設定提醒
           </span>
-        )}
+        ) : null}
       </div>
     </button>
   );
@@ -312,7 +317,7 @@ export default function AlertsPage() {
     }
   }, [watchlist, quote, resumePolling, toast]);
 
-  const editingRow = items.find((a) => a.stock_id === editing) ?? null;
+  const editingRow = items.find((a) => a.stock_id === editing && a.market !== "emerging" && priceOf.get(a.stock_id)?.market !== "emerging") ?? null;
   // 分兩區呈現：已設提醒（管理重點）在前，尚未設定在後
   const alerted = items.filter((a) => hasAnyAlert(a));
   const unset = items.filter((a) => !hasAnyAlert(a));

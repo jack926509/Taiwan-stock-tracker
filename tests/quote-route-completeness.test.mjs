@@ -12,7 +12,7 @@ registerHooks({
         export const Quote = undefined, QuoteTarget = undefined, Market = undefined;
       `,
       "@/lib/store": "export const listWatchlist = (...args) => globalThis.__quoteRoute.listWatchlist(...args);",
-      "@/lib/market-hours": "export const isMarketOpenNow = async () => false;",
+      "@/lib/market-hours": "export const isMarketOpenNow = async () => false; export const getExpectedQuoteDate = async () => '2026-10-16';",
     };
     if (modules[specifier]) return { url: `data:text/javascript,${encodeURIComponent(modules[specifier])}`, shortCircuit: true };
     if (specifier.startsWith("@/")) return nextResolve(new URL(`../${specifier.slice(2)}.ts`, import.meta.url).href, context);
@@ -47,6 +47,12 @@ test("要求的股票解析失敗時，完整指數不能掩蓋報價缺漏", as
   assert.equal(body.indices.length, 2);
   assert.deepEqual(body.quotes, []);
   assert.equal(body.source, "mis");
+});
+
+test("報價 API 提供畫面應比較的交易日，不以抓取日改寫行情日期", async () => {
+  const body = await getQuotes("2330");
+  assert.equal(body.expectedQuoteDate, "2026-10-16");
+  assert.equal(body.asOf, "2026-10-09T02:00:00.000Z");
 });
 
 test("要求代號先去重，重複代號不造成重複報價或錯誤完整性", async () => {

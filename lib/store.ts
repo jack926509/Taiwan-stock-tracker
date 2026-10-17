@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getSupabase } from "@/lib/supabase";
 import type { Market } from "@/lib/providers/quoteProvider";
+import { normalizeEmergingMarkets } from "@/lib/providers/emergingProvider";
 
 export interface WatchItem {
   stock_id: string;
@@ -80,14 +81,14 @@ async function fileWrite(items: WatchItem[]): Promise<void> {
 // ── 對外統一 API ───────────────────────────────────────────────────────
 export async function listWatchlist(): Promise<WatchItem[]> {
   const db = getSupabase();
-  if (!db) return fileRead();
+  if (!db) return normalizeEmergingMarkets(await fileRead());
   const { data, error } = await db
     .from("watchlist")
     .select("*")
     .order("sort_order")
     .order("created_at");
   if (error) throw new Error(error.message);
-  return (data ?? []) as WatchItem[];
+  return normalizeEmergingMarkets((data ?? []) as WatchItem[]);
 }
 
 export async function addWatch(item: {

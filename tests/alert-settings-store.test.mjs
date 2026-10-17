@@ -5,6 +5,7 @@ import { registerHooks } from "node:module";
 let row, updates;
 const stamp = "2026-10-15T02:30:00.000Z";
 registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === "@/lib/providers/emergingProvider") return {url:"data:text/javascript,export const normalizeEmergingMarkets=async items=>items;",shortCircuit:true};
   if (specifier === "@/lib/supabase") return {
     url: "data:text/javascript,export const getSupabase = () => globalThis.__alertSettingsDB;", shortCircuit: true,
   };

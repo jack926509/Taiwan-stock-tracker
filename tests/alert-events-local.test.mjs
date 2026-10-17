@@ -5,6 +5,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === "@/lib/providers/emergingProvider") return {url:"data:text/javascript,export const normalizeEmergingMarkets=async items=>items;",shortCircuit:true};
   if (specifier === "@/lib/supabase") return {url:"data:text/javascript,export const getSupabase = () => null;",shortCircuit:true};
   if (specifier.startsWith("@/")) return nextResolve(new URL(`../${specifier.slice(2)}.ts`,import.meta.url).href,context);
   return nextResolve(specifier,context);

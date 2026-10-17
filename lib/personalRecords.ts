@@ -45,22 +45,23 @@ export async function savePersonalRecord<T>(key: string, data: T, at: Date): Pro
 }
 
 export async function listPersonalRecords<T>(prefix: string, options: {
-  from?: string; to?: string; offset?: number; limit?: number; states?: string[]; ascending?: boolean;
+  from?: string; to?: string; offset?: number; limit?: number; states?: string[]; ascending?: boolean; orderBy?: "fetchedAt" | "key";
 } = {}): Promise<{ items: PersonalRecord<T>[]; total: number }> {
-  const { from, to, offset = 0, limit = 50, states, ascending = false } = options;
+  const { from, to, offset = 0, limit = 50, states, ascending = false, orderBy = "fetchedAt" } = options;
   const db = getSupabase();
   if (!db) {
     const records = Object.values(await readFile()).filter(record => record.key.startsWith(prefix)
       && (!from || record.fetchedAt >= from) && (!to || record.fetchedAt < to)
       && (!states || states.includes((record.data as { notification?: { state?: string } }).notification?.state ?? "")));
-    records.sort((a, b) => (a.fetchedAt.localeCompare(b.fetchedAt) || a.key.localeCompare(b.key)) * (ascending ? 1 : -1));
+    records.sort((a, b) => (orderBy === "key" ? a.key.localeCompare(b.key) : a.fetchedAt.localeCompare(b.fetchedAt) || a.key.localeCompare(b.key)) * (ascending ? 1 : -1));
     return { items: records.slice(offset, offset + limit) as PersonalRecord<T>[], total: records.length };
   }
   let query = db.from("news_cache").select("cache_key,payload,fetched_at", { count: "exact" }).like("cache_key", `${prefix}%`);
   if (from) query = query.gte("fetched_at", from);
   if (to) query = query.lt("fetched_at", to);
   if (states) query = query.in("payload->notification->>state", states);
-  const { data, count, error } = await query.order("fetched_at", { ascending }).order("cache_key", { ascending }).range(offset, offset + limit - 1);
+  if (orderBy === "fetchedAt") query = query.order("fetched_at", { ascending });
+  const { data, count, error } = await query.order("cache_key", { ascending }).range(offset, offset + limit - 1);
   if (error || typeof count !== "number") throw new Error("讀取個人紀錄列表失敗");
   return { items: (data ?? []).map(row => ({ key: row.cache_key, data: row.payload as T, fetchedAt: row.fetched_at })), total: count };
 }

@@ -21,6 +21,10 @@
 
 ## 報價與提醒契約
 
+- 首頁行情日期由 `/api/quote.expectedQuoteDate` 提供：官方休市日及交易日 09:00 前用最近交易日，09:00 起用當日；此欄位僅供顯示，不放寬通知日期。缺價與時間異常分別計數，指數缺漏仍使整批不完整。
+- 興櫃市場為 `emerging`，官方名冊 `mopsfin_t187ap03_R` 與行情 `tpex_esb_latest_statistics` 由 `lib/providers/emergingProvider.ts` 處理。既有錯標上櫃只在讀取回應校正，不直接寫回正式資料。名冊更新失敗保留已確認的興櫃正面證據，但不能以過期名冊缺席或 Yahoo `.TWO` 推斷上櫃。
+- 興櫃行情 `source: "tpex"` 僅供參考；`asOf` 是官方製表時間，非逐筆成交時間。前日均價不能充當昨收，開盤價／漲跌未知保持 null；官方成交量為股，除以 1000 顯示張。名冊快取 24 小時，報價快取與失敗重試 60 秒；超過 7 日或未來時間不採用。
+- 合併市場時每檔保留 `source`，不同來源批次標為 `mixed`；全部來源皆無可用行情須失敗，部分成功仍保留實際缺漏。興櫃不開放新增／重啟即時提醒；既有設定保留且不加入 MIS 提醒批次，因此不阻擋其他已設提醒。收盤 LINE 仍只接受完整 MIS，包含興櫃參考行情的混合摘要只供站內查看。
 - MIS 暫時失敗時進入固定 5 分鐘等待；等待期間的輪詢不得延長到期時間，到期後重新嘗試 MIS。
 - Yahoo 備援僅供顯示，必須標示來源、資料日期及可能延遲；兩個來源皆失敗時才顯示舊快照。
 - 報價完整性必須涵蓋全部要求的代號，包含指數；快取不得把部分成功改標為完整，畫面須呈現缺漏。
@@ -34,6 +38,7 @@
 正式平台為 Cloudflare Workers Paid，由 OpenNext 轉換根目錄 Next.js 專案；`twstock.xiehnet.com` 已綁定同一個 Worker，頁面、API 與 Cron 都由 Worker 執行。Zeabur 不再承接正式流量；若舊服務仍存在，只能作為短期回退，不得在未取得使用者明確核准前停止或刪除。Cloudflare Workers Builds 連接 GitHub `jack926509/Taiwan-stock-tracker`，只有 `main` 分支推送時才會在測試、型別檢查與 OpenNext 建置成功後自動部署正式 Worker；其他分支不建立 Cloudflare 預覽版本。GitHub Actions 只負責驗證，不再上傳 Worker。推送 `main` 等同啟動正式發布，必須先取得使用者明確授權；本地優化或工作分支提交不代表已授權正式發布。
 
 ## 特殊規則
+- 首頁收盤回顧預設查 `/api/summary?latest=1`，依保存紀錄的日期 key 倒序取最近快照，不以寫入時間判定最新。指定日期仍只讀原始快照；今日未保存時才可顯示明確標示的今日暫覽，不能用今日行情補歷史。系統狀態只表示上次執行結果，明細可收合，但讀取失敗、處理失敗、行情不完整及 K 線失敗／待更新提示保持可見；備份按鈕可直接使用。
 - 使用者於 2026-10-17 明確要求並再次確認移除登入；已刪除僅套用 `tw-stock-tracker` 的 Cloudflare Access app。正式站、`workers.dev`、預覽網址與個人 API 均免登入，知道網址的人可讀取及修改自選股與提醒；個人使用不代表私有存取。Next middleware 保留 passthrough，後端 secrets、Supabase RLS 及 `/api/health?detail=1` 的 bearer token 保護維持不變。正式驗收須確認匿名頁面／一般 API 正常、詳細 health 無 token 仍回 401；本機 `verify:cloudflare` 走 localhost 隔離預覽。此決策取代先前僅本人登入要求，詳見 [免登入設定紀錄](docs/superpowers/plans/2026-10-17-no-login-access.md)。
 - 根版面以 React `Suspense` 包住各頁內容，將頁面 hydration 與共用版面分成邊界，保留 SSR。原始 Worker 曾出現頁面預期 `div`、hydration 游標卻落到內層 `header` 的 React 418；修改後以快取 JavaScript／新 HTML 連續 100 次本機手機驗收無錯誤。完整 HTML 傳送的嘗試無效，未納入；底層 React／OpenNext 原因仍未完全證實，不宣稱所有 hydration 問題已根治。
 - `instrumentation-client.ts` 在 hydration 前建立最小錯誤監聽，`/api/client-diagnostics` 只接受同源、1024 bytes 內的白名單欄位；正常頁面不回報，單頁最多 5 種、單 Worker 每分鐘最多 30 筆。僅記頁面分類、錯誤分類、數字 digest、React 418 與連線／viewport／SW 狀態，不存原始錯誤、堆疊、完整網址或使用者內容；不得消音原有 console 或停用 SSR。Workers Logs 已啟用，invocation logs 關閉。

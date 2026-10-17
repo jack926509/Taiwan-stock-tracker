@@ -4,7 +4,7 @@ import { registerHooks } from "node:module";
 
 const NOW = new Date("2026-10-08T02:30:00.000Z"); // 台北 10:30
 const originalDateNow = Date.now;
-const calls = { push: [], hit: [], kline: [], capture: [], monitor: [] };
+const calls = { push: [], hit: [], kline: [], capture: [], monitor: [], targets: [] };
 let configured;
 let captureFails;
 let items;
@@ -36,7 +36,7 @@ registerHooks({
 globalThis.__alertDelivery = {
   monitor:async(...args)=>calls.monitor.push(...args),
   list: async () => items,
-  fetch: async () => result,
+  fetch: async (targets) => { calls.targets.push(targets); return result; },
   hit: async (...args) => calls.hit.push(args),
   push: async (messages) => { calls.push.push(messages); return pushOk; },
   capture: async (row, decision, quote, at) => {
@@ -65,6 +65,7 @@ function fixture(overrides = {}) {
   calls.kline.length = 0;
   calls.capture.length = 0;
   calls.monitor.length = 0;
+  calls.targets.length = 0;
   configured = true;
   captureFails = null;
   pushOk = true;
@@ -235,4 +236,30 @@ test("部分事件保存失敗仍留下實際失敗狀態，不能記成檢查�
   await assert.rejects(checkAlerts(NOW));
   assert.equal(calls.monitor[0].outcome,"failed");
   assert.equal(calls.monitor[0].rows["2330"].status,"storage-error");
+});
+
+test("既有興櫃提醒僅列參考，不送入 MIS 批次，也不阻擋正常上市提醒", async () => {
+  fixture();
+  items.push({ ...items[0], stock_id: "7930", market: "emerging", name: "威世波", alert_high: 200 });
+  assert.equal(await checkAlerts(NOW), 1);
+  assert.deepEqual(calls.targets, [[{ stockId: "2330", market: "tse" }]]);
+  assert.deepEqual(calls.capture.map(event => event.row.stock_id), ["2330"]);
+  assert.equal(calls.monitor.at(-1).rows["7930"].status, "reference-only");
+  assert.equal(items[1].alert_high, 200);
+});
+
+test("全部是興櫃提醒時保留設定，不抓 MIS 或建立觸發事件", async () => {
+  fixture();
+  items = [{ ...items[0], stock_id: "7930", market: "emerging", name: "威世波" }];
+  assert.equal(await checkAlerts(NOW), 0);
+  assert.equal(calls.targets.length, 0);
+  assert.equal(calls.capture.length, 0);
+  assert.equal(calls.monitor.at(-1).rows["7930"].status, "reference-only");
+});
+
+test("錯標完整 MIS 批次中的參考來源單檔不能觸發提醒", async () => {
+  fixture();
+  result.quotes[0].source = "tpex";
+  assert.equal(await checkAlerts(NOW), 0);
+  assert.equal(calls.capture.length, 0);
 });
