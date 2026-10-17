@@ -44,7 +44,11 @@ export async function checkAlerts(now: Date = new Date()): Promise<number> {
 async function runAlertCheck(now:Date,snapshot:AlertMonitorSnapshot):Promise<number> {
   const items = await listWatchlist();
   for(const row of items)snapshot.rows[row.stock_id]={status:hasAnyAlert(row)?"inactive":"not-set",captured:0,versions:{...row.alert_versions}};
-  const armed = items.filter((i: WatchItem) => isArmed(i, now));
+  // 興櫃為官方彙整參考行情，保留既有設定，但不送入即時 MIS 提醒批次。
+  for (const row of items) {
+    if (row.market === "emerging" && hasAnyAlert(row)) snapshot.rows[row.stock_id].status = "reference-only";
+  }
+  const armed = items.filter((i: WatchItem) => i.market !== "emerging" && isArmed(i, now));
   for(const row of armed)snapshot.rows[row.stock_id].status="pending";
   if (armed.length === 0) return deliverAlertEvents(new Date(Date.now()));
 
@@ -78,6 +82,7 @@ async function runAlertCheck(now:Date,snapshot:AlertMonitorSnapshot):Promise<num
     const check=snapshot.rows[row.stock_id];
     const q = quoteOf.get(row.stock_id);
     if(!q||q.market!==row.market||q.price===null||!Number.isFinite(q.price)||q.price<=0){check.status="invalid-quote";continue;}
+    if(q.source && q.source !== "mis"){check.status="reference-only";continue;}
     if(q.traded!==true){check.status="not-traded";continue;}
     if(!isFreshQuoteTime(q.asOf,checkedAt)){check.status="quote-expired";continue;}
     check.status="checked";

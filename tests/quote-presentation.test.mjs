@@ -22,7 +22,7 @@ test("行情時間包含台北日期，不因無效或未知日期拋出 RangeEr
 test("Yahoo 與舊快照文案顯示日期及觸發依據，缺漏文案不稱完整", () => {
   const yahoo = quoteWarnings(quote({ source: "yahoo", complete: false })).join(" ");
   assert.match(yahoo, /Yahoo.*可能延遲.*2026\/10\/08.*不作為新提醒/);
-  assert.match(yahoo, /部分股票報價缺漏/);
+  assert.match(yahoo, /部分報價資料缺漏/);
   assert.doesNotMatch(yahoo,/暫停即時提醒/);
   const stale = quoteWarnings(quote({ source: "stale" })).join(" ");
   assert.match(stale, /舊報價快照.*2026\/10\/08.*不作為新提醒/);
@@ -103,4 +103,21 @@ test("quoteDelayLabel：只在落後時回傳延遲字串", async () => {
   assert.equal(quoteDelayLabel("2026-10-07T05:30:00.000Z", latest), "延遲 10/07 13:30");
   assert.equal(quoteDelayLabel(undefined, latest), null);
   assert.equal(quoteDelayLabel(latest, null), null);
+});
+
+test("混合來源清楚指出興櫃參考與 Yahoo 備援，缺漏涵蓋指數", () => {
+  const warnings = quoteWarnings(quote({source:"mixed",complete:false,quotes:[
+    {stockId:"7930",source:"tpex",asOf:new Date(NOW).toISOString()},
+    {stockId:"2330",source:"yahoo",asOf:new Date(NOW).toISOString()},
+  ]})).join(" ");
+  assert.match(warnings,/混合來源/);
+  assert.match(warnings,/興櫃.*參考/);
+  assert.match(warnings,/Yahoo.*可能延遲/);
+  assert.match(warnings,/部分報價資料缺漏/);
+});
+test("興櫃製表時間不是成交時間，手動更新不回報即時成功", () => {
+  const data=quote({source:"tpex"});
+  assert.match(quoteWarnings(data).join(" "),/製表時間.*非逐筆成交/);
+  assert.equal(quoteRefreshFeedback(data,undefined,NOW).tone,"info");
+  assert.match(quoteRefreshFeedback(quote({source:"mixed"}),undefined,NOW).message,/混合來源/);
 });

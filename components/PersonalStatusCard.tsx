@@ -2,7 +2,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import type { PersonalStatus } from "@/lib/personalStatus";
-import { formatQuoteAsOf } from "@/lib/quoteStatus";
+import { formatQuoteAsOf, quoteSourceLabel } from "@/lib/quoteStatus";
 
 async function fetcher(url: string): Promise<PersonalStatus> {
   const response = await fetch(url);
@@ -36,7 +36,7 @@ export default function PersonalStatusCard({ monitorRows = false }: { monitorRow
     {!data && !error && <p className="text-xs text-muted">讀取狀態中…</p>}
     {data && <div className="space-y-2 text-xs leading-relaxed text-muted">
       <p>最近完成提醒檢查：{monitor ? `${formatQuoteAsOf(monitor.finishedAt) ?? "時間未知"}（台北）・${monitor.outcome === "completed" ? "本輪完成" : "部分處理失敗"}` : "尚無紀錄"}</p>
-      {monitor && <p>本輪行情：{monitor.source === "mis" ? "MIS" : monitor.source === "yahoo" ? "Yahoo 參考來源" : monitor.source === "stale" ? "舊快照" : "未取行情"}{monitor.complete === null ? "" : monitor.complete ? "・批次完整" : "・批次不完整"}</p>}
+      {monitor && <p>本輪行情：{monitor.source ? quoteSourceLabel(monitor.source) : "未取行情"}{monitor.complete === null ? "" : monitor.complete ? "・批次完整" : "・批次不完整"}</p>}
       <p>這是上次執行的紀錄，不代表目前持續檢查。休市期間不執行盤中檢查。</p>
       {monitorRows && monitor && <ul className="divide-y divide-line border-t border-line">
         {monitor.rows.map(row => <li key={row.stockId} className="py-2"><span className="font-medium text-ink">{row.name} {row.stockId}</span><span className="mt-1 block">{row.status}</span></li>)}

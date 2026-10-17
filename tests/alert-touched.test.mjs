@@ -58,3 +58,14 @@ test("站內今日觸發則數與收盤總覽 countTodayHits 同結果", () => {
   assert.match(body.slice(0, 200), /return countTodayHitStamps\(items, now\);/);
   assert.equal(countTodayHitStamps(items, new Date("2026-10-10T02:00:00.000Z")), 0);
 });
+
+test("混合來源的首頁按單檔 MIS 判斷觸及，興櫃參考行情仍不是今日觸及", () => {
+  const mixed = "mixed";
+  const normal = { ...live, market: "tse", source: "mis" };
+  const emerging = { ...live, market: "emerging", source: "tpex" };
+  assert.equal(highTouchState(99, normal, normal.source ?? mixed, NOW), "hit");
+  assert.equal(highTouchState(99, emerging, emerging.source ?? mixed, NOW), "past");
+  const hook = readFileSync(new URL("../lib/useHomeDashboard.ts", import.meta.url), "utf8");
+  assert.match(hook, /highTouchState\(i\.alert_high, q, q\?\.source \?\? data\?\.source, nowDate\)/);
+  assert.match(hook, /lowTouchState\(i\.alert_low, q, q\?\.source \?\? data\?\.source, nowDate\)/);
+});

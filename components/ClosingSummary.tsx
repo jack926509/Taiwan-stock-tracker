@@ -6,7 +6,7 @@ import { taipeiNow } from "@/lib/market-hours";
 import type { DailySummaryData } from "@/lib/summaryData";
 import type { Signal } from "@/lib/signals";
 import { fmt, fmtPct, trendOf, arrowOf, textColor } from "@/lib/format";
-import { formatQuoteAsOf } from "@/lib/quoteStatus";
+import { formatQuoteAsOf, quoteSourceLabel } from "@/lib/quoteStatus";
 
 async function fetcher<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -57,9 +57,8 @@ function SummaryDetails({ s }: { s: DailySummaryData }) {
   const signalRows = s.rows.filter((r) => r.newSignals.length > 0);
   const dateLabel = `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`;
   const quoteDateLabel = formatQuoteAsOf(s.asOf);
-  const sourceLabel = s.source === "yahoo"
-    ? "Yahoo 備援（可能延遲）"
-    : s.source === "stale" ? "當日舊快照（非即時）" : "MIS";
+  const sourceLabel = quoteSourceLabel(s.source);
+  const quoteTimeLabel = s.source === "tpex" ? "製表時間" : s.source === "mixed" ? "資料時間" : "行情時間";
 
   return (
     <div className="mt-4" aria-label="收盤總覽內容">
@@ -76,7 +75,7 @@ function SummaryDetails({ s }: { s: DailySummaryData }) {
       </div>
 
       <p className="mt-2 text-xs leading-relaxed text-muted">
-        來源：{sourceLabel}・{quoteDateLabel ? `行情時間：${quoteDateLabel}（台北）` : "行情日期時間未知"}
+        來源：{sourceLabel}・{quoteDateLabel ? `${quoteTimeLabel}：${quoteDateLabel}（台北）` : "行情日期時間未知"}
       </p>
       {s.complete !== true && (
         <p role="status" className="mt-2 rounded bg-warn-tint px-2 py-1.5 text-xs leading-relaxed text-warn">

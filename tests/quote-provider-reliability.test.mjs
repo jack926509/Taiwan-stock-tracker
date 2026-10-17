@@ -4,6 +4,11 @@ import { registerHooks } from "node:module";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier === "./emergingProvider.ts" && context.parentURL?.includes("quoteProvider.ts?case=")) {
+      const url = new URL(specifier, context.parentURL);
+      url.search = new URL(context.parentURL).search;
+      return nextResolve(url.href, context);
+    }
     if (specifier === "@/lib/supabase") {
       return {
         url: "data:text/javascript,export function getSupabase() { return null; }",
@@ -51,6 +56,9 @@ async function withProvider(run) {
     session: () => jsonResponse({}, 200, { "Set-Cookie": "SESSION=test; Path=/" }),
     mis: () => jsonResponse({ rtcode: "0000", msgArray: [misRow()] }),
     yahoo: () => jsonResponse({ spark: { result: [yahooRow()] } }),
+    emerging: url => jsonResponse(url.pathname.endsWith("mopsfin_t187ap03_R")
+      ? [{ SecuritiesCompanyCode: "7930", CompanyAbbreviation: "威世波", Symbol: "WST" }]
+      : [{ Date: "1151009", Time: "095900", SecuritiesCompanyCode: "7930", CompanyName: "威世波", LatestPrice: "234", Highest: "240", Lowest: "228", TransactionVolume: "147697" }]),
   };
   Date.now = () => state.now;
   globalThis.fetch = async (input) => {
@@ -62,6 +70,7 @@ async function withProvider(run) {
       return state.mis(url);
     }
     if (url.hostname === "query1.finance.yahoo.com") return state.yahoo(url);
+    if (url.hostname === "www.tpex.org.tw") return state.emerging(url);
     throw new Error(`測試禁止外部連線：${url.hostname}`);
   };
   try {
@@ -344,4 +353,82 @@ test("Yahoo 無成交證據的較新價格不覆蓋已知 MIS 成交備份", asy
       assert.equal(stale.asOf, "2026-10-09T02:00:00.000Z");
     });
   }
+});
+
+test("興櫃由官方名冊辨識，不把 Yahoo TWO 代號當成上櫃", async () => {
+  await withProvider(async ({ resolveStock }, state) => {
+    state.session = () => jsonResponse({}, 503);
+    state.yahoo = () => jsonResponse({ quotes: [{ symbol: "7930.TWO", shortname: "WST", quoteType: "EQUITY" }] });
+    assert.deepEqual(await resolveStock("7930"), { stockId: "7930", market: "emerging", name: "威世波" });
+  });
+});
+
+test("名冊無法取得時不靠 Yahoo TWO 猜上櫃，明確 MIS 市場仍可使用", async () => {
+  await withProvider(async ({ resolveStock }, state) => {
+    state.emerging = () => { throw new Error("名冊逾時"); };
+    state.session = () => jsonResponse({}, 503);
+    state.yahoo = () => jsonResponse({ quotes: [{ symbol: "7930.TWO", shortname: "WST", quoteType: "EQUITY" }] });
+    assert.equal(await resolveStock("7930"), null);
+    state.session = () => jsonResponse({ rtcode: "0000", msgArray: [misRow("6488", "otc")] });
+    assert.equal((await resolveStock("6488")).market, "otc");
+  });
+});
+
+test("過期名冊可保留已確認興櫃，但不能用缺席代號推斷 Yahoo TWO 是上櫃", async () => {
+  await withProvider(async ({ resolveStock }, state) => {
+    assert.equal((await resolveStock("7930")).market, "emerging");
+    state.now += 24 * 60 * 60_000 + 1;
+    state.emerging = () => { throw new Error("名冊逾時"); };
+    state.session = () => jsonResponse({}, 503);
+    state.yahoo = () => jsonResponse({ quotes: [{ symbol: "6488.TWO", shortname: "環球晶", quoteType: "EQUITY" }] });
+    assert.equal((await resolveStock("7930")).market, "emerging");
+    assert.equal(await resolveStock("6488"), null);
+  });
+});
+
+test("MIS 與興櫃分流合併且標示每檔來源，不把混合行情宣稱純 MIS", async () => {
+  await withProvider(async ({ fetchQuotes }, state) => {
+    state.mis = url => {
+      assert.equal(url.searchParams.get("ex_ch"), "tse_2330.tw");
+      return jsonResponse({ rtcode: "0000", msgArray: [misRow()] });
+    };
+    const result = await fetchQuotes([...TARGETS, { stockId: "7930", market: "emerging" }]);
+    assert.equal(result.complete, true);
+    assert.equal(result.source, "mixed");
+    assert.deepEqual(result.quotes.map(q => [q.stockId, q.source]), [["2330", "mis"], ["7930", "tpex"]]);
+    assert.equal(result.asOf, "2026-10-09T01:59:00.000Z");
+  });
+});
+
+test("興櫃來源失敗仍保留 MIS 行情且不完整，MIS 失敗也保留興櫃", async () => {
+  await withProvider(async ({ fetchQuotes }, state) => {
+    state.emerging = () => { throw new Error("來源逾時"); };
+    const result = await fetchQuotes([...TARGETS, { stockId: "7930", market: "emerging" }]);
+    assert.equal(result.complete, false);
+    assert.deepEqual(result.quotes.map(q => q.stockId), ["2330"]);
+  });
+  await withProvider(async ({ fetchQuotes }, state) => {
+    state.mis = () => jsonResponse({}, 503);
+    state.yahoo = () => jsonResponse({}, 503);
+    const result = await fetchQuotes([...TARGETS, { stockId: "7930", market: "emerging" }]);
+    assert.equal(result.complete, false);
+    assert.deepEqual(result.quotes.map(q => q.stockId), ["7930"]);
+    assert.equal(result.source, "tpex");
+  });
+});
+
+test("混合市場全部來源失敗且沒有可用快照時拋出固定錯誤", async () => {
+  await withProvider(async ({ fetchQuotes }, state) => {
+    state.mis = () => jsonResponse({}, 503);
+    state.yahoo = () => jsonResponse({}, 503);
+    state.emerging = () => { throw new Error("來源逾時"); };
+    await assert.rejects(fetchQuotes([...TARGETS, { stockId: "7930", market: "emerging" }]), /^Error: 所有行情來源暫時無法取得$/);
+  });
+});
+
+test("純興櫃非空請求沒有任何可用行情時拋出固定錯誤", async () => {
+  await withProvider(async ({ fetchQuotes }, state) => {
+    state.emerging = () => { throw new Error("來源逾時"); };
+    await assert.rejects(fetchQuotes([{ stockId: "7930", market: "emerging" }]), /^Error: 所有行情來源暫時無法取得$/);
+  });
 });

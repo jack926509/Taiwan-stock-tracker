@@ -1,4 +1,4 @@
-import type { QuoteResponse } from "./types.ts";
+import type { Quote, QuoteResponse, QuoteSource } from "./types.ts";
 
 export function formatQuoteAsOf(asOf: string | null | undefined): string | null {
   const timestamp = typeof asOf === "string" ? Date.parse(asOf) : NaN;
@@ -9,19 +9,50 @@ export function formatQuoteAsOf(asOf: string | null | undefined): string | null 
   }).format(timestamp);
 }
 
+export function quoteSourceLabel(source: QuoteSource | undefined): string {
+  switch (source) {
+    case "mis": return "MIS 行情";
+    case "yahoo": return "Yahoo 備援（可能延遲）";
+    case "stale": return "舊報價快照（非即時）";
+    case "tpex": return "櫃買中心興櫃參考行情";
+    case "mixed": return "混合來源報價（含參考行情）";
+    default: return "來源待確認";
+  }
+}
+
+/** 參考來源逐檔顯示日期，興櫃的製表時間不冒充逐筆成交時間。 */
+export function quoteReferenceLabel(quote: Quote, batchSource?: QuoteSource): string | null {
+  const source = quote.source ?? batchSource;
+  if (!source || source === "mis") return null;
+  const date = formatQuoteAsOf(quote.asOf);
+  const time = source === "tpex" || quote.market === "emerging" ? "製表時間" : "行情時間";
+  return `${quoteSourceLabel(source)}・${time}：${date ? `${date}（台北）` : "未知"}`;
+}
+
 export function quoteWarnings(data: QuoteResponse): string[] {
   const warnings: string[] = [];
   const date = formatQuoteAsOf(data.asOf);
   const at = date ? `行情時間：${date}（台北）` : "行情日期時間未知";
-  if (data.source === "yahoo") {
-    warnings.push(`目前顯示 Yahoo 備援報價，可能延遲；${at}。此來源不作為新提醒的觸發依據，後端檢查結果請見提醒頁。`);
-  } else if (data.source === "stale") {
-    warnings.push(`報價來源暫時異常，顯示舊報價快照；${at}。此快照不作為新提醒的觸發依據。`);
-  } else if (!date) {
+  const sources = new Set(data.source === "mixed"
+    ? [...data.indices, ...data.quotes].map(quote => quote.source)
+    : [data.source]);
+  if (data.source === "mixed") {
+    warnings.push("目前顯示混合來源報價；各檔來源及資料時間請見個股列，參考資料不作為新提醒的觸發依據，後端檢查結果請見提醒頁。");
+  }
+  if (sources.has("yahoo")) {
+    warnings.push(`目前顯示 Yahoo 備援報價，可能延遲；${data.source === "mixed" ? "各檔行情時間請見個股列" : at}。此來源不作為新提醒的觸發依據，後端檢查結果請見提醒頁。`);
+  }
+  if (sources.has("stale")) {
+    warnings.push(`報價來源暫時異常，顯示舊報價快照；${data.source === "mixed" ? "各檔行情時間請見個股列" : at}。此快照不作為新提醒的觸發依據。`);
+  }
+  if (sources.has("tpex")) {
+    warnings.push("興櫃顯示櫃買中心參考行情；製表時間非逐筆成交時間，資料可能延遲。興櫃參考行情不觸發即時提醒。");
+  }
+  if (!date && !sources.has("yahoo") && !sources.has("stale")) {
     warnings.push("部分行情日期時間未知，不作為提醒觸發依據。後端實際檢查結果請見提醒頁。");
   }
   if (data.complete !== true) {
-    warnings.push("部分股票報價缺漏，缺少的欄位顯示「—」，稍後會重新嘗試。後端實際檢查結果請見提醒頁。");
+    warnings.push("部分報價資料缺漏，缺少的欄位顯示「—」，稍後會重新嘗試。後端實際檢查結果請見提醒頁。");
   }
   return warnings;
 }
@@ -38,9 +69,11 @@ export function quoteRefreshFeedback(
   now: number = Date.now()
 ): { message: string; tone: "success" | "info" } {
   if (!data) return { message: "未取得報價，請稍後再試", tone: "info" };
+  if (data.complete !== true) return { message: "已重新讀取報價，部分報價資料仍缺漏", tone: "info" };
+  if (data.source === "mixed") return { message: "已重新讀取混合來源報價，參考資料可能延遲", tone: "info" };
+  if (data.source === "tpex") return { message: "已讀取興櫃參考行情，製表時間非逐筆成交時間", tone: "info" };
   if (data.source === "stale") return { message: "仍顯示舊報價快照，尚未取得最新行情", tone: "info" };
   if (data.source === "yahoo") return { message: "已讀取 Yahoo 備援報價，資料可能延遲", tone: "info" };
-  if (data.complete !== true) return { message: "已重新讀取報價，部分股票資料仍缺漏", tone: "info" };
   const timestamp = typeof data.asOf === "string" ? Date.parse(data.asOf) : NaN;
   if (!Number.isFinite(timestamp) || timestamp > now) {
     return { message: "已重新讀取報價，行情日期時間尚無法確認", tone: "info" };

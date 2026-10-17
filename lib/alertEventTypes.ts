@@ -1,7 +1,8 @@
+import type { Market } from "./types.ts";
 import type { AlertKind } from "./alertLogic.ts";
 export type NotificationState = "pending" | "sending" | "retry" | "accepted" | "unconfigured" | "limited" | "failed";
 export interface AlertEvent {
-  v: 1; id: string; key: string; stockId: string; market: "tse" | "otc"; name: string;
+  v: 1; id: string; key: string; stockId: string; market: Market; name: string;
   kind: AlertKind; threshold: number; price: number; changePct: number | null; volume: number | null;
   open: number | null; high: number | null; low: number | null;
   triggeredAt: string; quoteAsOf: string;

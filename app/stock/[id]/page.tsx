@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import useSWR from "swr";
-import type { QuoteResponse } from "@/lib/types";
+import type { QuoteResponse, Market } from "@/lib/types";
 import type { Candle } from "@/lib/providers/klineProvider";
 import type { CachedFundamental } from "@/lib/fundamentalFreshness";
 import FundamentalSection from "@/components/FundamentalSection";
@@ -30,7 +30,8 @@ import {
 import { aggregateCandles } from "@/lib/aggregateKline";
 import { stockIdForRender } from "@/lib/stockPath";
 import { hasAnyAlert } from "@/lib/alertBadge";
-import { formatQuoteAsOf, quoteWarnings } from "@/lib/quoteStatus";
+import { marketLabel } from "@/lib/marketLabel";
+import { formatQuoteAsOf, quoteWarnings, quoteReferenceLabel, quoteSourceLabel } from "@/lib/quoteStatus";
 import useDialogFocus from "@/hooks/useDialogFocus";
 import { usePollGuard } from "@/hooks/usePollGuard";
 import { usePersonalPreferences } from "@/hooks/usePersonalPreferences";
@@ -59,6 +60,7 @@ interface KlineResponse {
 }
 
 interface StockWatchRow {
+  market: Market;
   stock_id: string;
   name: string;
   alert_high: number | null;
@@ -151,6 +153,7 @@ export default function StockPage() {
       : null;
 
   const q = quote.data?.quotes[0];
+  const unsupportedAlerts = q?.market === "emerging" || currentWatch?.market === "emerging";
   const stockName = currentWatch?.name ?? q?.name ?? id;
   const t = trendOf(q?.change ?? null);
 
@@ -214,7 +217,7 @@ export default function StockPage() {
                   </span>
                   <span className="rounded-pill border border-line bg-surface px-2 py-0.5 text-xs text-muted">
                     {id}
-                    {q && `・${q.market === "tse" ? "上市" : "上櫃"}`}
+                    {q && `・${marketLabel(q.market)}`}
                   </span>
                 </div>
               </div>
@@ -299,8 +302,9 @@ export default function StockPage() {
                   <span className="whitespace-nowrap">量 {fmtVol(q.volume)}</span>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-muted">
-                  {quoteAt ? `行情時間：${quoteAt}（台北）` : "行情日期時間未知"}
+                  {quoteReferenceLabel(q, quote.data?.source) ?? (quoteAt ? `行情時間：${quoteAt}（台北）` : "行情日期時間未知")}
                 </p>
+                {unsupportedAlerts && <p className="mt-2 text-xs leading-relaxed text-muted">興櫃參考行情不觸發即時提醒；暫不開放設定。</p>}
                 {hasAlert && (
                   <div className="mt-3 flex flex-wrap gap-2 font-mono text-xs tabular">
                     {currentWatch?.alert_high != null && (
@@ -322,6 +326,7 @@ export default function StockPage() {
                 <button
                   onClick={() => setAlertOpen((v) => !v)}
                   aria-label="到價提醒"
+                  disabled={unsupportedAlerts}
                   className={`relative flex h-11 w-11 items-center justify-center rounded-card border transition-colors ${
                     alertOpen || hasAlert
                       ? "border-primary/30 bg-primary-tint text-primary"
@@ -345,7 +350,7 @@ export default function StockPage() {
                   )}
                 </button>
 
-                {alertOpen && (
+                {alertOpen && !unsupportedAlerts && (
                   <div
                     ref={alertPanelRef}
                     role="dialog"
@@ -510,11 +515,7 @@ export default function StockPage() {
 
         <footer className="pb-4 pt-1 text-center text-xs text-muted">
           日 K 與基本面資料來源：FinMind（未還原價）・
-          {quote.data?.source === "yahoo"
-            ? "備援報價：Yahoo Finance（可能延遲）"
-            : quote.data?.source === "stale"
-              ? "報價：最近一次成功快照（非即時）"
-              : "即時報價：MIS"}
+          {quoteSourceLabel(q?.source ?? quote.data?.source)}
           ・僅供個人參考，非投資建議
         </footer>
       </main>

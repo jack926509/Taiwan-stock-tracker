@@ -14,7 +14,8 @@ import EmptyState from "@/components/EmptyState";
 import SortableQuoteRows, { SortableRow } from "@/components/home/SortableQuoteRows";
 import { fmt, fmtVol, fmtPct, trendOf, limitOf } from "@/lib/format";
 import { hasAnyAlert } from "@/lib/alertBadge";
-import { quoteDelayLabel } from "@/lib/quoteStatus";
+import { marketLabel } from "@/lib/marketLabel";
+import { quoteDelayLabel, quoteReferenceLabel } from "@/lib/quoteStatus";
 
 export const SORTS = [
   { key: "default", label: "預設" },
@@ -103,7 +104,8 @@ function Row({
   const upDown = limit ?? (t === "flat" ? null : t);
   // 報價時間整批只在標題顯示一次；這一列只有落後同批最新行情時才標「延遲」
   // 沒有來源時間的列照契約仍須呈現缺漏，標「時間未知」
-  const delay = quote.missing ? "報價暫缺" : quote.asOf ? quoteDelayLabel(quote.asOf, latestAsOf) : "時間未知";
+  const reference = quoteReferenceLabel(quote);
+  const delay = quote.missing ? "報價暫缺" : quote.market === "emerging" ? null : quote.asOf ? quoteDelayLabel(quote.asOf, latestAsOf) : "時間未知";
 
   const badges: { key: string; label: string; cls: string }[] = [];
   if (limit === "up") badges.push({ key: "limit", label: "漲停", cls: "bg-up text-white dark:text-app" });
@@ -139,8 +141,9 @@ function Row({
               {hasAlert && <BellIcon className="h-3.5 w-3.5 shrink-0 text-warn" />}
             </span>
             <span className="mt-0.5 block font-mono text-xs text-faint max-[599px]:hidden">
-              {quote.market === "tse" ? "上市" : "上櫃"}
+              {marketLabel(quote.market)}
             </span>
+            {reference && <span className="mt-1 block text-xs leading-relaxed text-muted">{reference}</span>}
           </span>
         </Link>
 
@@ -206,7 +209,7 @@ function Row({
 
         <div className="flex flex-col items-end gap-1 text-right max-[599px]:[grid-area:foot] max-[599px]:w-full max-[599px]:flex-row max-[599px]:flex-wrap max-[599px]:items-center max-[599px]:justify-start max-[599px]:gap-x-3 max-[599px]:gap-y-0">
           <span className="hidden font-mono text-xs text-muted max-[599px]:inline">
-            {quote.market === "tse" ? "上市" : "上櫃"}
+            {marketLabel(quote.market)}
           </span>
           <span className="hidden font-mono text-xs text-muted tabular max-[599px]:inline">
             量 {fmtVol(quote.volume)}
@@ -290,6 +293,7 @@ export default function QuoteBoard({
   const canDrag = reorderable && !!onReorder && quotes.length > 1;
   // 同批最新的行情時間：個別股票落後它才標「延遲」
   const latestAsOf = (allQuotes ?? quotes).reduce<string | null>((latest, q) => {
+    if (q.market === "emerging") return latest;
     const t = q.asOf ? Date.parse(q.asOf) : NaN;
     if (!Number.isFinite(t)) return latest;
     return latest === null || t > Date.parse(latest) ? (q.asOf ?? null) : latest;

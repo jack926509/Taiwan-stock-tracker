@@ -15,7 +15,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const list = await getStockList();
-    return NextResponse.json({ results: searchStockList(list, q) });
+    const results = searchStockList(list, q);
+    // 名冊可能只有部分市場成功；精確代號查詢仍可透過其他來源辨識。
+    if (results.length === 0 && ID_RE.test(q.toUpperCase())) {
+      const info = await resolveStock(q.toUpperCase()).catch(() => null);
+      if (info) return NextResponse.json({ results: [info] });
+    }
+    return NextResponse.json({ results });
   } catch {
     const code = q.toUpperCase();
     if (ID_RE.test(code)) {

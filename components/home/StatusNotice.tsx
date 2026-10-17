@@ -19,18 +19,28 @@ export default function StatusNotice({
 }) {
   const warnings = data ? quoteWarnings(data) : [];
   // 沒有行情時不算異常清單，避免載入中把整份自選都列成缺漏
-  const anomalies = data ? buildTodayFocus(items, data.quotes, todayDate).anomalies : [];
+  const anomalies = data ? buildTodayFocus(items, data.quotes, data.expectedQuoteDate ?? todayDate).anomalies : [];
+  const missingPrices = anomalies.filter(row => row.kind === "missing-price");
+  const uncertainQuotes = anomalies.filter(row => row.kind !== "missing-price");
   const incomplete = Boolean(data) && data!.complete !== true;
 
   const labels: string[] = [];
   if (data?.source === "yahoo") labels.push("Yahoo 備援報價");
   else if (data?.source === "stale") labels.push("舊報價快照");
-  if (anomalies.length > 0) {
-    const names = anomalies.slice(0, 2).map((row) => `${row.name} ${row.stockId}`).join("、");
-    labels.push(`${incomplete ? "報價缺漏" : "資料待確認"} ${anomalies.length} 檔：${names}${anomalies.length > 2 ? " 等" : ""}`);
+  else if (data?.source === "tpex") labels.push("興櫃參考行情");
+  else if (data?.source === "mixed") labels.push("混合來源（含參考行情）");
+  if (missingPrices.length > 0) {
+    const names = missingPrices.slice(0, 2).map((row) => `${row.name} ${row.stockId}`).join("、");
+    labels.push(`報價缺漏 ${missingPrices.length} 檔：${names}${missingPrices.length > 2 ? " 等" : ""}`);
   } else if (incomplete) {
-    labels.push("報價缺漏");
-  } else if (warnings.length > 0 && !labels.length) {
+    // complete 同時涵蓋指數，不能因自選股都有價格就隱藏批次缺漏。
+    labels.push("批次報價缺漏");
+  }
+  if (uncertainQuotes.length > 0) {
+    const names = uncertainQuotes.slice(0, 2).map((row) => `${row.name} ${row.stockId}`).join("、");
+    labels.push(`資料待確認 ${uncertainQuotes.length} 檔：${names}${uncertainQuotes.length > 2 ? " 等" : ""}`);
+  }
+  if (warnings.length > 0 && !labels.length) {
     labels.push("行情時間未知");
   }
   if (autoPaused) labels.push("已暫停輪詢");

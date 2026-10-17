@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!code) {
     return NextResponse.json({ error: "請輸入股票代號" }, { status: 400 });
   }
-  // 自動判斷上市/上櫃與名稱（A.4 契約），免手動選市場別
+  // 依來源辨識上市／上櫃／興櫃與名稱，免手動選市場別。
   const info = await resolveStock(code);
   if (!info) {
     return NextResponse.json({ error: `查無代號 ${code}` }, { status: 404 });
@@ -111,6 +111,13 @@ export async function PATCH(req: NextRequest) {
   const rearm = [...new Set((body.rearm ?? []) as AlertSide[])];
   const volumeOn = body.volumeOn as boolean | undefined;
   try {
+    const enablesAlert = [high, low, changePct].some(value => typeof value === "number") || volumeOn === true || rearm.length > 0;
+    if (enablesAlert) {
+      const row = (await listWatchlist()).find(item => item.stock_id === stockId);
+      if (row?.market === "emerging") {
+        return NextResponse.json({ error: "興櫃行情僅供參考，暫不支援即時 LINE 提醒" }, { status: 400 });
+      }
+    }
     const found = await setAlert(stockId, high, low, changePct, volumeOn, rearm);
     if (!found) return NextResponse.json({ error: "自選清單中沒有此股票" }, { status: 404 });
     return NextResponse.json({ ok: true, stockId, high, low, changePct, volumeOn, rearm });

@@ -283,8 +283,8 @@ export function useHomeDashboard() {
       .filter((i) => i.alert_high != null || i.alert_low != null)
       .map((i) => {
         const q = quoteById.get(i.stock_id);
-        const highState: TouchState = highTouchState(i.alert_high, q, data?.source, nowDate);
-        const lowState: TouchState = lowTouchState(i.alert_low, q, data?.source, nowDate);
+        const highState: TouchState = highTouchState(i.alert_high, q, q?.source ?? data?.source, nowDate);
+        const lowState: TouchState = lowTouchState(i.alert_low, q, q?.source ?? data?.source, nowDate);
         return { ...i, price: q?.price ?? null, highState, lowState };
       });
   }, [items, data?.quotes, data?.source, now]);

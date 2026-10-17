@@ -1,12 +1,14 @@
 "use client";
 
+import type { Market } from "@/lib/types";
+
 import { useEffect, useState } from "react";
 
 // /api/search 的建議項目（與 lib/providers/stockList.ts 的 StockListEntry 同形）
 export interface StockSuggestion {
   stockId: string;
   name: string;
-  market: "tse" | "otc";
+  market: Market;
 }
 
 export type SuggestState = "idle" | "loading" | "done" | "error";
